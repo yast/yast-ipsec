@@ -680,6 +680,7 @@ sub prepareImportFile($)
 	                          data => $dref->{'data'},
 				  pwcb => \&passwordPrompt);
 	if(defined($iref) and defined($iref->{'hash'})) {
+            my ($pem, $dir);
 
 	    # mark it imported / new
 	    $iref->{'hash'}->{'NEW'}  = 1;
@@ -687,22 +688,24 @@ sub prepareImportFile($)
 	    $iref->{'hash'}->{'data'} = $dref->{'data'};
 
 	    if($iref->{'type'} eq 'KEY') {
-		my $pem = check_new_key(%{$iref->{'hash'}}, %keys);
+		$pem = check_new_key(%{$iref->{'hash'}}, %keys);
 		if(defined($pem) and $pem eq "") {
-		    $pem = get_free_idx("key_", ".pem", %keys);
+		    $dir = $FreeSwanCerts::DEFS{'ipsec_private'};
+		    $pem = get_free_idx($dir."/key_", ".pem", %keys);
 		    $keys{$pem} = $iref->{'hash'};
 		}
 		next;
 	    }
 
 	    if($iref->{'type'} eq 'CRL') {
-		my $pem = check_new_crl(%{$iref->{'hash'}}, %crls);
+		$pem = check_new_crl(%{$iref->{'hash'}}, %crls);
 		if(defined($pem)) {
 		    # add or update
 		    if($pem eq "") {
-			$pem = get_free_idx("crl_", ".pem", %crls);
+			$dir = $FreeSwanCerts::DEFS{'ipsec_crls'};
+			$pem = get_free_idx($dir."/crl_", ".pem", %crls);
 		    } else {
-			delete($crls{$pem});
+			mark4delete($pem, %crls);
 		    }
 		    $crls{$pem} = $iref->{'hash'};
 		}
@@ -711,18 +714,20 @@ sub prepareImportFile($)
 
 	    if($iref->{'type'} eq 'CERT') {
 		if($iref->{'hash'}->{"IS_CA"}) {
-		    my $pem = check_new_cert(%{$iref->{'hash'}},
-		                             %cacertificates);
+		    $pem = check_new_cert(%{$iref->{'hash'}},
+		                          %cacertificates);
 		    if(defined($pem) and $pem eq "") {
-			$pem = get_free_idx("cacert_", ".pem",
+			$dir = $FreeSwanCerts::DEFS{'ipsec_cacerts'};
+			$pem = get_free_idx($dir."/cacert_", ".pem",
 			                    %cacertificates);
 			$cacertificates{$pem} = $iref->{'hash'};
 		    }
 		} else {
-		    my $pem = check_new_cert(%{$iref->{'hash'}},
-					     %certificates);
+		    $pem = check_new_cert(%{$iref->{'hash'}},
+					  %certificates);
 		    if(defined($pem) and $pem eq "") {
-			$pem = get_free_idx("cert_", ".pem",
+			$dir = $FreeSwanCerts::DEFS{'ipsec_certs'};
+			$pem = get_free_idx($dir."/cert_", ".pem",
 		                            %certificates);
 		        $certificates{$pem} = $iref->{'hash'};
 		    }
