@@ -14,6 +14,7 @@ textdomain "ipsec";
 import "Label";
 import "Wizard";
 import "IPsec";
+import "IPsecConfig";
 import "Label";
 
 include "ipsec/helps.ycp";
@@ -269,7 +270,7 @@ boolean importP12()
 	if(p12 == nil)
 	    return false;
 
-	map content = IPsec::PrepareImportP12(p12[0]:"", p12[1]:"");
+	map<string, string> content = IPsecConfig::prepareImportP12(p12[0]:"", p12[1]:"");
 
 	if(haskey(content,"error"))
 	{
@@ -355,7 +356,7 @@ any CertificateImportDialogPKCS12 () {
 	}
         else if(ret == `next)
 	{
-	    IPsec::ImportPreparedP12();
+	    IPsecConfig::importPreparedP12();
 	    break;
 	}
 	else if(ret == `back) {

@@ -191,22 +191,6 @@ global string current_connection_oldname = "";
 /** start directory for fileselection dialogs */
 global string certimportdir = "/etc/ipsec.d"; //TODO change to /media
 
-/** map of certificates
- * certificates
- * +-> "cert.pem"
- *      +-> "DN" = "/foo/bar/baz"
- *      \-> "subjectAltName" = "foo@bar"
- * */
-map certificates = $[];
-map cacertificates = $[];
-map crls = $[];
-map keys = $[];
-
-list deletedcacerts = [];
-list deletedcerts = [];
-list deletedkeys = [];
-list deletedcrls = [];
-
 global string start_str = _("Activate during boot");
 global string strictcrlpolicy_str =  _("strict CRL policy");
 global string crlchekinterval_str =  _("CRL check interval");
@@ -272,18 +256,6 @@ map FakeCACertificates()
 		"DN" : "/C=DE/ST=Franken/L=Nuernberg/O=SUSE/OU=Entwicklung/CN=ca26test/emailAddress=root@hewitt.suse.de",
 		"subjectAltName" : "root@hewitt.suse.de"
 	    ]
-    ];
-}
-
-map FakeCRLs()
-{
-    return $[
-    ];
-}
-
-map FakeKeys()
-{
-    return $[
     ];
 }
 
@@ -449,23 +421,20 @@ global boolean Read() {
 
     if(Mode::test == true)
     {
-	certificates = FakeCertificates();
-	cacertificates = FakeCACertificates();
-	crls = FakeCRLs();
-	keys = FakeKeys();
+	IPsecConfig::enableTestMode();
     }
-    else
-    {
-	certificates = (map)SCR::Read(.etc.ipsec.d.certs);
-	cacertificates = (map)SCR::Read(.etc.ipsec.d.cacerts);
-	crls = (map)SCR::Read(.etc.ipsec.d.crls);
-	keys = (map)SCR::Read(.etc.ipsec.d.private);
 
-	if(certificates == nil) certificates = $[];
-	if(cacertificates == nil) cacertificates = $[];
-	if(crls == nil) crls = $[];
-	if(keys == nil) keys = $[];
-    }
+/*
+    certificates = (map)SCR::Read(.etc.ipsec.d.certs);
+    cacertificates = (map)SCR::Read(.etc.ipsec.d.cacerts);
+    crls = (map)SCR::Read(.etc.ipsec.d.crls);
+    keys = (map)SCR::Read(.etc.ipsec.d.private);
+
+    if(certificates == nil) certificates = $[];
+    if(cacertificates == nil) cacertificates = $[];
+    if(crls == nil) crls = $[];
+    if(keys == nil) keys = $[];
+*/
 
     // read current settings
     if(Abort()) return false;
@@ -546,23 +515,11 @@ global boolean Write()
     /* Error message */
     if(false) Report::Error (_("Cannot write settings."));
 
-    // TODO
-    SCR::Execute(.etc.ipsec.d, [ "deletecacerts", deletedcacerts ]);
-    y2milestone("delete cacerts %1", deletedcacerts);
-    SCR::Execute(.etc.ipsec.d, [ "deletecerts", deletedcerts ]);
-    y2milestone("delete certs %1", deletedcerts);
-    SCR::Execute(.etc.ipsec.d, [ "deletekeys", deletedkeys ]);
-    y2milestone("delete keys %1", deletedkeys);
-    SCR::Execute(.etc.ipsec.d, [ "deletecrls", deletedcrls ]);
-    y2milestone("delete crls %1", deletedcrls);
-
-
     settings["nat_traversal"] = boolean2yesorno(nat_traversal);
     settings["strictcrlpolicy"] = boolean2yesorno(strictcrlpolicy);
     settings["crlchekinterval"] = sformat("%1", crlcheckinterval);
 
     IPsecConfig::setSettings(settings);
-    IPsecConfig::setConnections(connections);
     if(!IPsecConfig::Write())
 	Report::Error (_("Cannot write IPsec settings."));
 
@@ -661,6 +618,8 @@ string CertificateSummary()
     string summary = sformat ("<p><a href=\"certificates\">%1</a><br>", "Certificates");
     summary = summary + "<ul>";
 
+    map<string,map<string,string> > certificates = IPsecConfig::Certificates();
+
     if(size(certificates) == 0)
     {
 	summary = summary + sformat("<li><font color=\"red\">%1</font></li>", _("No Certificates installed"));
@@ -675,6 +634,8 @@ string CertificateSummary()
 	    summary = summary + "</ul>";
 	});
     }
+
+    map<string,map<string,string> > cacertificates = IPsecConfig::Certificates();
 
     if(size(cacertificates) == 0)
     {
@@ -731,7 +692,7 @@ global boolean haveConnections()
 /** returns whether there are certificates at all */
 global boolean haveCertificates()
 {
-    return (size(certificates) > 0);
+    return (size(IPsecConfig::Certificates()) > 0);
 }
 
 /**
@@ -752,6 +713,8 @@ global list CertOverview()
 {
     list overview = [];
 
+    map<string,map<string,string> > certificates = IPsecConfig::Certificates();
+
     foreach(string name, map cert, certificates, ``{
 	overview = add(overview, `item(`id(name), name, cert["DN"]:"?"));
     });
@@ -762,6 +725,8 @@ global list CertOverview()
 global list CACertOverview()
 {
     list overview = [];
+
+    map<string,map<string,string> > cacertificates = IPsecConfig::CACertificates();
 
     foreach(string name, map cert, cacertificates, ``{
 	overview = add(overview, `item(`id(name), name, cert["DN"]:"?"));
@@ -774,6 +739,8 @@ global list CRLOverview()
 {
     list overview = [];
 
+    map<string,map<string,string> > crls = IPsecConfig::CRLs();
+
     foreach(string name, map cert, crls, ``{
 	overview = add(overview, `item(`id(name), name, cert["NEXT_UPDATE"]:"?", cert["ISSUER"]:"?"));
     });
@@ -785,6 +752,8 @@ global list KeyOverview()
 {
     list overview = [];
 
+    map<string,map<string,string> > keys = IPsecConfig::Keys();
+
     foreach(string name, map cert, keys, ``{
 	overview = add(overview, `item(`id(name), name));
     });
@@ -794,26 +763,22 @@ global list KeyOverview()
 
 global void deleteCACert(string name)
 {
-    cacertificates = remove(cacertificates, name);
-    deletedcacerts = add(deletedcacerts, name);
+    IPsecConfig::deleteCACertificate(name);
 }
 
 global void deleteCert(string name)
 {
-    certificates = remove(certificates, name);
-    deletedcerts = add(deletedcerts, name);
+    IPsecConfig::deleteCertificate(name);
 }
 
 global void deleteKey(string name)
 {
-    keys = remove(keys, name);
-    deletedkeys = add(deletedkeys, name);
+    IPsecConfig::deleteKey(name);
 }
 
 global void deleteCRL(string name)
 {
-    crls = remove(crls, name);
-    deletedcrls = add(deletedcrls, name);
+    IPsecConfig::deleteCRL(name);
 }
 
 /**
@@ -994,6 +959,8 @@ global list getCertificateFiles()
 {
     list certs = [];
 
+    map<string,map<string,string> > certificates = IPsecConfig::Certificates();
+
     foreach(string k, map v, certificates, ``{
 	certs = add(certs, k);
     });
@@ -1004,6 +971,8 @@ global list getCertificateFiles()
 /** return list of DN and subjectAltNames (currently only one possible) */
 global list getIdsOfCert(string name)
 {
+    map<string,map<string,string> > certificates = IPsecConfig::Certificates();
+
     if(size(name) == 0 || !haskey(certificates, name))
 	return [];
 
@@ -1016,29 +985,6 @@ global list getIdsOfCert(string name)
 	    ids = add(ids, cert["subjectAltName"]:"");
 
     return ids;
-}
-
-/**
- * Look at PKCS#12 file and extract it's components
- * @param file path to p12 file
- * @param pw password for the file
- * @return map with keys cacerts, certs, key or key error with error string
- * */
-global map PrepareImportP12(string file, string pw)
-{
-    //return $[ "error":"not yet implemented" ];
-    //TODO
-    return $[ "cacert":"FIXME", "cert":"FIXME", "key":"FIXME" ];
-}
-
-/**
- * really import the file that was prepared via PrepareImportP12()
- * @return nil or error string
- * */
-global string ImportPreparedP12()
-{
-    //TODO
-    return "importing PKCS#12 not yet implemented";
 }
 
 
@@ -1146,9 +1092,8 @@ global boolean setNetworkDevicesUP(list devices)
  * */
 global string importCertificate(string filename)
 {
-    // TODO
     if(filename == nil) return nil;
-    return "certificate import not yet implemented";
+    return IPsecConfig::importCertificate(filename);
 }
 
 /**
@@ -1160,7 +1105,7 @@ global string importCACertificate(string filename)
 {
     // TODO
     if(filename == nil) return nil;
-    return "ca certificate import not yet implemented";
+    return IPsecConfig::importCACertificate(filename);
 }
 
 /**
@@ -1172,7 +1117,7 @@ global string importCRL(string filename)
 {
     // TODO
     if(filename == nil) return nil;
-    return "CRL import not yet implemented";
+    return IPsecConfig::importCRL(filename);
 }
 
 /**
@@ -1185,7 +1130,7 @@ global string importKey(string filename, string password)
 {
     // TODO
     if(filename == nil) return nil;
-    return "key import not yet implemented";
+    return IPsecConfig::importKey(filename, password);
 }
 
 /* EOF */

@@ -32,6 +32,17 @@ my $fsutil;
 my %connections;
 my %settings;
 
+# map of certificates
+# certificates
+#  +-> "cert.pem"
+#  +-> "DN" = "/foo/bar/baz"
+#  \-> "subjectAltName" = "foo@bar"
+
+my %certificates;
+my %cacertificates;
+my %crls;
+my %keys;
+
 sub _ {
     return gettext($_[0]);
 }
@@ -42,6 +53,14 @@ BEGIN
 {
     $fsutil = new FreeSwanUtils();
     print STDERR "new FreeSwanUtils() => ", $fsutil ? "OK" : "ERR", "\n";
+}
+
+##
+ # do not read or write anything, just fake connections
+ #
+BEGIN { $TYPEINFO{enableTestMode} = ["function", "void"]; }
+sub enableTestMode()
+{
 }
 
 ##
@@ -153,14 +172,14 @@ sub Settings()
 
 # first parameter is a map of something
 BEGIN { $TYPEINFO{setSettings} = ["function", "void" , [ "map", "string", "string" ]]; }
-sub setSettings()
+sub setSettings($)
 {
     y2milestone(%{$_[0]});
 }
 
 # first parameter is a map of strings
 BEGIN { $TYPEINFO{setConnections} = ["function", "void" , [ "map", "string", [ "map", "string", "string" ]]]; }
-sub setConnections()
+sub setConnections($)
 {
     y2milestone(%{$_[0]});
 }
@@ -169,7 +188,7 @@ sub setConnections()
  # delete connection from connection hash
  # @param name of connection
 BEGIN { $TYPEINFO{deleteConnection} = ["function", "void", "string" ]; }
-sub deleteConnection()
+sub deleteConnection($)
 {
     my $name = shift;
     delete $connections{$name};
@@ -181,7 +200,7 @@ sub deleteConnection()
  # @param name of connection
  # @param connection hash
 BEGIN { $TYPEINFO{addConnection} = ["function", "void", "string", [ "map", "string", "string" ]]; }
-sub addConnection()
+sub addConnection($$)
 {
     my $name = shift;
     my $ref = shift;
@@ -228,6 +247,161 @@ sub newRoadWarriorConnection()
 
     return $conn;
 }
+
+#########################
+## certificate handling
+###################
+
+##
+ # get map of certificates
+ # @returns connection map
+ #
+BEGIN { $TYPEINFO{Certificates} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
+sub Certificates()
+{
+    return \%certificates;
+}
+
+##
+ # delete a certificate
+ # @param name
+BEGIN { $TYPEINFO{deleteCertificate} = ["function", "void" , "string" ]; }
+sub deleteCertificate($)
+{
+    my $name = shift;
+    delete $certificates{$name};
+}
+
+##
+ # import a certificate from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
+sub importCertificate($)
+{
+    my $filename = shift;
+    return _("importing certificates not supported yet");
+}
+
+##
+ # get map of CA certificates
+ # @returns connection map
+ #
+BEGIN { $TYPEINFO{CACertificates} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
+sub CACertificates()
+{
+    return \%cacertificates;
+}
+
+##
+ # delete a CA certificate
+ # @param name
+BEGIN { $TYPEINFO{deleteCACertificate} = ["function", "void" , "string" ]; }
+sub deleteCACertificate($)
+{
+    my $name = shift;
+    delete $cacertificates{$name};
+}
+
+##
+ # import a CA certificate from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
+sub importCACertificate($)
+{
+    my $filename = shift;
+    return _("importing CA certificates not supported yet");
+}
+
+
+##
+ # get map of CRLs
+ # @returns connection map
+ #
+BEGIN { $TYPEINFO{CRLs} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
+sub CRLs()
+{
+    return \%crls;
+}
+
+##
+ # delete a CRL
+ # @param name
+BEGIN { $TYPEINFO{deleteCRL} = ["function", "void" , "string" ]; }
+sub deleteCRL($)
+{
+    my $name = shift;
+    delete $crls{$name};
+}
+
+##
+ # import a CRL from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
+sub importCRL($)
+{
+    my $filename = shift;
+    return _("importing CRLs not supported yet");
+}
+
+##
+ # get map of keys
+ # @returns connection map
+ #
+BEGIN { $TYPEINFO{Keys} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
+sub Keys()
+{
+    return \%keys;
+}
+
+##
+ # delete a key
+ # @param name
+BEGIN { $TYPEINFO{deleteKey} = ["function", "void" , "string" ]; }
+sub deleteKey($)
+{
+    my $name = shift;
+    delete $keys{$name};
+}
+
+##
+ # import a Key from file
+ # @param filename to import
+ # @param passwort (maybe empty, means no password)
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
+sub importKey($)
+{
+    my $filename = shift;
+    my $password = shift;
+    return _("importing keys not supported yet");
+}
+
+##
+ # Look at PKCS#12 file and extract it's components
+ # @param path to p12 file
+ # @param password for the file
+ # @return hash with keys cacerts, certs, key or key error with error string
+BEGIN { $TYPEINFO{prepareImportP12} = ["function", [ "map", "string", "string" ], "string", "string" ]; }
+sub prepareImportP12($$)
+{
+    my $file = shift;
+    my $password = shift;
+    # return ( "error" => "not yet implemented" );
+    return { "cacert" => "FIXME", "cert" => "FIXME", "key" => "FIXME" };
+}
+
+##
+ # really import the file that was prepared via PrepareImportP12()
+ # @return undef or error string
+BEGIN { $TYPEINFO{importPreparedP12} = ["function", "void" ]; }
+sub importPreparedP12()
+{
+    return "importing PKCS#12 not yet implemented";
+}
+
 
 # EOF
 # vim: sw=4
