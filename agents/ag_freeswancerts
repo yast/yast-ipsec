@@ -256,7 +256,7 @@ sub main()
 	    my %crls = readcrls($openssl);
 	    ycp::Return( \%crls );
 	}
-	elsif( $command eq "Read" && $path eq ".keys")
+	elsif( $command eq "Read" && $path eq ".private")
 	{
 	    # TODO
 	    my %keys = ();

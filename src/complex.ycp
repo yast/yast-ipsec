@@ -97,6 +97,8 @@ any SummaryDialog() {
     Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
 	    Label::BackButton(), Label::FinishButton());
 
+    UI::SetFocus(`id(`the_richtext));
+
     any ret = nil;
     while(true) {
 
@@ -148,18 +150,13 @@ any SummaryDialog() {
     return ret;
 }
 
-/**
- * Overview dialog
- * @return dialog result
- */
-any OverviewDialog() {
-
+void OverviewDialogCreate()
+{
     /* IPsec overview dialog caption */
     string caption = _("IPsec Connection Overview");
 
     list overview = IPsec::Overview();
 
-    /* FIXME table header */
     term contents = Wizard_hw::ConfiguredContent(
 	/* Table header */
 	`header(_("Connection"), _("Local"), _("Remote")),
@@ -169,6 +166,17 @@ any OverviewDialog() {
 
     Wizard::SetContentsButtons(caption, contents, HELPS["overview"]:"",
 	    Label::BackButton(), Label::NextButton());
+}
+
+/**
+ * Overview dialog
+ * @return dialog result
+ */
+any OverviewDialog()
+{
+    OverviewDialogCreate();
+
+    UI::SetFocus(`id(`add_button));
 
     any ret = nil;
     while(true) {
@@ -198,8 +206,11 @@ any OverviewDialog() {
             break;
         }
         /* delete */
-        else if(ret == `delete_button) {
-	    /* FIXME */
+        else if(ret == `delete_button)
+	{
+	    string conn = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    IPsec::DeleteConnection(conn);
+	    OverviewDialogCreate();
             continue;
         }
         else if(ret == `next || ret == `back) {
@@ -271,6 +282,7 @@ any CertificateOverviewDialog () {
     /* IPsec configure1 dialog caption */
 
     setCACertContents();
+    UI::SetFocus(`id(`imp));
 
     any ret = nil;
     while(true) {

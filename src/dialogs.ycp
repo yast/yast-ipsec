@@ -29,14 +29,16 @@ any ConnectionConfigDialog1 () {
     /* IPsec configure1 dialog contents */
     term contents = `HBox(
 	`HStretch(),
-	`TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
+	`TextEntry(`id(`name), `opt(`default), _("Connection Name"), IPsec::current_connection_name),
 	`HStretch()
     );
 
-    UI::ChangeWidget(`id(`name), `ValidChars, "-_0123456789abcdefghijklmnopqrstuvwxyz");
-
     Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
 	    Label::BackButton(), Label::NextButton());
+
+    UI::ChangeWidget(`id(`name), `ValidChars, "-_0123456789abcdefghijklmnopqrstuvwxyz");
+
+    UI::SetFocus(`id(`name));
 
     any ret = nil;
     while(true) {
@@ -77,15 +79,11 @@ any ConnectionConfigDialog1 () {
     return ret;
 }
 
-
-list getCertificates()
+void ReplaceLeftRightConnectionConfigDialogIdCombo(string cert, string value)
 {
-    return [];
-}
-
-list getIdentifications()
-{
-    return [];
+    UI::ReplaceWidget(`id(`idcombo),
+	`ComboBox(`id(`ident), `opt(`editable, `hstretch), _("Identification"), IPsec::getIdsOfCert(cert)));
+    UI::ChangeWidget(`id(`ident), `Value, value );
 }
 
 /**
@@ -115,10 +113,10 @@ any LeftRightConnectionConfigDialog(
 	    ),
 	    `VSpacing(2),
 	    `HBox(
-		`ComboBox(`id(`cert), `opt(`editable, `hstretch), _("Certificate"), getCertificates()),
+		`ComboBox(`id(`cert), `opt(`editable, `hstretch, `notify), _("Certificate"), IPsec::getCertificateFiles()),
 		`PushButton(`id(`certbutton), _("Import..."))
 	    ),
-	    `ComboBox(`id(`ident), `opt(`editable, `hstretch), _("Identification"), getIdentifications())
+	    `ReplacePoint(`id(`idcombo), `Empty())
 	),
 	`HStretch()
     );
@@ -126,13 +124,24 @@ any LeftRightConnectionConfigDialog(
     Wizard::SetContentsButtons(caption, contents, HELPS["c2"]:"",
 	    Label::BackButton(), Label::NextButton());
 
-    UI::ChangeWidget(`id(`addr), `Value, IPsec::current_connection[side]:"" );
+    UI::SetFocus(`id(`addr));
+
+    string tmp = IPsec::current_connection[side]:"";
+    if(side == "left" && tmp == "" )
+	tmp = "%defaultroute";
+
+    UI::ChangeWidget(`id(`addr), `Value, tmp );
+
     UI::ChangeWidget(`id(`addr), `ValidChars, ".0123456789:" );
     UI::ChangeWidget(`id(`subnet), `Value, IPsec::current_connection[side+"subnet"]:"" );
     UI::ChangeWidget(`id(`subnet), `ValidChars, ".0123456789:/" );
 
-    UI::ChangeWidget(`id(`cert), `Value, IPsec::current_connection[side+"cert"]:"" );
-    UI::ChangeWidget(`id(`ident), `Value, IPsec::current_connection[side+"id"]:"" );
+    tmp = IPsec::current_connection[side+"cert"]:"";
+    if (side == "right" || tmp != "")
+	UI::ChangeWidget(`id(`cert), `Value, tmp );
+
+    ReplaceLeftRightConnectionConfigDialogIdCombo(IPsec::current_connection[side+"cert"]:"",
+	IPsec::current_connection[side+"id"]:"");
 
     if(IPsec::current_connection[side+"subnet"]:"" == "")
     {
@@ -172,7 +181,7 @@ any LeftRightConnectionConfigDialog(
 	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
 	    string ident = (string) UI::QueryWidget(`id(`ident), `Value);
 
-	    if(ret == `next && size(cert)==0)
+	    if(ret == `next && size(cert)==0 && side == "left")
 	    {
 		Popup::Message(_("You must select a certificate"));
 		continue;
@@ -190,6 +199,12 @@ any LeftRightConnectionConfigDialog(
 	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
 	    UI::ChangeWidget(`id(`subnet), `Enabled, gw );
 	}
+	else if(ret == `cert)
+	{
+	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
+	    string ident = (string) UI::QueryWidget(`id(`ident), `Value);
+	    ReplaceLeftRightConnectionConfigDialogIdCombo(cert, ident);
+	}
         else {
             y2error("unexpected retcode: %1", ret);
             continue;
@@ -206,7 +221,7 @@ any LeftConnectionConfigDialog ()
 
     list networks = IPsec::getNetworks();
 
-    networks = add(networks, [ "0.0.0.0/0" ]);
+    networks = add(networks, "0.0.0.0/0");
 
     return LeftRightConnectionConfigDialog(
 	_("Local IP Address"),
