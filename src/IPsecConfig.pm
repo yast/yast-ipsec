@@ -605,11 +605,11 @@ sub cleanupImport()
 {
     # FIXME: delete any temp files, ...
     %imports = (
-	'CACERTIFICATES' => {},
-	'CERTIFICATES'   => {},
-	'CRLS'           => {},
-	'KEYS'           => {},
-	'CONFIGS'        => {},
+	'CACERTIFICATES' => [],
+	'CERTIFICATES'   => [],
+	'CRLS'           => [],
+	'KEYS'           => [],
+	'CONFIGS'        => [],
     );
 }
 
