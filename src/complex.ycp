@@ -260,7 +260,7 @@ void OverviewDialogCreate()
 
     term contents = Wizard_hw::ConfiguredContent(
 	/* Table header */
-	`header(_("Connection"), _("Local"), _("Remote")),
+	`header(_("Connection"), _("Local"), _("Remote"), _("Start Mode"), _("Dynamic Start")),
 	overview, nil, nil,
 	    nil, buttons );
 
@@ -437,6 +437,8 @@ any CertificateOverviewDialog ()
 
 	ret = UI::UserInput();
 
+	y2milestone("ret = %1", ret);
+
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
 	    if(ReallyAbort()) break;
@@ -464,7 +466,7 @@ any CertificateOverviewDialog ()
 	}
 	else if (ret == `cbox)
 	{
-	    symbol mode = (symbol) UI::QueryWidget(`id(`cbox), `Value);
+	    mode = (symbol) UI::QueryWidget(`id(`cbox), `Value);
 	    if(mode == `certs)
 	    {
 		setCertContents();
