@@ -399,6 +399,7 @@ sub write_pem_data($$$)
         }
         return "$!";
     }
+    # Translator: error message, will be displayed like "cannot write file /etc/foo: invalid arguments"
     return dgettext($TXTDOMAIN, "invalid arguments");
 }
 
