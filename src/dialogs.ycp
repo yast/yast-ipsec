@@ -21,26 +21,25 @@ include "ipsec/helps.ycp";
  * Configure1 dialog
  * @return dialog result
  */
-any ConnectionConfigDialog1 () {
+any NewConnectionDialog () {
 
     /* IPsec configure1 dialog caption */
     string caption = _("IPsec Connection Configuration");
 
     /* IPsec configure1 dialog contents */
-    term contents = `VBox(
-	`HBox(
-	    `HStretch(),
-	    `TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
-	    `HStretch()
+    term contents = `VBox(`HBox(
+	`Frame(_("Choose connection type"),
+	    `RadioButtonGroup(`id(`rbg),
+		`VBox(
+		    `Left(`RadioButton(`id(`roadwarrior), _("Road Warrior Server"), true)),
+		    `Left(`RadioButton(`id(`custom), _("Custom")))
+		)
+	    )
 	)
-    );
+    ));
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS["newconnection"]:"",
 	    Label::BackButton(), Label::NextButton());
-
-    UI::ChangeWidget(`id(`name), `ValidChars, "-_0123456789abcdefghijklmnopqrstuvwxyz");
-
-    UI::SetFocus(`id(`name));
 
     any ret = nil;
     while(true) {
@@ -52,22 +51,12 @@ any ConnectionConfigDialog1 () {
 	    if(ReallyAbort()) break;
 	    else continue;
 	}
-        else if(ret == `next || ret == `expert)
+        else if(ret == `next)
 	{
-	    string name = (string) UI::QueryWidget(`id(`name), `Value);
-	    //TODO ensure name is valid
-	    if(size(name)==0)
-	    {
-		Popup::Message(_("Please fill in a name"));
-		UI::SetFocus(`id(`name));
-		continue;
-	    }
+	    symbol type = (symbol) UI::QueryWidget(`id(`rbg), `CurrentButton);
 
-	    if(size(IPsec::current_connection_name) != 0 && IPsec::current_connection_name != name)
-	    {
-		IPsec::current_connection_oldname = IPsec::current_connection_name;
-	    }
-	    IPsec::current_connection_name = name;
+	    ret = type;
+
 	    break;
 	}
 	else if(ret == `back) {
@@ -80,6 +69,74 @@ any ConnectionConfigDialog1 () {
     }
 
     return ret;
+}
+
+string ConnectionNameTextEntryPopup(string headline, string txtlabel, string value)
+{
+    UI::OpenDialog(
+	`VBox(
+	    `Heading(headline),
+	    `TextEntry(`id(`value), txtlabel, value),
+	    `VSpacing(0.5),
+	    `HBox(
+		`PushButton(`id(`ok), `opt(`default), Label::OKButton()),
+		`PushButton(`id(`cancel), Label::CancelButton())
+	    )
+	)
+    );
+
+    if( UI::UserInput() != `ok)
+    {
+	UI::CloseDialog();
+	return nil;
+    }
+
+    string value = (string) UI::QueryWidget(`id(`value), `Value);
+
+    UI::CloseDialog();
+
+    return value;
+}
+
+any AskConnectionNamePopup()
+{
+    string headline = _("Enter connection name");
+    // connection name
+    string txtlabel = _("Name");
+    string value = "";
+
+    UI::OpenDialog(
+	`VBox(
+	    `Heading(headline),
+	    `TextEntry(`id(`value), txtlabel, value),
+	    `VSpacing(0.5),
+	    `HBox(
+		`PushButton(`id(`ok), `opt(`default), Label::OKButton()),
+		`PushButton(`id(`cancel), Label::CancelButton())
+	    )
+	)
+    );
+
+    UI::ChangeWidget(`id(`value), `ValidChars, "-_0123456789abcdefghijklmnopqrstuvwxyz");
+    UI::SetFocus(`id(`value));
+
+    if( UI::UserInput() != `ok)
+    {
+	UI::CloseDialog();
+	return `back;
+    }
+
+    string name = (string) UI::QueryWidget(`id(`value), `Value);
+
+    UI::CloseDialog();
+
+    if(size(IPsec::current_connection_name) != 0 && IPsec::current_connection_name != name)
+    {
+	IPsec::current_connection_oldname = IPsec::current_connection_name;
+    }
+    IPsec::current_connection_name = name;
+
+    return `next;
 }
 
 void ReplaceLeftRightConnectionConfigDialogIdCombo(string cert, string value)

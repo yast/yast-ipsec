@@ -28,21 +28,32 @@ any ImportSequence();
 any AddSequence() {
 
     map aliases = $[
-	"config1"	: ``(ConnectionConfigDialog1()),
+	"config1"	: [ ``(NewConnectionDialog()), true ],
+	"askname"	: [ ``(AskConnectionNamePopup()), true ],
 	"configl"	: ``(LeftConnectionConfigDialog()),
 	"configr"	: ``(RightConnectionConfigDialog()),
 	"config4"	: ``(ConnectionConfigEncryptionDialog()),
-	"config5"	: ``(ConnectionStartModeDialog()),
+	"startmode"	: ``(ConnectionStartModeDialog()),
 	"done"		: ``(ConnectionDoneDialog()),
 	"importl"	: [ ``( ImportSequence() ), true ],
 	"importr"	: [ ``( ImportSequence() ), true ],
+	"roadwarrior"	: ``( EasyRoadWarriorDialog() ),
     ];
 
     map sequence = $[
 	"ws_start" : "config1",
 	"config1" : $[
 	    `abort	: `abort,
+	    `custom	: "askname",
+	    `roadwarrior: "roadwarrior",
+	],
+	"askname" : $[
+	    `abort	: `abort,
 	    `next	: "configl",
+	],
+	"roadwarrior" : $[
+	    `abort	: `abort,
+	    `next	: "startmode",
 	],
 	"configl" : $[
 	    `abort	: `abort,
@@ -51,16 +62,16 @@ any AddSequence() {
 	],
 	"configr" : $[
 	    `abort	: `abort,
-	    `next	: "config5",
+	    `next	: "startmode",
 	    `import	: "importr"
 	],
 	"config4" : $[
 	    `abort	: `abort,
-	    `next	: "config5"
+	    `next	: "startmode",
 	],
-	"config5" : $[
+	"startmode" : $[
 	    `abort	: `abort,
-	    `next	: "done"
+	    `next	: "done",
 	],
 	"importl" : $[
 	    `abort	: `abort,
