@@ -95,19 +95,6 @@ END
     cleanup();
 }
 
-sub cleanup
-{
-    print STDERR "IPsecConfig::END called\n";
-    if($temp_tree) {
-	print STDERR "removing temp dir\n";
-	rmtree($temp_tree);
-	$temp_tree = undef;
-    } else {
-	print STDERR "no temp dir to remove?!\n";
-    }
-}
-
-
 ##
  # do not read or write anything, just fake connections
  #
@@ -601,6 +588,18 @@ sub cleanupImport()
 	'KEYS'           => {},
 	'CONFIGS'        => {},
     );
+}
+
+BEGIN { $TYPEINFO{cleanup} = ["function", "void" ]; }
+sub cleanup()
+{
+    debug "starting cleanup";
+    cleanupImport();
+    if($temp_tree) {
+	rmtree($temp_tree);
+	$temp_tree = undef;
+    }
+    debug "finished cleanup";
 }
 
 ##
