@@ -16,6 +16,7 @@ import "Wizard";
 import "IPsec";
 import "IPsecConfig";
 import "Call";
+import "ProductFeatures";
 
 include "ipsec/helps.ycp";
 
@@ -61,6 +62,12 @@ any NewConnectionDialog () {
 	    return `edit;
 	}
 	return `back;
+    }
+    // not SLES
+    else if(ProductFeatures::ui_mode == "simple")
+    {
+	IPsec::newClientConnection();
+	return `rwc;
     }
 
     Wizard::SetContentsButtons(caption, contents, HELPS["newconnection"]:"",
