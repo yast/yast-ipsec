@@ -583,7 +583,7 @@ sub cancelPreparedP12()
  # @param	file to import content from
  # @return	error message on error or \%imports
  #
-BEGIN { $TYPEINFO{prepareImportFile} = ["function", [ "map", [ "list", [ "map", "string", "string" ] ] ] ]; }
+BEGIN { $TYPEINFO{prepareImportFile} = ["function", [ "map", "string", [ "list", [ "map", "string", "string" ] ] ] ]; }
 sub prepareImportFile($)
 {
 }
