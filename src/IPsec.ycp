@@ -520,7 +520,7 @@ global boolean Write()
 
     settings["nat_traversal"] = boolean2yesorno(nat_traversal);
     settings["strictcrlpolicy"] = boolean2yesorno(strictcrlpolicy);
-    settings["crlchekinterval"] = sformat("%1", crlcheckinterval);
+    settings["crlcheckinterval"] = sformat("%1", crlcheckinterval);
 
     IPsecConfig::setSettings(settings);
     if(!IPsecConfig::Write())
