@@ -347,7 +347,7 @@ boolean settingtoboolean(string key, boolean deflt)
 global boolean Read() {
 
     /* IPsec read dialog caption */
-    string caption = _("Initializing IPsec Configuration");
+    string caption = _("Initializing VPN Configuration");
 
     integer steps = 5;
 
@@ -475,7 +475,7 @@ global boolean Write()
     if(!modified) return true;
 
     /* IPsec read dialog caption */
-    string caption = _("Saving IPsec Configuration");
+    string caption = _("Saving VPN Configuration");
 
     integer steps = 3;
 
@@ -535,7 +535,7 @@ global boolean Write()
 	{
 	    if(!Service::Enable("ipsec"))
 	    {
-		Report::Error(_("Could not enable IPsec bootscript:") + Service::Error());
+		Report::Error(_("Could not enable 'ipsec' bootscript:") + Service::Error());
 	    }
 	}
 
@@ -549,7 +549,7 @@ global boolean Write()
     {
 	if(!Service::Disable("ipsec"))
 	{
-	    Report::Error(_("Could not disable IPsec bootscript:") + Service::Error());
+	    Report::Error(_("Could not disable 'ipsec' bootscript:") + Service::Error());
 	}
 	if(Service::Stop("ipsec") != true)
 	{

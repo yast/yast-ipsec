@@ -26,7 +26,7 @@ include "ipsec/helps.ycp";
 any NewConnectionDialog () {
 
     /* IPsec configure1 dialog caption */
-    string caption = _("IPsec Connection Configuration");
+    string caption = _("Connection Configuration");
 
     /* IPsec configure1 dialog contents */
     term contents = `VBox(
@@ -212,7 +212,7 @@ any LeftRightConnectionConfigDialog(
     list certfiles = IPsec::getCertificateFiles();
 
     /* IPsec configure2 dialog caption */
-    string caption = _("IPsec Connection Configuration");
+    string caption = _("Connection Configuration");
 
     /* IPsec configure2 dialog contents */
     term contents = `HBox(
@@ -369,7 +369,7 @@ any RightConnectionConfigDialog ()
 any ConnectionStartModeDialog () {
 
     /* IPsec configure1 dialog caption */
-    string caption = _("IPsec Connection Configuration");
+    string caption = _("Connection Configuration");
     list bootmodes = IPsec::getBootModeItems();
 
     list<string> available_interfaces = IPsec::getDevices();
@@ -499,7 +499,7 @@ any ConnectionStartModeDialog () {
 any FreeSWANSettingsDialog ()
 {
     // dialog headline
-    string caption = _("IPsec Settings");
+    string caption = IPsec::settings_str;
 
     term contents = `HBox (`HStretch(),
 	`Frame(IPsec::settings_str,
@@ -552,7 +552,7 @@ any FreeSWANSettingsDialog ()
 any ConnectionConfigEncryptionDialog () {
 
     /* IPsec configure1 dialog caption */
-    string caption = _("IPsec Connection Configuration");
+    string caption = _("Connection Configuration");
 
     /* IPsec configure1 dialog contents */
     term contents = `HBox(

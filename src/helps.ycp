@@ -17,7 +17,7 @@ textdomain "ipsec";
 map HELPS = $[
 
     /* Read dialog help 1/2 */
-    "read" : _("<p><b><big>Initializing IPsec Configuration</big></b><br>
+    "read" : _("<p><b><big>Initializing VPN Configuration</big></b><br>
 Please wait...<br></p>
 ") +
 
@@ -27,7 +27,7 @@ Safely abort the configuration utility by pressing <b>Abort</b> now.</p>
 "),
 
     /* Write dialog help 1/2 */
-    "write" : _("<p><b><big>Saving IPsec Configuration</big></b><br>
+    "write" : _("<p><b><big>Saving VPN Configuration</big></b><br>
 Please wait...<br></p>
 ") +
 
@@ -39,9 +39,11 @@ An additional dialog informs whether it is safe to do so.
 "),
 
     /* Summary dialog help 1/4 */
-    "summary" : _("<p><b><big>IPsec Configuration</big></b><br>
-This screen gives you an Overview of your IPsec configuration.<br></p>
-") +
+    "summary" : _("<p><b><big>VPN Configuration</big></b><br>
+This module allows you to configure Virtual Private Networks (VPN) based on
+IPsec. Select <b>Enable VPN Services</b> to start the IPsec daemon and to add
+it to the the boot process. Select <b>Disable VPN Services</b> stop the daemon
+and to remove it from the boot process.<br></p> ") +
 
     /* Summary dialog help 2/4 */
     _("<p><b><big>Connections:</big></b><br>
@@ -62,7 +64,7 @@ Summary of settings that affect all IPsec connections and certificates.
 Click on the <b>'Settings...'</b> button to change the settings"),
 
     /* Ovreview dialog help 1/4 */
-    "overview" : _("<p><b><big>IPsec Configuration Overview</big></b><br>
+    "overview" : _("<p><b><big>Connection Overview</big></b><br>
 This screen gives you an overview about the configured IPsec connections and
 allows you to edit them.<br></p>
 ") +
@@ -102,7 +104,7 @@ _("<p>Pressing <b>'Delete'</b> removes the selected item from the
 IPsec configuration.</p>"),
 
     /* Settings dialog help 1/4 */
-    "settings": _("<p><b><big>Settings:</big></b><br>") +
+    "settings": sformat("<p><b><big>%1:</big></b><br>", IPsec::settings_str) +
 
     /* Settings dialog help 2/4 */
 _("<p><b><big>NAT Traversal</big></b> means that IPsec packets will be
@@ -179,7 +181,7 @@ dialing into the internet. Also choose an interface from the list in this
 case.</p>"),
 
     /* Local connection config dialog help 1/5 */
-    "leftconfigdialog" : _("<p><b><big>IPsec Connection Configuration</big></b></p>") +
+    "leftconfigdialog" : _("<p><b><big>Connection Configuration</big></b></p>") +
 
     /* Local connection config dialog help 2/5 */
 _("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
@@ -205,7 +207,7 @@ name of the certificate or an IP-address, host name or email-address
 specified in the 'Subject Alternative Name' of the certificate.</p>"),
 
     /* Remote connection config dialog help 1/5 */
-    "rightconfigdialog" : _("<p><b><big>IPsec Connection Configuration</big></b></p>") +
+    "rightconfigdialog" : _("<p><b><big>Connection Configuration</big></b></p>") +
 
     /* Remote connection config dialog help 2/5 */
 _("<p><b><big>Remote IP Address:</big></b> Enter the IP address of the remote
@@ -232,7 +234,7 @@ field empty to accept any remote system that presents a valid
 certifiate.</p>"),
 
     /* New Connection dialog help 1/5 */
-    "newconnection": _("<p><b><big>IPsec Connection Configuration:</big></b><br>") +
+    "newconnection": _("<p><b><big>Connection Configuration:</big></b><br>") +
 
     /* New Connection dialog help 2/5 */
 _("Choose a pre defined connection type with a simplified configuration workflow or <b>Custom</b>") +

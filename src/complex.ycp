@@ -64,8 +64,8 @@ term SummaryRichText(string summary)
 	`HSpacing(1.5),
 	`VBox(
 	    `Left(`RadioButtonGroup(`VBox(
-		`RadioButton(`id(`ipsecoff), `opt(`notify), _("Disable IPsec")),
-		`RadioButton(`id(`ipsecon), `opt(`notify), _("Enable IPsec"))
+		`RadioButton(`id(`ipsecoff), `opt(`notify), _("Disable VPN Services")),
+		`RadioButton(`id(`ipsecon), `opt(`notify), _("Enable VPN Services"))
 	    ))),
 	    `VSpacing(0.3),
 	    `RichText(`id(`the_richtext), summary),
@@ -140,7 +140,7 @@ symbol SummaryEnableDisable()
 any SummaryDialog() {
 
     /* IPsec summary dialog caption */
-    string caption = _("IPsec Configuration");
+    string caption = _("VPN Configuration");
 
     list summary = IPsec::Summary();
     list unconfigured = summary[1]:[];
@@ -240,7 +240,7 @@ Do you want to start IPsec during boot?")))
 void OverviewDialogCreate()
 {
     /* IPsec overview dialog caption */
-    string caption = _("IPsec Connection Overview");
+    string caption = _("Connection Overview");
 
     list overview = IPsec::Overview();
     term buttons = `Right(
