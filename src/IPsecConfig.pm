@@ -577,6 +577,11 @@ sub cancelPreparedP12()
 {
 }
 
+BEGIN { $TYPEINFO{FinishImport} = ["function", "void" ]; }
+sub finishImport()
+{
+}
+
 BEGIN { $TYPEINFO{cleanupImport} = ["function", "void" ]; }
 sub cleanupImport()
 {
