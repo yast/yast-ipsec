@@ -398,13 +398,13 @@ any ConnectionStartModeDialog () {
 
     {
 	list<string> devs = IPsec::getNetworkDevicesUP();
-	if(size(devs) != 0 || IPsec::dynamic_start_suggest_dialup == true)
+	if(size(devs) == 0 && IPsec::dynamic_start_suggest_dialup == true)
 	{
-	    if(size(devs) == 0)
-	    {
-		devs = IPsec::getDialupInterfaces();
-		IPsec::dynamic_start_suggest_dialup = false;
-	    }
+	    devs = IPsec::getDialupInterfaces();
+	    IPsec::dynamic_start_suggest_dialup = false;
+	}
+	if(size(devs) != 0)
+	{
 	    UI::ChangeWidget(`id(`netif), `Value, mergestring(devs, " "));
 	    UI::ChangeWidget(`id(`netif), `Enabled, true );
 	    UI::ChangeWidget(`id(`nodyncbx), `Value, true );
@@ -464,7 +464,7 @@ any ConnectionStartModeDialog () {
 any FreeSWANSettingsDialog ()
 {
     // dialog headline
-    string caption = _("Global IPsec Settings");
+    string caption = _("IPsec Settings");
 
     term contents = `HBox (`HStretch(),
 	`Frame(IPsec::settings_str,
@@ -669,8 +669,6 @@ any EasyRoadWarriorServerDialog () {
 	    IPsec::current_connection["leftid"] = ids[0]:"";
 	    IPsec::current_connection["leftsubnet"] = subnet;
 
-	    IPsec::commitChangedConnection();
-
 	    if(IPsec::dynamic_start_suggest_dialup == nil)
 	    {
 		IPsec::dynamic_start_suggest_dialup = true;
@@ -711,12 +709,13 @@ any EasyRoadWarriorClientDialog () {
 	    `HStretch(),
 	    `Frame(_("Connection Settings"),
 		`VBox(
-		    `Left(`ComboBox(`id(`addr), `opt(`editable, `hstretch), _("Remote Address"))),
+		    `Left(`ComboBox(`id(`addr), `opt(`editable, `hstretch), _("Server Address"))),
 		    `Left(`VSpacing(1.5)),
-		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Remote is Gateway"), true)),
-		    `Left(`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable), _("Network"), []))),
-		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles)),
-		    `Left(`TextEntry(`id(`rightid), _("Remote ID")))
+		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Server acts as Gateway"), true)),
+		    `Left(`HBox(`HSpacing(3), `TextEntry(`id(`subnet), _("Network")))),
+		    `Left(`TextEntry(`id(`rightid), _("Server Identification"))),
+		    `VSpacing(0.5),
+		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles))
 		)
 	    ),
 	    `HStretch()
@@ -810,7 +809,6 @@ any EasyRoadWarriorClientDialog () {
 	    IPsec::current_connection["right"] = addr;
 	    IPsec::current_connection["rightid"] = rightid;
 
-	    IPsec::commitChangedConnection();
 	    if(IPsec::dynamic_start_suggest_dialup == nil)
 	    {
 		IPsec::dynamic_start_suggest_dialup = true;
