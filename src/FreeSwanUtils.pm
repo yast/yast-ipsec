@@ -15,7 +15,7 @@ use Fcntl qw(:DEFAULT :mode :flock);
 use File::Glob ':glob';
 
 our $VERSION     = 0.1;
-our $DEBUG       = 0;
+our $DEBUG       = 0;  # level 0 .. 4
 our $DEPTH       = 10; # default from ipsec.secrets(5)
 our %DEFS        = (
     'ipsec_version'  => '2.0',
@@ -134,10 +134,10 @@ sub load_config
     }
     $self->_init_config(file => $file);
 
-    my ($ret, %err) = load_ipsec_conf($self, $file, $DEPTH);
+    my ($ret, %err) = load_ipsec_config($self, $file, $DEPTH);
     if ($ret) {
         $self->{'error'} = {code=>$ret, %err};
-        print STDERR "LOAD ", $self->errstr(), "\n" if($DEBUG);
+        print STDERR "LOAD ", $self->errstr(), "\n" if($DEBUG>0);
         $self->_init_config();
         return 0; # false
     } else {
@@ -159,7 +159,7 @@ sub save_config
     $self->_init_config();
     if( $ret) {
         $self->{'error'} = {code=>$ret, %err};
-        print STDERR "SAVE ", $self->errstr(), "\n" if($DEBUG);
+        print STDERR "SAVE ", $self->errstr(), "\n" if($DEBUG>0);
         return 0; # false
     } else {
         $self->error(undef);
@@ -206,7 +206,7 @@ sub load_secrets
     my ($ret, %err) = load_ipsec_secrets($self, $file, $DEPTH);
     if ($ret) {
         $self->{'error'} = {code=>$ret, %err};
-        print STDERR "LOAD ", $self->errstr(), "\n" if($DEBUG);
+        print STDERR "LOAD ", $self->errstr(), "\n" if($DEBUG>0);
         $self->_init_secrets();
         return 0; # false
     } else {
@@ -220,217 +220,20 @@ sub load_secrets
 #
 # --------------------------------------------------------------------
 #
-sub load_ipsec_secrets
+sub save_secrets
 {
-    my $secr = shift;
-    my $file = shift;
-    my $dpth = shift;
-
-    unless($file and $file =~ /\S+/ and -f $file) {
-        return (-1, emsg=>"invalid file name",
-                    file=>$file);
-    }
-
-    if(open(CONF, '<', $file)) {
-        my @data = <CONF>;
-        close(CONF);
-
-        my ($ret, %err) = _load_ipsec_secrets($secr, $file,
-                                              $dpth, \@data);
-        return ($ret, %err) if(0 != $ret);
-    } else {
-        return (-2, emsg=>"can't open file",
-                    file=>$file, erno=>$!);
-    }
+    my $self = shift;
+    return 0; # false
 }
+
 
 #
 # --------------------------------------------------------------------
 #
-sub _load_ipsec_secrets
+sub dump_secrets
 {
-    my $secr = shift;
+    my $self = shift;
     my $file = shift;
-    my $dpth = shift;
-    my $data = shift;
-
-    unless($secr and $file and $data) {
-        return (-1, emsg=>"invalid arguments");
-    }
-
-
-    sub _parse_key
-    {
-        my $line = shift;
-        my $keys = shift;
-        my $file = shift;
-
-        if($line =~ /^(.*?)\s*:\s+(RSA|PSK)\s+(.*?)\s*$/i) {
-            my $index = $1 || '';
-            my $ktype = $2;
-            my $kdata = $3;
-
-            if($index eq '' or $index eq '0.0.0.0') {
-                $index = '%any';
-            }
-
-            # FIXME: improve duplicate index check ?
-            foreach my $kref (@{$keys}) {
-                if($index eq $kref->{'index'}) {
-                    return (-1, emsg=>"duplicate key index",
-                                line=>substr($line, 0, 20)."...");
-                }
-            }
-
-            print STDERR "ADD KEY: $ktype($index): $kdata\n" if($DEBUG);
-            if(uc($ktype) eq 'RSA') {
-                my $rpass = undef;
-                my $rfile = undef;
-                unless($kdata =~ /^{/) {
-                    if($kdata =~ /^(\S+)\s+(.*)$/) {
-                        $rfile = $1;
-                        $rpass = $2;
-                        $rpass =~ s/^\s*\"//;
-                        $rpass =~ s/\"\s*$//;
-                    } elsif($kdata =~ /^(\S+)$/) {
-                        $rfile = $1;
-                    }
-                    $kdata = undef;
-                } else {
-                    $kdata =~ s/^{\s*//;
-                    $kdata =~ s/\s*}\s*$//;
-                }
-                return (0, (
-                    'type'  => 'RSA',
-                    'file'  => $file,
-                    'x509'  => $rfile,
-                    'pass'  => $rpass,
-                    'data'  => $kdata,
-                    'index' => $index,
-                ));
-            } else {
-                $kdata =~ s/^\s*\"//;
-                $kdata =~ s/\"\s*$//;
-                return (0, (
-                    'type'  => 'PSK',
-                    'file'  => $file,
-                    'x509'  => undef,
-                    'pass'  => $kdata,
-                    'data'  => undef,
-                    'index' => $index,
-                ));
-            }
-        }
-        return (-1, emsg=>"syntax error",
-                    line=>substr($line, 0, 20)."...");
-    }
-
-    my $lnum = 0;
-    my $prev = undef;
-    foreach my $line (@{$data || []}) {
-        chomp($line);
-        $lnum++;
-
-        print STDERR sprintf("LOAD [%s:%02d]: ", $file, $lnum), " $line\n"
-            if($DEBUG > 2);
-
-        if($line =~ /^\s*$/ or $line =~ /^#/) {
-            if($prev) {
-                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
-                if($ret) {
-                    return ($lnum-1, file=>$file, %res);
-                }
-                push(@{$secr->{'keys'}}, \%res);
-                $prev = undef;
-            }
-            next;
-        }
-
-        if($line =~ /^include/) {
-            my $depth = undef;
-            if(defined($dpth)) {
-                if(0 >= $dpth) {
-                    return (-3, emsg=>"recursion depth reached",
-                                file=>$file, line=>$line);
-                }
-                $depth = $dpth - 1;
-            }
-
-            if($prev) {
-                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
-                if($ret) {
-                    return ($lnum-1, file=>$file, %res);
-                }
-                push(@{$secr->{'keys'}}, \%res);
-                $prev = undef;
-            }
-
-            if($line =~ /^include[ \t]+(\S+)[ \t]*$/) {
-                my $incl = $1;
-                my $full = $incl;
-                my $pref = '';
-                if($incl !~ /^\//) {
-                    $pref = $file;
-                    $pref =~ s/[^\/]+$//;
-                    $full = $pref . $incl;
-                }
-
-                my @list = bsd_glob($full, GLOB_ERR | GLOB_LIMIT);
-                if(0 >= scalar(@list)) {
-                    return ($lnum, emsg=>"invalid include glob",
-                                   file=>$file, line=>$line);
-                }
-                for my $name (@list) {
-                    next unless($name);
-                    if(($name eq $file) or ($name eq $secr->{'file'})) {
-                        return ($lnum, emsg=>"recursive inclusion",
-                                       file=>$file, line=>$line);
-                    }
-
-                    print STDERR "INCLUDE '$incl' => $name\n" if($DEBUG);
-
-                    my ($ret, %err) = load_ipsec_secrets($secr, $name, $depth);
-                    return ($ret, %err) if(0 != $ret);
-                }
-                push(@{$secr->{'include'}}, { 'incl' =>  $incl,
-                                              'file' =>  $file,
-                                              'list' => [@list] });
-            } else {
-                return ($lnum, emsg=>"invalid include line",
-                               file=>$file, line=>$line);
-            }
-            next;
-        }
-
-        if($line =~ /^\S+/) {
-            # line with new key
-            if($prev) {
-                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
-                if($ret) {
-                    return ($lnum-1, file=>$file, %res);
-                }
-                push(@{$secr->{'keys'}}, \%res);
-                $prev = undef;
-            }
-            $prev = $line;
-        } else {
-            # continuation line
-            if($prev) {
-                $line =~ s/#.*$//;
-                if($line !~ /^\s*$/) {
-                    $prev .= $line;
-                }
-            }
-        }
-    }
-    if($prev) {
-        my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
-        if($ret) {
-            return ($lnum-1, file=>$file, %res);
-        }
-        push(@{$secr->{'keys'}}, \%res);
-    }
-    return (0);
 }
 
 
@@ -475,7 +278,7 @@ sub _init_secrets
 #
 # --------------------------------------------------------------------
 #
-sub load_ipsec_conf
+sub load_ipsec_config
 {
     my $conf = shift;
     my $file = shift;
@@ -489,8 +292,8 @@ sub load_ipsec_conf
         my @data = <CONF>;
         close(CONF);
 
-        my ($ret, %err) = _load_ipsec_conf($conf, $file,
-                                           $dpth, \@data);
+        my ($ret, %err) = _load_ipsec_config($conf, $file,
+                                             $dpth, \@data);
         return ($ret, %err) if(0 != $ret);
     } else {
         return (-2, emsg=>"can't open file",
@@ -655,7 +458,6 @@ sub dump_ipsec_conf
     }
 }
 
-
 #
 # --------------------------------------------------------------------
 #
@@ -681,7 +483,7 @@ sub _dump_section
 #
 # --------------------------------------------------------------------
 #
-sub _load_ipsec_conf
+sub _load_ipsec_config
 {
     my $conf = shift;
     my $file = shift;
@@ -698,7 +500,7 @@ sub _load_ipsec_conf
         $lnum++;
 
         print STDERR sprintf("LOAD [%s:%02d]: ", $file, $lnum), " $line\n"
-            if($DEBUG > 2);
+            if($DEBUG > 3);
 
         $line =~ s/#.*$//g;  # strip comments...
         if($line =~ /^$/) {  # empty lines ends a section
@@ -754,9 +556,9 @@ sub _load_ipsec_conf
                                        file=>$file, line=>$line);
                     }
 
-                    print STDERR "INCLUDE '$incl' => $name\n" if($DEBUG);
+                    print STDERR "INCLUDE '$incl' => $name\n" if($DEBUG>1);
 
-                    my ($ret, %err) = load_ipsec_conf($conf, $name, $depth);
+                    my ($ret, %err) = load_ipsec_config($conf, $name, $depth);
                     return ($ret, %err) if(0 != $ret);
                 }
                 push(@{$conf->{'include'}}, { 'incl' =>  $incl,
@@ -857,7 +659,7 @@ sub _save_ipsec_conf
     LINE: while(defined($line)) {
         chomp($line);
         print STDERR sprintf("SAVE [%s:%02d]: ", $file, $lnum), " $line\n"
-            if($DEBUG > 2);
+            if($DEBUG > 3);
 
         unless($sect) {
 
@@ -1125,6 +927,224 @@ sub _save_ipsec_conf
 #
 # --------------------------------------------------------------------
 #
+sub load_ipsec_secrets
+{
+    my $secr = shift;
+    my $file = shift;
+    my $dpth = shift;
+
+    unless($file and $file =~ /\S+/ and -f $file) {
+        return (-1, emsg=>"invalid file name",
+                    file=>$file);
+    }
+
+    if(open(CONF, '<', $file)) {
+        my @data = <CONF>;
+        close(CONF);
+
+        my ($ret, %err) = _load_ipsec_secrets($secr, $file,
+                                              $dpth, \@data);
+        return ($ret, %err) if(0 != $ret);
+    } else {
+        return (-2, emsg=>"can't open file",
+                    file=>$file, erno=>$!);
+    }
+}
+
+
+#
+# --------------------------------------------------------------------
+#
+sub _load_ipsec_secrets
+{
+    my $secr = shift;
+    my $file = shift;
+    my $dpth = shift;
+    my $data = shift;
+
+    unless($secr and $file and $data) {
+        return (-1, emsg=>"invalid arguments");
+    }
+
+
+    sub _parse_key
+    {
+        my $line = shift;
+        my $keys = shift;
+        my $file = shift;
+
+        if($line =~ /^(.*?)\s*:\s+(RSA|PSK)\s+(.*?)\s*$/i) {
+            my $index = $1 || '';
+            my $ktype = $2;
+            my $kdata = $3;
+
+            if($index eq '' or $index eq '0.0.0.0') {
+                $index = '%any';
+            }
+
+            # FIXME: improve duplicate index check ?
+            foreach my $kref (@{$keys}) {
+                if($index eq $kref->{'index'}) {
+                    return (-1, emsg=>"duplicate key index",
+                                line=>substr($line, 0, 20)."...");
+                }
+            }
+
+            print STDERR "ADD KEY: $ktype($index): $kdata\n" if($DEBUG>2);
+            if(uc($ktype) eq 'RSA') {
+                my $rpass = undef;
+                my $rfile = undef;
+                unless($kdata =~ /^{/) {
+                    if($kdata =~ /^(\S+)\s+(.*)$/) {
+                        $rfile = $1;
+                        $rpass = $2;
+                        $rpass =~ s/^\s*\"//;
+                        $rpass =~ s/\"\s*$//;
+                    } elsif($kdata =~ /^(\S+)$/) {
+                        $rfile = $1;
+                    }
+                    $kdata = undef;
+                } else {
+                    $kdata =~ s/^{\s*//;
+                    $kdata =~ s/\s*}\s*$//;
+                }
+                return (0, (
+                    'type'  => 'RSA',
+                    'file'  => $file,
+                    'x509'  => $rfile,
+                    'pass'  => $rpass,
+                    'data'  => $kdata,
+                    'index' => $index,
+                ));
+            } else {
+                $kdata =~ s/^\s*\"//;
+                $kdata =~ s/\"\s*$//;
+                return (0, (
+                    'type'  => 'PSK',
+                    'file'  => $file,
+                    'x509'  => undef,
+                    'pass'  => $kdata,
+                    'data'  => undef,
+                    'index' => $index,
+                ));
+            }
+        }
+        return (-1, emsg=>"syntax error",
+                    line=>substr($line, 0, 20)."...");
+    }
+
+    my $lnum = 0;
+    my $prev = undef;
+    foreach my $line (@{$data || []}) {
+        chomp($line);
+        $lnum++;
+
+        print STDERR sprintf("LOAD [%s:%02d]: ", $file, $lnum), " $line\n"
+            if($DEBUG > 3);
+
+        if($line =~ /^\s*$/ or $line =~ /^#/) {
+            if($prev) {
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
+                if($ret) {
+                    return ($lnum-1, file=>$file, %res);
+                }
+                push(@{$secr->{'keys'}}, \%res);
+                $prev = undef;
+            }
+            next;
+        }
+
+        if($line =~ /^include/) {
+            my $depth = undef;
+            if(defined($dpth)) {
+                if(0 >= $dpth) {
+                    return (-3, emsg=>"recursion depth reached",
+                                file=>$file, line=>$line);
+                }
+                $depth = $dpth - 1;
+            }
+
+            if($prev) {
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
+                if($ret) {
+                    return ($lnum-1, file=>$file, %res);
+                }
+                push(@{$secr->{'keys'}}, \%res);
+                $prev = undef;
+            }
+
+            if($line =~ /^include[ \t]+(\S+)[ \t]*$/) {
+                my $incl = $1;
+                my $full = $incl;
+                my $pref = '';
+                if($incl !~ /^\//) {
+                    $pref = $file;
+                    $pref =~ s/[^\/]+$//;
+                    $full = $pref . $incl;
+                }
+
+                my @list = bsd_glob($full, GLOB_ERR | GLOB_LIMIT);
+                if(0 >= scalar(@list)) {
+                    return ($lnum, emsg=>"invalid include glob",
+                                   file=>$file, line=>$line);
+                }
+                for my $name (@list) {
+                    next unless($name);
+                    if(($name eq $file) or ($name eq $secr->{'file'})) {
+                        return ($lnum, emsg=>"recursive inclusion",
+                                       file=>$file, line=>$line);
+                    }
+
+                    print STDERR "INCLUDE '$incl' => $name\n" if($DEBUG>1);
+
+                    my ($ret, %err) = load_ipsec_secrets($secr, $name, $depth);
+                    return ($ret, %err) if(0 != $ret);
+                }
+                push(@{$secr->{'include'}}, { 'incl' =>  $incl,
+                                              'file' =>  $file,
+                                              'list' => [@list] });
+            } else {
+                return ($lnum, emsg=>"invalid include line",
+                               file=>$file, line=>$line);
+            }
+            next;
+        }
+
+        if($line =~ /^\S+/) {
+            # line with new key
+            if($prev) {
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
+                if($ret) {
+                    return ($lnum-1, file=>$file, %res);
+                }
+                push(@{$secr->{'keys'}}, \%res);
+                $prev = undef;
+            }
+            $prev = $line;
+        } else {
+            # continuation line
+            if($prev) {
+                $line =~ s/#.*$//;
+                if($line !~ /^\s*$/) {
+                    $prev .= $line;
+                }
+            }
+        }
+    }
+    if($prev) {
+        my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
+        if($ret) {
+            return ($lnum-1, file=>$file, %res);
+        }
+        push(@{$secr->{'keys'}}, \%res);
+    }
+    return (0);
+}
+
+
+#
+# --------------------------------------------------------------------
+#
 sub _backup_and_read
 {
     my $file = shift;
@@ -1235,8 +1255,9 @@ default values:
 
 =item B<load_config( [$file] )>
 
-Loads configuration from the main F</etc/ipsec.conf> or
-alternative file given in C<$file> and included files.
+Loads configuration from the main F</etc/ipsec.conf>
+(or alternative file given in C<$file>) and included
+files.
 
 Returns true on success or false on error. Error info
 can be fetched via C<error> and C<errstr> methods.
@@ -1255,8 +1276,35 @@ can be fetched via C<error> and C<errstr> methods.
 Dumps the configutation for sections matching the filename
 given in C<$file> (included sections) to the handle C<$out>.
 
-If no filename given, the content of C<$conf-E<gt>{file}>
+If no filename given, the content of the main config file
 (F</etc/ipsec.conf>) is dumped.
+
+
+=item B<load_secrets( [$file] )>
+
+Loads secrets data from the main F</etc/ipsec.secrets>
+(or alternative file given in C<$file>) and included
+files.
+
+Returns true on success or false on error. Error info
+can be fetched via C<error> and C<errstr> methods.
+
+
+=item B<save_secrets( )>
+
+Saves the secrets data back to its files (incl. included).
+
+Returns true on success or false on error. Error info
+can be fetched via C<error> and C<errstr> methods.
+
+
+=item B<dump_secrets( $out [, $file ])>
+
+Dumps the secrets for the filename given in C<$file>
+(included sections) to the handle C<$out>.
+
+If no filename given, the content of the main secrets
+file F</etc/ipsec.secrets> is dumped.
 
 
 =item B<error( [flag] )>
