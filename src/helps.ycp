@@ -38,23 +38,28 @@ An additional dialog informs whether it is safe to do so.
 </p>
 "),
 
-    /* Summary dialog help 1/3 */
+    /* Summary dialog help 1/4 */
     "summary" : _("<p><b><big>IPsec Configuration</big></b><br>
-Configure IPsec here.<br></p>
+This screen gives you an Overview of your IPsec configuration.<br></p>
 ") +
 
-    /* Summary dialog help 2/3 */
-    _("<p><b><big>Adding an IPsec:</big></b><br>
-Choose an ipsec from the list of detected ipsecs.
-If your ipsec was not autodetected, use <b>Other (not detected)</b>.
-Then press <b>Configure</b>.</p>
-") +
+    /* Summary dialog help 2/4 */
+    _("<p><b><big>Settings:</big></b><br>
+<p>Summary of settings that affect all IPsec connections and certificates.
+Click on the <b>'Settings...'</b> button to change the settings</p>")
+    +
 
-    /* Summary dialog help 3/3 */
-    _("<p><b><big>Editing or Deleting:</big></b><br>
-If you press <b>Edit</b>, an additional dialog in which to change
-the configuration opens.</p>
-"),
+    /* Summary dialog help 3/4 */
+    _("<p><b><big>Certificates:</big></b><br>
+Summary of installed certificates and CA certificates. Click on the
+<b>'Certificates...'</b> button to import or delete certificates, CA
+certificates, certificate revoke lists (CRLs) and keys.</p>")
+    +
+
+    /* Summary dialog help 3/4 */
+    _("<p><b><big>Connetions:</big></b><br>
+Summary of already configured connections. Click on the <b>'Connections...'</b>
+button to add new connections or edit existing ones.</p>"),
 
     /* Ovreview dialog help 1/3 */
     "overview" : _("<p><b><big>IPsec Configuration Overview</big></b><br>
@@ -73,27 +78,49 @@ Choose a ipsec to change or remove.
 Then press <b>Edit</b> or <b>Delete</b> as desired.</p>
 "),
 
-    /* Configure1 dialog help 1/2 */
-    "c1" : _("<p><b><big>Configuration Part One</big></b><br>
-Press <b>Next</b>.
-<br></p>
-") +
+    /* Certificate dialog help 1/3 */
+    "certificates" : _("<p><b><big>Certifiate Overview</big></b><br>
+This screen gives you an overview about the certificates used by IPsec. The
+four buttons on the top switch between views of CA certificates, certificates,
+certificate revoke lists (CRLs) and keys.</p> ") +
 
-    /* Configure1 dialog help 2/2 */
-_("<p><b><big>Selecting something:</big></b><br>
-It is not possible, you must code it first :-)
-</p>"),
+    /* Certificate dialog help 2/3 */
+_("<p>Pressing <b>'Import'</b> opens a dialog that allows you to choose a file
+containing certificates or keys to import into the IPsec
+configuration. Currently supported file formats are PEM, PKCS#12 and ZIP-files
+containing PEM files.</p>") +
 
-    /* Configure2 dialog help 1/2 */
-    "c2" : _("<p><b><big>Configuration Part Two</big></b><br>
-Press <b>Next</b>.
-<br></p>
-") +
+    /* Certificate dialog help 3/3 */
+_("<p>Pressing <b>'Delete'</b> removes the selected item from the
+IPsec configuration.</p>"),
 
-    /* Configure2 dialog help 2/2 */
-_("<p><b><big>Selecting something:</big></b><br>
-It is not possible, you must code it first :-)
-</p>"),
+    /* Settings dialog help 1/5 */
+    "settings": _("<p><b><big>Settings:</big></b><br>") +
+
+    /* Settings dialog help 2/5 */
+_("<p><b><big>Activate During Boot</big></b> destines whether the IPsec daemon
+should be started during system boot. Check this option if you want to use
+any IPsec connection.</p>") +
+
+    /* Settings dialog help 3/5 */
+_("<p><b><big>NAT Traversal</big></b> means that IPsec packets will be
+encapsulated in a way that allows them to be transmitted through routers that
+modify their IP address. Check this option if your host is behind a router that
+performs Network Address Translation or Masquerading and you want to establish
+IPsec tunnels across it. Also check this option if you run a server and want
+clients behind routers to be able to connect via IPsec</p>") +
+
+    /* Settings dialog help 4/5 */
+_("<p><b><big>Strict CRL Policy</big></b> means that a valid certificate revoke
+list (CRL) must exist for every certificate authority specified in any
+certificate. Check this option if you want to ensure that all certificates are
+valid.</p>") +
+
+    /* Settings dialog help 5/5 */
+_("<p><b><big>CRL check interval</big></b> specifies the number of seconds
+after which the IPsec daemon checks whether certificates have been expired or
+whether new certificate revoke lists have to be fetched. A typical value is 600
+seconds (ten minutes). Set to zero to disable fetching of new CRLs.</p>"),
 
 ];
 

@@ -148,6 +148,15 @@ any SummaryDialog() {
             break;
         }
         else if(ret == `next) {
+	    if(!IPsec::getStart() && IPsec::haveConnections())
+	    {
+		if(Popup::YesNo(_("You did configure connections but didn't
+enable the option to start IPsec during boot.
+Do you want to start IPsec during boot?")))
+		{
+		    IPsec::setStart(true);
+		}
+	    }
             break;
         }
         else if(ret == "settings") {
@@ -287,7 +296,7 @@ term CertificateOverviewContents(term header, list content)
 	)
     );
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS["certificates"]:"",
 	    Label::BackButton(), Label::NextButton());
 }
 
