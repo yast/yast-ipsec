@@ -44,9 +44,9 @@ This screen gives you an Overview of your IPsec configuration.<br></p>
 ") +
 
     /* Summary dialog help 2/4 */
-    _("<p><b><big>Settings:</big></b><br>
-<p>Summary of settings that affect all IPsec connections and certificates.
-Click on the <b>'Settings...'</b> button to change the settings</p>")
+    _("<p><b><big>Connections:</big></b><br>
+Summary of already configured connections. Click on the <b>'Connections...'</b>
+button to add new connections or edit existing ones.</p>")
     +
 
     /* Summary dialog help 3/4 */
@@ -56,10 +56,10 @@ Summary of installed certificates and CA certificates. Click on the
 certificates, certificate revoke lists (CRLs) and keys.</p>")
     +
 
-    /* Summary dialog help 3/4 */
-    _("<p><b><big>Connetions:</big></b><br>
-Summary of already configured connections. Click on the <b>'Connections...'</b>
-button to add new connections or edit existing ones.</p>"),
+    /* Summary dialog help 4/4 */
+    _("<p><b><big>Common Settings:</big></b><br>
+Summary of settings that affect all IPsec connections and certificates.
+Click on the <b>'Settings...'</b> button to change the settings"),
 
     /* Ovreview dialog help 1/4 */
     "overview" : _("<p><b><big>IPsec Configuration Overview</big></b><br>
@@ -101,15 +101,10 @@ containing PEM files.</p>") +
 _("<p>Pressing <b>'Delete'</b> removes the selected item from the
 IPsec configuration.</p>"),
 
-    /* Settings dialog help 1/5 */
+    /* Settings dialog help 1/4 */
     "settings": _("<p><b><big>Settings:</big></b><br>") +
 
-    /* Settings dialog help 2/5 */
-_("<p><b><big>Activate During Boot</big></b> destines whether the IPsec daemon
-should be started during system boot. Check this option if you want to use
-any IPsec connection.</p>") +
-
-    /* Settings dialog help 3/5 */
+    /* Settings dialog help 2/4 */
 _("<p><b><big>NAT Traversal</big></b> means that IPsec packets will be
 encapsulated in a way that allows them to be transmitted through routers that
 modify their IP address. Check this option if your host is behind a router that
@@ -117,17 +112,67 @@ performs Network Address Translation or Masquerading and you want to establish
 IPsec tunnels across it. Also check this option if you run a server and want
 clients behind routers to be able to connect via IPsec</p>") +
 
-    /* Settings dialog help 4/5 */
+    /* Settings dialog help 3/4 */
 _("<p><b><big>Strict CRL Policy</big></b> means that a valid certificate revoke
 list (CRL) must exist for every certificate authority specified in any
 certificate. Check this option if you want to ensure that all certificates are
 valid.</p>") +
 
-    /* Settings dialog help 5/5 */
+    /* Settings dialog help 4/4 */
 _("<p><b><big>CRL check interval</big></b> specifies the number of seconds
 after which the IPsec daemon checks whether certificates have been expired or
 whether new certificate revoke lists have to be fetched. A typical value is 600
 seconds (ten minutes). Set to zero to disable fetching of new CRLs.</p>"),
+
+    /* Client connection dialog help 1/5 */
+    "easyroadwarriorclient": _("<p><b><big>Create Client Connection:</big></b><br>") +
+
+    /* Client connection dialog help 2/5 */
+_("<p><b><big>Server Address:</big></b> Enter the IP address or hostname of the
+server you want to connect to.</p>") +
+
+    /* Client connection dialog help 3/5 */
+_("<p><b><big>Server acts as Gateway:</big></b> Check this item if the server
+allows access to a subnet behind it, for example the company's local
+network. Also fill in the <b>Network</b> field in this case. An example subnet
+definition looks like 192.168.0.0/24</p>") +
+
+    /* Client connection dialog help 4/5 */
+_("<p><b><big>Server Identification:</big></b> Enter the identification the
+server uses for this IPsec connection. The identification typically is the
+Distinguished name of the server certificate or an IP-address, host name or
+email-address specified in the 'Subject Alternative Name' of the server
+certificate.</p>") +
+
+    /* Client connection dialog help 5/5 */
+_("<p><b><big>Certificate:</big></b> Choose the certificate to use for this
+connection.</p>"),
+
+    /* Start Mode dialog help 1/4 */
+    "startmode" : _("<p><b><big>IPsec Connection Configuration</big></b></p>") +
+
+    /* Start Mode dialog help 1/4 */
+_("<p><b><big>During Boot...:</big></b> Choose what should be done with this
+connection when booting the system.</p>") +
+
+"<ul>" +
+_("<li><i>Initiate Connection:</i> The system will try to immediately
+establish a connection with the remote server. This may fail if you use dynamic
+IP addresses or the server is only reachable when beeing dialed into the
+internet.</li>") +
+
+_("<li><i>Prepare Connection:</i> The connection will be prepared for use,
+listening for incoming packets. Choose this option if you configure a server
+connection.</li>") +
+
+_("<li><i>Ignore Connection:</i> The connection will not be handled at boot time.</li>") +
+
+"</ul>" +
+
+_("<p><b><big>Start Dynamically:</big></b> Check this item if you want to start the
+IPsec connection when some network interface is brought online, e.g. when
+dialing into the internet. Also choose an interface from the list in this
+case.</p>"),
 
 ];
 
