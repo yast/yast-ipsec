@@ -14,7 +14,7 @@ X-SuSE-YaST-RootOnly=true
 X-SuSE-YaST-AutoInst=all
 X-SuSE-YaST-Geometry=
 X-SuSE-YaST-SortKey=
-X-SuSE-YaST-AutoInstResource= ipsec
+X-SuSE-YaST-AutoInstResource=ipsec
 
 Icon=vpn
 Exec=/sbin/yast2 ipsec 
