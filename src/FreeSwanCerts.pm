@@ -16,6 +16,7 @@ use OpenCA::OpenSSL;
 use OpenCA::X509;
 use OpenCA::CRL;
 use Archive::Zip;
+use Fcntl;
 use File::Temp qw/ tempfile tempdir /;
 use Locale::gettext;
 require Exporter;
@@ -24,7 +25,7 @@ our @ISA         = qw (Exporter);
 #
 # FIXME: exports
 #
-our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
+our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files write_file
                        parse_cert parse_crl parse_key parse_pem_data
                        extract_ANY extract_ZIP extract_P12 extract_PEM
                       );
@@ -409,6 +410,24 @@ sub commit_scheduled_file_operations()
     return \@errors;
 }
 
+
+# --------------------------------------------------------------------
+sub write_file($$$)
+{
+    my $file = shift;
+    my $data = shift;
+    my $perm = shift;
+    
+    if($file and $data and $perm) {
+        if(sysopen(OUT, $file, O_WRONLY|O_CREAT|O_EXCL, $perm)) {
+            print OUT $data;
+            close(OUT);
+            return undef;
+        }
+        return "can't write '$file': $!";
+    }
+    return "invalid arguments";
+}
 
 # --------------------------------------------------------------------
 sub extract_ANY(%)
