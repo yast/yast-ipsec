@@ -1436,7 +1436,18 @@ sub _save_ipsec_secrets
             }
         }
     }
+
     push(@fout, @comm);
+    @comm = ();
+    if($prev) {
+        my ($ret, @res) = _write_key($prev, $secr->{'keys'},
+                                     $file, $secr->{'file'});
+        if($ret) {
+            return ($lnum-1, @res);
+        }
+        push(@fout, @res);
+        $prev = undef;
+    }
 
     my $eol = 0;
     for(my $i=0; $i<scalar(@{$secr->{'keys'}}); $i++) {
