@@ -676,7 +676,7 @@ global list Summary() {
     /* Configuration summary text for autoyast */
     string summary = sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
     summary = summary + "<ul>";
-    summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(getStart()));
+//    summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(getStart()));
     summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(getStrictCRLPolicy()));
     if(getCrlCheckInterval() != 0)
     {
