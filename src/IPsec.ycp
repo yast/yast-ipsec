@@ -741,7 +741,7 @@ global list getDevices()
     if(Mode::test == true)
 	return [ "eth0", "dsl0" ];
 
-    list devices = NetworkDevices::GetDevices("all");
+    list devices = NetworkDevices::List("");
 
     devices = filter(string d, devices,``(d!="lo"));
 
