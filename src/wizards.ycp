@@ -26,6 +26,7 @@ any AddSequence() {
 
     map aliases = $[
 	"config1"	: ``(ConnectionConfigDialog1()),
+	"configE"	: ``(ConnectionExpertDialog()),
 	"config2"	: ``(LeftConnectionConfigDialog()),
 	"config3"	: ``(RightConnectionConfigDialog()),
 	"config4"	: ``(ConnectionConfigEncryptionDialog()),
@@ -37,7 +38,12 @@ any AddSequence() {
 	"ws_start" : "config1",
 	"config1" : $[
 	    `abort	: `abort,
-	    `next	: "config2"
+	    `next	: "config2",
+	    `expert	: "configE"
+	],
+	"configE" : $[
+	    `abort	: `abort,
+	    `next	: "done",
 	],
 	"config2" : $[
 	    `abort	: `abort,
@@ -45,7 +51,7 @@ any AddSequence() {
 	],
 	"config3" : $[
 	    `abort	: `abort,
-	    `next	: "config4"
+	    `next	: "config5"
 	],
 	"config4" : $[
 	    `abort	: `abort,

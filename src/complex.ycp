@@ -364,6 +364,161 @@ any CertificateOverviewDialog ()
     return ret;
 }
 
+term ExpertConnectionContents()
+{
+    term header = `header(_("Key"), _("Value"));
+
+    list content = IPsec::getCurrentConnectionItems();
+
+    string caption = _("Configuration Options");
+
+    term contents = `VBox(
+	`HBox(
+	    `Table(`id(`table), `opt(`notify), header, content),
+	    `VBox(
+		`PushButton(`id(`add), _("&Add")),
+		`PushButton(`id(`edit), _("&Edit")),
+		`PushButton(`id(`delete), _("&Delete"))
+	    )
+	)
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["advanced"]:"",
+	    Label::BackButton(), Label::NextButton());
+}
+
+list KeyValuePopup(string headline)
+{
+    UI::OpenDialog(
+	`VBox(
+	    `Heading(headline),
+	    `TextEntry(`id(`key), _("Key:")),
+	    `TextEntry(`id(`value), _("Value:")),
+	    `VSpacing(0.5),
+	    `HBox(
+		`PushButton(`id(`ok), Label::OKButton()),
+		`PushButton(`id(`cancel), Label::CancelButton())
+	    )
+	)
+    );
+
+    if( UI::UserInput() != `ok)
+    {
+	UI::CloseDialog();
+	return nil;
+    }
+
+    string key = (string) UI::QueryWidget(`id(`key), `Value);
+    string value = (string) UI::QueryWidget(`id(`value), `Value);
+
+    UI::CloseDialog();
+
+    return [ key, value ];
+}
+
+string TextEntryPopup(string headline, string txtlabel, string value)
+{
+    UI::OpenDialog(
+	`VBox(
+	    `Heading(headline),
+	    `TextEntry(`id(`value), txtlabel, value),
+	    `VSpacing(0.5),
+	    `HBox(
+		`PushButton(`id(`ok), `opt(`default), Label::OKButton()),
+		`PushButton(`id(`cancel), Label::CancelButton())
+	    )
+	)
+    );
+
+    if( UI::UserInput() != `ok)
+    {
+	UI::CloseDialog();
+	return nil;
+    }
+
+    string value = (string) UI::QueryWidget(`id(`value), `Value);
+
+    UI::CloseDialog();
+
+    return value;
+}
+
+any ConnectionExpertDialog ()
+{
+    symbol mode = `cacerts;
+
+    ExpertConnectionContents();
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+	else if(ret == `delete)
+	{
+	    string key = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(key == nil)
+		continue;
+
+	    if(Popup::YesNo(sformat(_("Delete %1?"), key)) == false)
+		continue;
+
+	    IPsec::current_connection = remove(IPsec::current_connection, key);
+
+	    ExpertConnectionContents();
+
+	}
+	else if(ret == `add)
+	{
+	    list keyval = KeyValuePopup(_("Enter Key and Value"));
+
+	    if(keyval == nil || size(keyval) != 2)
+		continue;
+
+	    string key = keyval[0]:"";
+	    string value = keyval[1]:"";
+
+	    if(key == "" || value == "")
+		continue;
+
+	    IPsec::current_connection[key] = value;
+
+	    ExpertConnectionContents();
+
+	}
+	else if(ret == `edit)
+	{
+	    string key = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(key == nil)
+		continue;
+
+	    string val = TextEntryPopup(_("Enter new Value"), _("Value"), IPsec::current_connection[key]:"");
+
+	    if(val == nil)
+		continue;
+
+	    IPsec::current_connection[key] = val;
+
+	    ExpertConnectionContents();
+
+	}
+        else if(ret == `next || ret == `back) {
+	    IPsec::commitChangedConnection();
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
 
 /* EOF */
 }
