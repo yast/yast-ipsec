@@ -98,7 +98,7 @@ global boolean didaskaboutemptyconnections = false;
 
 
 /** list of required packages */
-list<string> requiredpackages = [ "freeswan" ];
+list<string> requiredpackages = [ "openswan" ];
 
 /**
  * map of strings

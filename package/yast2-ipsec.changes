@@ -1,7 +1,9 @@
 -------------------------------------------------------------------
 Wed Jul 28 12:31:53 CEST 2004 - lnussel@suse.de
 
-- 2.9.14
+- use ProductFeatures::ui_mode
+- install openswan instead of freeswan as freeswan no longer exists
+- 2.10.0
 
 -------------------------------------------------------------------
 Thu Jul 22 16:15:21 CEST 2004 - lnussel@suse.de
