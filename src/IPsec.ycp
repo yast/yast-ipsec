@@ -33,6 +33,7 @@ import "Require";
 global boolean Modified();
 
 global list<string> getNetworkDevicesUP();
+global list<string> getNetworkDevicesUP_conn(string name);
 global boolean setNetworkDevicesUP(list devices);
 
 global boolean setCurrentConnection(string name);
@@ -380,7 +381,7 @@ global boolean Read() {
     );
 
     if(Abort()) return false;
-    Progress::NextStep();
+    Progress::NextStage();
 
     {
 	if(!Require::AreAllPackagesInstalled(requiredpackages) )
@@ -396,7 +397,7 @@ global boolean Read() {
     }
 
     if(Abort()) return false;
-    Progress::NextStep();
+    Progress::NextStage();
 
     if(!IPsecConfig::Read())
 	Report::Error(_("Unable to read IPsec settings. Error message was:")
@@ -739,8 +740,15 @@ global list Overview() {
     list overview = [];
 
     foreach(string name, map conn, connections, ``{
-	overview = add(overview, `item(`id(name), name, conn["left"]:"?", conn["right"]:"?"));
-    });
+	overview = add(overview,
+	    `item(`id(name),
+		name,
+		conn["left"]:"?",
+		conn["right"]:"?",
+		getBootModeText(conn["auto"]:"?"),
+		mergestring(getNetworkDevicesUP_conn(name), ", ")
+	    ));
+	});
 
     return overview;
 }
@@ -1102,19 +1110,11 @@ global list getIdsOfCert(string name)
     return ids;
 }
 
-
 /**
- * get list of network devices where the current connection is mentioned in FREESWAN_UP
+ * get list of network devices where the specified connection is menioned in FREESWAN_UP
  * */
-global list<string> getNetworkDevicesUP()
+global list<string> getNetworkDevicesUP_conn(string conn)
 {
-    string conn = "";
-
-    if(size(current_connection_oldname) != 0)
-	conn = current_connection_oldname;
-    else
-	conn = current_connection_name;
-
     list<string> devices = getDevices();
 
     list<string> devs = [];
@@ -1131,6 +1131,21 @@ global list<string> getNetworkDevicesUP()
     });
 
     return devs;
+}
+
+/**
+ * get list of network devices where the current connection is mentioned in FREESWAN_UP
+ * */
+global list<string> getNetworkDevicesUP()
+{
+    string conn = "";
+
+    if(size(current_connection_oldname) != 0)
+	conn = current_connection_oldname;
+    else
+	conn = current_connection_name;
+
+    return getNetworkDevicesUP_conn(conn);
 }
 
 /**
