@@ -118,7 +118,7 @@ symbol SummaryEnableDisable()
 	if(Popup::YesNo(
 	    _("There are no certificates imported yet.\nDo you want to import certificates now?")) == true)
 	{
-	    return `import;
+	    return `certificates;
 	}
     }
 
