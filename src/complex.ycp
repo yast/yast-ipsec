@@ -364,7 +364,7 @@ any OverviewDialog()
     return ret;
 }
 
-term CertificateOverviewContents(term header, list content)
+void CertificateOverviewContents(term header, list content)
 {
     string caption = _("Certificate Overview");
 
@@ -589,7 +589,7 @@ any CertificateOverviewDialog ()
     return ret;
 }
 
-term ExpertConnectionContents()
+void ExpertConnectionContents()
 {
     term header = `header(_("Key"), _("Value"));
 
