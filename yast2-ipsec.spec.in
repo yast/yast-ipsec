@@ -1,5 +1,5 @@
 @HEADER-COMMENT@
-# neededforbuild yast2-devel-packages yast2-network yast2-country yast2-installation perl-OpenCA-CRL perl-OpenCA-X509 perl-OpenCA-OpenSSL perl-gettext perl-X500-DN perl-Parse-RecDescent perl-MIME-tools perl-IO-stringy yast2-perl-bindings perl-Archive-Zip perl-Compress-Zlib perl-Config-Crontab perl-Digest-SHA1 perl-MailTools perl-XML-Parser yast2-firewall
+# neededforbuild yast2-devel-packages yast2-network yast2-country yast2-installation perl-gettext perl-X500-DN perl-Parse-RecDescent perl-MIME-tools perl-IO-stringy yast2-perl-bindings perl-Archive-Zip perl-Compress-Zlib perl-Config-Crontab perl-Digest-SHA1 perl-MailTools perl-XML-Parser yast2-firewall perl-OPENSSL perl-Date-Calc
 
 
 @HEADER@
