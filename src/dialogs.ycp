@@ -271,14 +271,11 @@ any ConnectionStartModeDialog () {
 	    `ComboBox(`id(`bootmode), `opt(`hstretch), _("During Boot ..."), bootmodes ),
 	    `Frame(_("Dynamic start"), `RadioButtonGroup(`id(`rbg), `opt(`notify),
 		`VBox(
-		    `Left(`RadioButton(`id(`nodynrb), `opt(`notify), _("No dynamic start"), true)),
-		    `Left(`VBox(
-			`RadioButton(`id(`netifrb), `opt(`notify), _("Start after Network interface")),
-			`ComboBox(`id(`netif), `opt(`editable), _("Interface"), IPsec::getDevices())
-		    )),
-		    `Left(`RadioButton(`id(`internetrb), `opt(`notify), _("Start at Internet dial-up")))
+		    `Left(`CheckBox(`id(`nodyncbx), `opt(`notify), _("Start dynamically"))),
+		    `ComboBox(`id(`netif), `opt(`editable), _("Interface"), IPsec::getDevices())
+		    )
 		)
-	    ))
+	    )
 	),
 	`HStretch()
     );
@@ -299,13 +296,15 @@ any ConnectionStartModeDialog () {
 
 	ret = UI::UserInput();
 
-	boolean netif = (boolean) UI::QueryWidget(`id(`netifrb), `Value);
-	UI::ChangeWidget(`id(`netif), `Enabled, netif );
-
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
 	    if(ReallyAbort()) break;
 	    else continue;
+	}
+	else if(ret == `nodyncbx)
+	{
+	    boolean netif = (boolean) UI::QueryWidget(`id(`nodyncbx), `Value);
+	    UI::ChangeWidget(`id(`netif), `Enabled, netif );
 	}
         else if(ret == `next || ret == `back) {
 	    string mode = (string) UI::QueryWidget(`id(`bootmode), `Value);
