@@ -186,8 +186,8 @@ _("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
 should use for this connection. You may enter <i>%defaultroute</i> to indicate
 that the IP address of the device where the default route points at should be
 used. If you plan to start this connection dynamically (configurable later in
-this workflow), this value will be overridden. Just leave %defaultroute in his
-case.</p>") +
+this workflow), enter <i>%dynamic</i> so that the IP address gets filled in
+automatically.</p>") +
 
     /* Local connection config dialog help 3/5 */
 _("<p><b><big>Act as Gateway:</big></b> Check this item if you want to allow
@@ -258,8 +258,8 @@ _("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
 should use for this connection. You may enter <i>%defaultroute</i> to indicate
 that the IP address of the device where the default route points at should be
 used. If you plan to start this connection dynamically (configurable later in
-this workflow), this value will be overridden. Just leave %defaultroute in his
-case.</p>") +
+this workflow), enter <i>%dynamic</i> so that the IP address gets filled in
+automatically.</p>") +
 
     /* Server connection dialog help 3/4 */
 _("<p><b><big>Act as Gateway:</big></b> Check this item if you want to allow

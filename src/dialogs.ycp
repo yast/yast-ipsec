@@ -340,6 +340,7 @@ any LeftConnectionConfigDialog ()
 {
     list ips = IPsec::getIPaddresses();
     ips = add(ips, "%defaultroute");
+    ips = add(ips, "%dynamic");
 
     list networks = IPsec::getNetworks();
 
@@ -371,6 +372,8 @@ any ConnectionStartModeDialog () {
     string caption = _("IPsec Connection Configuration");
     list bootmodes = IPsec::getBootModeItems();
 
+    list<string> available_interfaces = IPsec::getDevices();
+
     /* IPsec configure1 dialog contents */
     term contents = `HBox(
 	`HStretch(),
@@ -379,7 +382,7 @@ any ConnectionStartModeDialog () {
 	    `Frame(_("Dynamic Start"), `RadioButtonGroup(`id(`rbg), `opt(`notify),
 		`VBox(
 		    `Left(`CheckBox(`id(`nodyncbx), `opt(`notify), _("Start Dynamically"))),
-		    `ComboBox(`id(`netif), `opt(`editable), _("Interface"), IPsec::getDevices())
+		    `ComboBox(`id(`netif), `opt(`editable), _("Interface"), available_interfaces)
 		    )
 		)
 	    )
@@ -390,6 +393,13 @@ any ConnectionStartModeDialog () {
     Wizard::SetContentsButtons(caption, contents, HELPS["startmode"]:"",
 	    Label::BackButton(), Label::OKButton());
 
+    boolean left_is_dynamic = false;
+
+    if(IPsec::current_connection["left"]:"" == "%dynamic")
+    {
+	left_is_dynamic = true;
+    }
+
     {
 	string val = IPsec::current_connection["auto"]:"";
 	if(val != "")
@@ -398,7 +408,7 @@ any ConnectionStartModeDialog () {
 
     {
 	list<string> devs = IPsec::getNetworkDevicesUP();
-	if(size(devs) == 0 && IPsec::dynamic_start_suggest_dialup == true)
+	if(size(devs) == 0 && (IPsec::dynamic_start_suggest_dialup == true || left_is_dynamic == true))
 	{
 	    devs = IPsec::getDialupInterfaces();
 	    IPsec::dynamic_start_suggest_dialup = false;
@@ -410,7 +420,13 @@ any ConnectionStartModeDialog () {
 	    UI::ChangeWidget(`id(`nodyncbx), `Value, true );
 	}
 	else
+	{
 	    UI::ChangeWidget(`id(`netif), `Enabled, false );
+	    if(size(available_interfaces) == 0)
+	    {
+		Popup::Message(_("You chose %dynamic as local IP address but no interfaces where found."));
+	    }
+	}
     }
 
 
@@ -437,12 +453,31 @@ any ConnectionStartModeDialog () {
 
 	    if((boolean) UI::QueryWidget(`id(`nodyncbx), `Value))
 	    {
+		if(!left_is_dynamic)
+		{
+		    if(Popup::YesNo(_("You chose '%1' as local IP address but want to start the connection dynamically.\nDo you want to set the local IP address to %dynamic?.")) == false)
+		    {
+			continue;
+		    }
+		    else
+		    {
+			IPsec::current_connection["left"] = "%dynamic";
+		    }
+		}
+
 		string devs = (string) UI::QueryWidget(`id(`netif), `Value);
 		y2debug("devs=%1", devs);
 		IPsec::setNetworkDevicesUP(splitstring(devs, " "));
 	    }
+	    else if(ret == `next && left_is_dynamic)
+	    {
+		Popup::Message(_("You chose %dynamic as local IP address but did not select an interface."));
+		continue;
+	    }
 	    else
+	    {
 		IPsec::setNetworkDevicesUP([]);
+	    }
 
             break;
         }
@@ -590,6 +625,7 @@ any EasyRoadWarriorServerDialog () {
 
     list ips = IPsec::getIPaddresses();
     ips = add(ips, "%defaultroute");
+    ips = add(ips, "%dynamic");
 
     term contents = `VBox(
 	`HBox(
