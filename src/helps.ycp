@@ -41,9 +41,9 @@ An additional dialog informs whether it is safe to do so.
     /* Summary dialog help 1/4 */
     "summary" : _("<p><b><big>VPN Configuration</big></b><br>
 This module allows you to configure virtual private networks (VPN) based on
-IPsec. Select <b>Enable VPN Services</b> to start the IPsec daemon and to add
+IPsec. Select <b>Enable VPN Services</b> to start the IPsec daemon and add
 it to the the boot process. Select <b>Disable VPN Services</b> to stop the daemon
-and to remove it from the boot process.<br></p> 
+and remove it from the boot process.<br></p> 
 ") +
 
     /* Summary dialog help 2/4 */
@@ -91,7 +91,7 @@ suitable for use by a Linux FreeS/WAN or Windows client.</p>
 "),
 
     /* Certificate dialog help 1/3 */
-    "certificates" : _("<p><b><big>Certifiate Overview</big></b><br>
+    "certificates" : _("<p><b><big>Certificate Overview</big></b><br>
 This screen gives an overview of the certificates used by IPsec. Click
 <b>Current View</b> to switch among views of CA certificates, certificates,
 certificate revoke lists (CRLs), and keys.</p> 
@@ -141,7 +141,7 @@ IPsec configuration.</p>
     "settings": sformat("<p><b><big>%1:</big></b><br>", IPsec::settings_str) +
 
     /* Settings dialog help 2/4 */
-_("<p><b><big>NAT Traversal</big></b> means that IPsec packets will be
+_("<p><b><big>NAT Traversal</big></b> means that IPsec packets are
 encapsulated in a way that allows them to be transmitted through routers that
 modify their IP address. Check this option if your host is behind a router that
 performs network address translation or masquerading and you want to establish
@@ -161,7 +161,7 @@ accepted.</p>
 
     /* Settings dialog help 4/4 */
 _("<p><b><big>CRL Check Interval</big></b> specifies the number of seconds
-after which the IPsec daemon checks whether certificates have been expired or
+after which the IPsec daemon checks whether certificates have expired or
 whether new certificate revoke lists should be fetched. A typical value is 600
 seconds (ten minutes). Set to zero to disable fetching of new CRLs.</p>
 "),
