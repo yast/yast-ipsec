@@ -183,7 +183,7 @@ global integer getCrlCheckInterval()
 map<string, map<string, string> > connections = $[];
 
 /** one connection, used during add or edit */
-global map current_connection = $[];
+global map<string,string> current_connection = $[];
 global string current_connection_name = "";
 // old name if connection was renamed
 global string current_connection_oldname = "";
@@ -655,7 +655,7 @@ string ConnectionSummary()
     return summary;
 }
 
-/** create summary of connections */
+/** create summary of certificates */
 string CertificateSummary()
 {
     string summary = sformat ("<p><a href=\"certificates\">%1</a><br>", "Certificates");
@@ -875,7 +875,9 @@ global void DeleteConnection(string name)
     // delete it from network config
     setNetworkDevicesUP([]);
 
-    connections = (map<string,map<string,string> >) remove(connections, name);
+    IPsecConfig::deleteConnection(name);
+    connections = IPsecConfig::Connections();
+
     modified = true;
 }
 
@@ -920,9 +922,14 @@ global list getCurrentConnectionItems()
 global void commitChangedConnection()
 {
     if(size(current_connection_oldname) != 0)
-	connections = (map <string, map <string, string> >)remove(connections, current_connection_oldname);
+    {
+	IPsecConfig::deleteConnection(current_connection_oldname);
+    }
 
-    connections = (map <string, map <string, string> >)add(connections, current_connection_name, current_connection);
+    IPsecConfig::addConnection(current_connection_name, current_connection);
+
+    connections = IPsecConfig::Connections();
+
     modified = true;
 }
 

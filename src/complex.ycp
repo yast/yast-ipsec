@@ -507,7 +507,7 @@ any ConnectionExpertDialog ()
 	    if(Popup::YesNo(sformat(_("Delete %1?"), key)) == false)
 		continue;
 
-	    IPsec::current_connection = remove(IPsec::current_connection, key);
+	    IPsec::current_connection = (map<string,string>) remove(IPsec::current_connection, key);
 
 	    ExpertConnectionContents();
 
