@@ -185,7 +185,7 @@ sub Write
 	$fsutil->conn($name, %{$connections{$name}});
     }
     if($fsutil and not($fsutil->save_config())) {
-	Popup::Error(_("Failed to save ipsec.conf:")."\n"
+	Popup::Error("IPsecConfig", _("Failed to save ipsec.conf:")."\n" # FIXME: module name
 	             . $fsutil->errstr());
 	return Boolean(0);
     }
@@ -206,7 +206,7 @@ sub Write
 	                    pass => $pass);
     }
     if($fsutil and not($fsutil->save_secrets())) {
-	Popup::Error(_("Failed to save ipsec.secrets:")."\n"
+	Popup::Error("IPsecConfig", _("Failed to save ipsec.secrets:")."\n" # FIXME: module name
 	             . $fsutil->errstr());
 	return Boolean(0);
     }
@@ -226,7 +226,7 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
 	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
@@ -246,7 +246,7 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
 	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
@@ -266,7 +266,7 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
 	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
@@ -286,7 +286,7 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
 	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
