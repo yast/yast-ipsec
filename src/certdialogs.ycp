@@ -191,7 +191,7 @@ any CertificateImportDialogFiles () {
 	    UI::ChangeWidget(`id(`key), `Value, file );
 	    keyfile = file;
 	    password = pw;
-	    UI::SetFocus(`id(`next));
+	    Wizard::SetFocusToNextButton();
 	}
 	else if(ret == `bcrl)
 	{
@@ -199,7 +199,7 @@ any CertificateImportDialogFiles () {
 	    if(!IPsec::updateImportDir(file)) continue;
 	    UI::ChangeWidget(`id(`crl), `Value, file );
 	    crlfile = file;
-	    UI::SetFocus(`id(`next));
+	    Wizard::SetFocusToNextButton();
 	}
         else {
             y2error("unexpected retcode: %1", ret);
