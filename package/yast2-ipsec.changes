@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Fri Sep  3 14:27:01 CEST 2004 - lnussel@suse.de
+
+- fix a text to be translatable, add notes for translators
+- disable autoyast until someone implements the new interface
+- 2.10.1
+
+-------------------------------------------------------------------
 Wed Jul 28 12:31:53 CEST 2004 - lnussel@suse.de
 
 - use ProductFeatures::ui_mode
