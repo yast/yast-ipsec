@@ -1898,6 +1898,7 @@ sub _load_ipsec_secrets
                 # check duplicate x509 files
                 #
                 for my $kref (@{$keys}) {
+                    next unless($kref->{'x509'});
                     if($rfile eq $kref->{'x509'}) {
                         return (-1, emsg=>"duplicate x509 key",
                                     line=>substr($line, 0, 20)."...");
@@ -1914,6 +1915,7 @@ sub _load_ipsec_secrets
                 $cidx = '%any6' if($cidx eq '::');
 
                 for my $kref (@{$keys}) {
+                    next if($kref->{'x509'});
                     my $kidx = $kref->{'index'};
                     if($kidx eq '' or $kidx eq '0.0.0.0') {
                        $kidx = '%any';
