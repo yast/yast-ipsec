@@ -365,9 +365,9 @@ global boolean Read() {
 	    _("Checking required packages..."),
 	    /* Progress step 2/5 */
 	    _("Reading the database..."),
-	    /* Progress step 5/5 */
+	    /* Progress step 3/5 */
 	    _("Reading the previous settings..."),
-	    /* Progress step 5/5 */
+	    /* Progress step 4/5 */
 	    _("Reading network settings..."),
 	    /* Progress step 5/5 */
 	    _("Reading firewall settings..."),
@@ -1038,9 +1038,9 @@ global list getIdsOfCert(string name)
     map cert = certificates[name]:$[];
 
     list ids = [];
-    if(haskey(cert, "DN"))
+    if(haskey(cert, "DN") && cert["DN"]:nil != nil)
 	    ids = add(ids, cert["DN"]:"");
-    if(haskey(cert, "subjectAltName"))
+    if(haskey(cert, "subjectAltName") && cert["subjectAltName"]:nil != nil)
 	    ids = add(ids, cert["subjectAltName"]:"");
 
     return ids;
