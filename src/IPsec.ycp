@@ -20,6 +20,8 @@ import "Runlevel";
 import "Report";
 import "Summary";
 import "Mode";
+import "NetworkDevices";
+import "Netmask";
 
 /**
  * Prototypes
@@ -210,8 +212,6 @@ global boolean Read() {
     // TODO FIXME Set the right number of stages
     integer steps = 4;
 
-    integer sl = 50;
-
     // TODO FIXME Names of real stages
     // We do not set help text here, because it was set outside
     Progress::New( caption, " ", steps, [
@@ -220,14 +220,14 @@ global boolean Read() {
 	    /* Progress stage 2/3 */
 	    _("Read the previous settings"),
 	    /* Progress stage 3/3 */
-	    _("Detect the devices")
+	    _("Read network settings")
 	], [
 	    /* Progress step 1/3 */
 	    _("Reading the database..."),
 	    /* Progress step 2/3 */
 	    _("Reading the previous settings..."),
 	    /* Progress step 3/3 */
-	    _("Detecting the devices..."),
+	    _("Reading network settings..."),
 	    /* Progress finished */
 	    _("Finished")
 	],
@@ -264,33 +264,32 @@ global boolean Read() {
 
     /* Error message */
     if(false) Report::Error(_("Cannot read the database1."));
-    sleep(sl);
 
     // read another database
     if(Abort()) return false;
     Progress::NextStep();
     /* Error message */
     if(false) Report::Error(_("Cannot read the database2."));
-    sleep(sl);
 
     // read current settings
     if(Abort()) return false;
     Progress::NextStage();
     /* Error message */
     if(false) Report::Error(_("Cannot read current settings."));
-    sleep(sl);
 
     // detect devices
     if(Abort()) return false;
     Progress::NextStage();
-    /* Error message */
-    if(false) Report::Warning(_("Cannot detect devices."));
-    sleep(sl);
+
+    if(!Mode::test && !NetworkDevices::Read())
+    {
+	Report::Warning(_("Cannot read network settings."));
+    }
+
 
     if(Abort()) return false;
     /* Progress finished */
     Progress::NextStage();
-    sleep(sl);
 
     if(Abort()) return false;
     modified = false;
@@ -304,7 +303,7 @@ global boolean Read() {
 global boolean Write() {
 
     /* IPsec read dialog caption */
-    string caption = _("Saving ipsec Configuration");
+    string caption = _("Saving IPsec Configuration");
 
     // TODO FIXME And set the right number of stages
     integer steps = 2;
@@ -556,6 +555,13 @@ global void setNoConnection()
     current_connection_oldname = "";
 }
 
+/** delete the given connection */
+global void DeleteConnection(string name)
+{
+    connections = remove(connections, name);
+    modified = true;
+}
+
 /** prepare a connection for editing
  * @param name name of the connection
  * @returns false if connection doesn't exist
@@ -586,24 +592,27 @@ global void commitChangedConnection()
 	connections = remove(connections, current_connection_oldname);
 
     connections = add(connections, current_connection_name, current_connection);
+    modified = true;
 }
 
 /** return list of IP addresses of all configured interfaces */
 global list getIPaddresses()
 {
     list ips = [];
-/* FIXME find out how this must be done
-    NetworkDevices::ReadDevices(nil);
+
+    if(Mode::test == true)
+	return [ "10.10.1.1", "192.168.1.1" ];
+
     list devices = NetworkDevices::GetDevices("all");
 
-    devices = filter(`d,AllDevices,``(d!="lo"));
+    devices = filter(string d, devices,``(d!="lo"));
 
     foreach(string dev, devices, ``{
-	if(!Lan::Select(dev)) continue;
-	ips = add(ips, Lan::ipaddr);
+	if(!NetworkDevices::Select(dev)) continue;
+	if(haskey(NetworkDevices::Current, "IPADDR"))
+	    ips = add(ips, NetworkDevices::Current["IPADDR"]:"");
     });
-*/
-    ips = [ "10.10.1.1", "192.168.1.1" ];
+
     return ips;
 }
 
@@ -611,10 +620,56 @@ global list getIPaddresses()
 /** return list of possible networks */
 global list getNetworks()
 {
-    //TODO
-    list ips = [ "10.10.0.0/16", "192.168.1.0/24" ];
+    if(Mode::test == true)
+	return [ "10.10.0.0/16", "192.168.1.0/24" ];
 
-    return ips;
+    list devices = NetworkDevices::GetDevices("all");
+
+    devices = filter(string d, devices,``(d!="lo"));
+
+    list nets = [];
+    foreach(string dev, devices, ``{
+	if(!NetworkDevices::Select(dev)) continue;
+	if(haskey(NetworkDevices::Current, "IPADDR")
+	    && haskey(NetworkDevices::Current, "NETMASK"))
+	{
+	    string ip = NetworkDevices::Current["IPADDR"]:"" + "/"
+		+ Netmask::ToBits(NetworkDevices::Current["NETMASK"]:"");
+	    nets = add(nets, ip);
+	}
+    });
+
+    return nets;
+}
+
+/** return list of certificate filenames */
+global list getCertificateFiles()
+{
+    list certs = [];
+
+    foreach(string k, map v, certificates, ``{
+	certs = add(certs, k);
+    });
+    return certs;
+}
+
+
+/** return list of subjectAltNames (currently only one possible) */
+global list getIdsOfCert(string name)
+{
+    y2error("%1", name);
+    if(size(name) == 0 || !haskey(certificates, name))
+	return [];
+
+    map cert = certificates[name]:$[];
+
+    list ids = [];
+    if(haskey(cert, "subjectAltName"))
+	    ids = add(ids, cert["subjectAltName"]:"");
+
+    y2error("%1 %2", name, ids);
+
+    return ids;
 }
 
 /* EOF */
