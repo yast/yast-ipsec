@@ -34,7 +34,7 @@ our %EXPORT_TAGS = (
 our @EXPORT_OK   = ( @{$EXPORT_TAGS{'extract'}}, @{$EXPORT_TAGS{'parsing'}} );
 
 our $VERSION     = 0.1;
-our $DEBUG       = 5;  # level 0 .. 4
+our $DEBUG       = 0;  # level 0 .. 4
 
 # FIXME:
 our %DEFS        = (
@@ -187,17 +187,19 @@ sub parse_cert($%)
     my $parsed = $X509->getParsed();
     my $subjaltname = undef;
 
-    #print STDERR "CERT PARSED: ", join(", ", keys %{$parsed}), "\n";
+    #print STDERR "CERT PARSED: ", join(", ", keys %{$parsed}), "\n"
+    #   if($DEBUG);
 
     if(exists($parsed->{"OPENSSL_EXTENSIONS"}) and
        ref($parsed->{"OPENSSL_EXTENSIONS"}) eq 'HASH') {
         my $ref = $parsed->{"OPENSSL_EXTENSIONS"};
 
        #print STDERR "CONSTRAINS: ", @{$ref->{"X509v3 Basic Constraints"}},
-       #"\n";
+       #"\n" if($DEBUG);
 
        #print STDERR "BASIC IS_CA(",$infile||'',") => ",
-       #      $parsed->{"EXTENSIONS"}->{"BASIC_CONSTRAINTS"}->{"CA"}, "\n";
+       #      $parsed->{"EXTENSIONS"}->{"BASIC_CONSTRAINTS"}->{"CA"},
+       #"\n" if($DEBUG);
 
         if(exists($ref->{"X509v3 Subject Alternative Name"}) and
            scalar(@{$ref->{"X509v3 Subject Alternative Name"}||[]})) {
@@ -213,7 +215,8 @@ sub parse_cert($%)
         }
     }
 
-    print STDERR "IS_CA(",$infile||'',") => ",  $parsed->{"IS_CA"}, "\n";
+    print STDERR "IS_CA(",$infile||'',") => ",  $parsed->{"IS_CA"}, "\n"
+    if($DEBUG);
 
     my %cert;
     $cert{"IS_CA"}         = $parsed->{"IS_CA"};
