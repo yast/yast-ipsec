@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Nov  2 10:56:23 CET 2004 - lnussel@suse.de
+
+- fix use of Mode::test
+- 2.11.1
+
+-------------------------------------------------------------------
 Tue Oct 19 15:11:39 CEST 2004 - lnussel@suse.de
 
 - change %s -> %1 in format strings to fix build
