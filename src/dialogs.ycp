@@ -15,6 +15,7 @@ import "Label";
 import "Wizard";
 import "IPsec";
 import "IPsecConfig";
+import "Call";
 
 include "ipsec/helps.ycp";
 
@@ -876,6 +877,19 @@ any ExportDialog () {
     }
 
     return ret;
+}
+
+symbol FinishDialog ()
+{
+    if(IPsec::getStart() && IPsec::needaskfirewall == true)
+    {
+	if(Popup::YesNo(_("SuSEfirewall is enabled but currently denies IPsec traffic.
+Do you want to reconfigure SuSEfirewall?")))
+	{
+	    Call::Function("firewall", []);
+	}
+    }
+    return `next;
 }
 
 /* EOF */
