@@ -151,6 +151,20 @@ sub Settings()
     return \%settings;
 }
 
+# first parameter is a map of something
+BEGIN { $TYPEINFO{setSettings} = ["function", "void" , [ "map", "string", "string" ]]; }
+sub setSettings()
+{
+    y2milestone(%{$_[0]});
+}
+
+# first parameter is a map of strings
+BEGIN { $TYPEINFO{setConnections} = ["function", "void" , [ "map", "string", [ "map", "string", "string" ]]]; }
+sub setConnections()
+{
+    y2milestone(%{$_[0]});
+}
+
 ##
  # Write all ipsec settings
  # @return true on success
