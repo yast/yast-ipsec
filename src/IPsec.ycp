@@ -236,6 +236,42 @@ map FakeKeys()
     ];
 }
 
+list bootmodes = [ "start", "add", "ignore" ];
+list bootmodes_str = [ _("Initiate Connection"), _("Prepare Connection"), _("Ignore Connection") ];
+
+/** return list of `item(`id("bootmode"), "text") */
+global list getBootModeItems()
+{
+    integer i = 0;
+    integer max = size(bootmodes);
+
+    list items = [];
+
+    while(i < max )
+    {
+	items = add(items, `item(`id(bootmodes[i]:""), bootmodes_str[i]:""));
+	i = i + 1;
+    }
+
+    return items;
+}
+
+/** return text for bootmode, e.g. "auto" -> "initiate connection" */
+global string getBootModeText(string mode)
+{
+    integer i = 0;
+    integer max = size(bootmodes);
+
+    while(i < max )
+    {
+	if(bootmodes[i]:"" == mode)
+	    return bootmodes_str[i]:mode;
+	i = i + 1;
+    }
+
+    return mode;
+}
+
 /** remember directory
  * @param file the file from which the directory name is stored
  * @return
@@ -450,7 +486,7 @@ global map Export () {
 string addConnectionValueIfDefined(map conn, string name, string key)
 {
     if(haskey(conn, key))
-	return sformat("<li>%1: %2</li>", name, conn[key]:"");
+	return sformat("<li>%1: %2</li>", name, getBootModeText(conn[key]:""));
     return "";
 }
 
@@ -672,6 +708,21 @@ global boolean setCurrentConnection(string name)
     return true;
 }
 
+
+/**
+ * put current connection into key/value items suitable for a table
+ * @return `item(`id("key"), "key", "value")
+ * */
+global list getCurrentConnectionItems()
+{
+    list items = [];
+    foreach(string k, string v, current_connection, ``{
+	items = add(items, `item(`id(k),k,v) );
+    });
+
+    return items;
+}
+
 /**
  * commit changes made to the current connection
  * */
@@ -684,6 +735,19 @@ global void commitChangedConnection()
     modified = true;
 }
 
+/** return list of interface configuration */
+global list getDevices()
+{
+    if(Mode::test == true)
+	return [ "eth0", "dsl0" ];
+
+    list devices = NetworkDevices::GetDevices("all");
+
+    devices = filter(string d, devices,``(d!="lo"));
+
+    return devices;
+}
+
 /** return list of IP addresses of all configured interfaces */
 global list getIPaddresses()
 {
@@ -692,9 +756,7 @@ global list getIPaddresses()
     if(Mode::test == true)
 	return [ "10.10.1.1", "192.168.1.1" ];
 
-    list devices = NetworkDevices::GetDevices("all");
-
-    devices = filter(string d, devices,``(d!="lo"));
+    list devices = getDevices();
 
     foreach(string dev, devices, ``{
 	if(!NetworkDevices::Select(dev)) continue;
@@ -712,9 +774,7 @@ global list getNetworks()
     if(Mode::test == true)
 	return [ "10.10.0.0/16", "192.168.1.0/24" ];
 
-    list devices = NetworkDevices::GetDevices("all");
-
-    devices = filter(string d, devices,``(d!="lo"));
+    list devices = getDevices();
 
     list nets = [];
     foreach(string dev, devices, ``{
@@ -752,6 +812,8 @@ global list getIdsOfCert(string name)
     map cert = certificates[name]:$[];
 
     list ids = [];
+    if(haskey(cert, "DN"))
+	    ids = add(ids, cert["DN"]:"");
     if(haskey(cert, "subjectAltName"))
 	    ids = add(ids, cert["subjectAltName"]:"");
 

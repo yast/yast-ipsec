@@ -27,10 +27,14 @@ any ConnectionConfigDialog1 () {
     string caption = _("IPsec Connection Configuration");
 
     /* IPsec configure1 dialog contents */
-    term contents = `HBox(
-	`HStretch(),
-	`TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
-	`HStretch()
+    term contents = `VBox(
+	`HBox(
+	    `HStretch(),
+	    `TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
+	    `HStretch()
+	),
+	`VSpacing(2),
+	`PushButton(`id(`expert), _("Expert ..."))
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
@@ -50,7 +54,7 @@ any ConnectionConfigDialog1 () {
 	    if(ReallyAbort()) break;
 	    else continue;
 	}
-        else if(ret == `next)
+        else if(ret == `next || ret == `expert)
 	{
 	    string name = (string) UI::QueryWidget(`id(`name), `Value);
 	    //TODO ensure name is valid
@@ -258,23 +262,23 @@ any ConnectionStartModeDialog () {
 
     /* IPsec configure1 dialog caption */
     string caption = _("IPsec Connection Configuration");
-    list bootmode =
-	[
-	    `item(`id("auto"), _("Initiate Connection")),
-	    `item(`id("add"), _("Prepare Connection")),
-	    `item(`id("ignore"), _("Do nothing"))
-	];
+    list bootmodes = IPsec::getBootModeItems();
 
     /* IPsec configure1 dialog contents */
     term contents = `HBox(
 	`HStretch(),
 	`VBox(
-	    `ComboBox(`id(`addr), `opt(`hstretch), _("During Boot ..."), bootmode ),
-	    `Frame(_("Dynamic start"), `RadioButtonGroup(`id(`rbg), `VBox(
-		`Left(`RadioButton(`id(`nodyn), _("No dynamic start"))),
-		`Left(`RadioButton(`id(`netif), _("Start after Network interface"))),
-		`Left(`RadioButton(`id(`internet), _("Start at Internet dial-up")))
-	    )))
+	    `ComboBox(`id(`bootmode), `opt(`hstretch), _("During Boot ..."), bootmodes ),
+	    `Frame(_("Dynamic start"), `RadioButtonGroup(`id(`rbg), `opt(`notify),
+		`VBox(
+		    `Left(`RadioButton(`id(`nodynrb), `opt(`notify), _("No dynamic start"), true)),
+		    `Left(`VBox(
+			`RadioButton(`id(`netifrb), `opt(`notify), _("Start after Network interface")),
+			`ComboBox(`id(`netif), `opt(`editable), _("Interface"), IPsec::getDevices())
+		    )),
+		    `Left(`RadioButton(`id(`internetrb), `opt(`notify), _("Start at Internet dial-up")))
+		)
+	    ))
 	),
 	`HStretch()
     );
@@ -282,10 +286,21 @@ any ConnectionStartModeDialog () {
     Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
 	    Label::BackButton(), Label::NextButton());
 
+    {
+	string val = IPsec::current_connection["auto"]:"";
+	if(val != "")
+	    UI::ChangeWidget(`id(`bootmode), `Value, IPsec::getBootModeText(val) );
+    }
+
+    UI::ChangeWidget(`id(`netif), `Enabled, false );
+
     any ret = nil;
     while(true) {
 
 	ret = UI::UserInput();
+
+	boolean netif = (boolean) UI::QueryWidget(`id(`netifrb), `Value);
+	UI::ChangeWidget(`id(`netif), `Enabled, netif );
 
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
@@ -293,6 +308,8 @@ any ConnectionStartModeDialog () {
 	    else continue;
 	}
         else if(ret == `next || ret == `back) {
+	    string mode = (string) UI::QueryWidget(`id(`bootmode), `Value);
+	    IPsec::current_connection["auto"] = mode;
             break;
         }
         else {
@@ -401,6 +418,10 @@ any ConnectionConfigEncryptionDialog () {
         else if(ret == `next || ret == `back) {
             break;
         }
+        else if(ret == `encalgos)
+	{
+	    break;
+	}
         else {
             y2error("unexpected retcode: %1", ret);
             continue;
