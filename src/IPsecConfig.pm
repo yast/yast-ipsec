@@ -38,8 +38,8 @@ my %settings;
 # map of certificates
 # certificates
 #  +-> "cert.pem"
-#  +-> "DN" = "/foo/bar/baz"
-#  \-> "subjectAltName" = "foo@bar"
+#    +-> "DN" = "/foo/bar/baz"
+#    \-> "subjectAltName" = "foo@bar"
 
 my $openssl;
 my %certificates;
@@ -377,8 +377,20 @@ sub importCertificate($)
     my $filename = shift;
     my $href = parse_cert($openssl, $filename);
 
-    
-    return _("importing certificates not supported yet");
+    if(! defined $href)
+    {
+	return _("importing certificate failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $certificates{"/etc/ipsec.d/certs/cert".$idx.".pem"})
+    {
+	$idx++;
+    }
+
+    $certificates{"/etc/ipsec.d/certs/cert".$idx.".pem"} = $href;
+
+    return undef;
 }
 
 ##
@@ -511,6 +523,15 @@ sub importPreparedP12()
 {
     # TODO
     return "importing PKCS#12 not yet implemented";
+}
+
+##
+ # cancel an import that was started with prepareImportP12. Delete any
+ # temporary files.
+ #
+BEGIN { $TYPEINFO{cancelPreparedP12} = ["function", "void" ]; }
+sub cancelPreparedP12()
+{
 }
 
 # EOF

@@ -266,6 +266,12 @@ sub parse_key($$)
     return undef;
 }
 
+sub is_certificate($)
+{
+# if /------BEGIN CERTIF/ ...
+	return 1;
+}
+
 
 1;
 __END__
