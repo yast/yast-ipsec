@@ -102,7 +102,7 @@ sub Read
     %connections = ();
 
     if($fsutil->load_config()) {
-	%settings = %{$fsutil->{'setup'} || {}};
+	%settings = %{$fsutil->settings()};
 
 	my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
 	for my $name (@conns) {
@@ -171,6 +171,14 @@ sub Write
 	    unlink($file);
 	}
     }
+
+    #
+    # Save FreeS/WAN setup
+    #
+    for my $name (keys %settings) {
+	debug "apply setting '$name' => ". $settings{$name} . "\n";
+    }
+    $fsutil->settings(%settings);
 
     #
     # Save FreeS/WAN config
