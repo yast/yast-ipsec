@@ -625,7 +625,7 @@ sub secret_del
             if($file !~ /^\//) {
                $file = $DEFS{'ipsec_private'}.'/'.$file;
             }
-            if($file eq $x509) {
+            if(($kref->{'x509'} eq $x509) or ($file eq $x509)) {
                 splice(@{$secr->{'keys'}}, $i, 1);
                 return $kref;
             }
