@@ -43,6 +43,18 @@ any NewConnectionDialog () {
 	)
     );
 
+    // edit mode. skip this dialog
+    if(IPsec::current_connection_name != "")
+    {
+	string msg = IPsec::mayEditCurrentConnection();
+	if(msg != nil)
+	{
+	    Popup::Error(msg);
+	    return `back;
+	}
+	return `edit;
+    }
+
     Wizard::SetContentsButtons(caption, contents, HELPS["newconnection"]:"",
 	    Label::BackButton(), Label::NextButton());
 
@@ -53,7 +65,7 @@ any NewConnectionDialog () {
 
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
-	    if(ReallyAbort()) break;
+	    if(Popup::ReallyAbort(false)) break;
 	    else continue;
 	}
         else if(ret == `next)
@@ -246,7 +258,7 @@ any LeftRightConnectionConfigDialog(
 
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
-	    if(ReallyAbort()) break;
+	    if(Popup::ReallyAbort(false)) break;
 	    else continue;
 	}
         else if(ret == `next || ret == `back || ret == `import)
@@ -386,7 +398,7 @@ any ConnectionStartModeDialog () {
 	/* abort? */
 	if(ret == `abort || ret == `cancel)
 	{
-	    if(ReallyAbort()) break;
+	    if(Popup::ReallyAbort(false)) break;
 	    else continue;
 	}
 	else if(ret == `nodyncbx)
@@ -585,7 +597,7 @@ any EasyRoadWarriorDialog () {
 
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
-	    if(ReallyAbort()) break;
+	    if(Popup::ReallyAbort(false)) break;
 	    else continue;
 	}
         else if(ret == `next)
@@ -619,6 +631,53 @@ any EasyRoadWarriorDialog () {
 	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
 	    UI::ChangeWidget(`id(`subnet), `Enabled, gw );
 	}
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any ExportDialog () {
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("Export IPsec Connection");
+
+    /* IPsec configure1 dialog contents */
+    term contents = `VBox(
+	`HBox(
+	    `HStretch(),
+	    `Label("TODO"),
+	    `HStretch()
+	)
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["exportconnection"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(Popup::ReallyAbort(false)) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    break;
+	}
+	else if(ret == `back) {
+            break;
+        }
         else {
             y2error("unexpected retcode: %1", ret);
             continue;
