@@ -84,6 +84,8 @@ BEGIN
         mkdir("/etc/ipsec.d/certs", 0755);
     }
 
+    cleanupImport();
+
     # FIXME: cleanup it!!
     $temp_tree = tempdir("/tmp/yast2-ipsec-XXXXXX", CLEANUP => 1);
 }
@@ -586,6 +588,19 @@ sub importPreparedP12()
 BEGIN { $TYPEINFO{cancelPreparedP12} = ["function", "void" ]; }
 sub cancelPreparedP12()
 {
+}
+
+BEGIN { $TYPEINFO{cleanupImport} = ["function", "void" ]; }
+sub cleanupImport()
+{
+    # FIXME: delete any temp files, ...
+    %imports = (
+	'CACERTIFICATES' => {},
+	'CERTIFICATES'   => {},
+	'CRLS'           => {},
+	'KEYS'           => {},
+	'CONFIGS'        => {},
+    );
 }
 
 ##
