@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Thu Mar 11 16:42:12 CET 2004 - lnussel@suse.de
+
+- require rightid for client config
+- change some dialog layouts according to sigi's suggestions
+- ask to configure SuSEfirewall2 if it denies IPsec traffic
+- call SetDesktopIcon
+- 2.9.2
+
+-------------------------------------------------------------------
 Fri Mar  5 17:47:38 CET 2004 - lnussel@suse.de
 
 - certificate import

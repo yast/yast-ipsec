@@ -854,7 +854,7 @@ any ExportConnectionDialog ()
     if( error != nil )
     {
 	// %1: Error message
-	Report::Error(sformat(_("Could not export selected connection:\n%1"), error));
+	Popup::Error(sformat(_("Could not export selected connection:\n%1"), error));
     }
 
     return `next;
@@ -879,7 +879,7 @@ any ImportConnectionDialog ()
     if( error != nil )
     {
 	// %1: Error message
-	Report::Error(sformat(_("Could not import selected file:\n%1"), error));
+	Popup::Error(sformat(_("Could not import selected file:\n%1"), error));
     }
 
     return `next;
