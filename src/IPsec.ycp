@@ -207,7 +207,7 @@ global string current_connection_name = "";
 global string current_connection_oldname = "";
 
 /** start directory for import fileselection dialogs */
-global string certimportdir = "/etc/ipsec.d"; //TODO change to /media
+global string certimportdir = "/media";
 
 /** start directory for export fileselection dialogs */
 global string exportdir = "/tmp";
