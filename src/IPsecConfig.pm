@@ -130,9 +130,8 @@ sub Read
 	print STDERR "WANT CONNS: ", join(", ", @conns), "\n";
 
         for my $name (@conns) {
-	    next unless(exists($fsutil->{'conn'}->{$name}->{'data'}));
-	    print STDERR "connections += $name\n";
-	    $connections{$name} = $fsutil->{'conn'}->{$name}->{'data'};
+            print STDERR "copy connections += $name\n";
+            $connections{$name} = {$fsutil->conn($name)};
 	}
 	return Boolean(1);
     } else {
@@ -181,15 +180,41 @@ sub Settings()
 BEGIN { $TYPEINFO{setSettings} = ["function", "void" , [ "map", "string", "string" ]]; }
 sub setSettings($)
 {
-    # TODO
-    y2milestone(%{$_[0]});
+    my $ref = shift;
+
+    print STDERR "IPsecConfig::setSettings({\n";
+    for my $key (keys %{$ref}) {
+	print STDERR "\t$key => ", $ref->{$key} || '', "\n";
+
+	next unless("".$key =~ /\S+/);
+	if("".$ref->{$key} =~ /\S+/) {
+	    $settings{$key} = $ref->{$key};
+	} else {
+	    delete($settings{$key});
+	}
+    }
+    print STDERR "}) called\n";
+
+    y2milestone(%{$ref});
 }
 
 # first parameter is a map of strings
 BEGIN { $TYPEINFO{setConnections} = ["function", "void" , [ "map", "string", [ "map", "string", "string" ]]]; }
 sub setConnections($)
 {
-    # TODO
+    my $ref = shift;
+
+    print STDERR "IPsecConfig::setConnections(\n";
+    for my $name (sort keys %{$ref}) {
+	print STDERR "$name => {\n";
+	for my $key (sort keys %{$ref->{$name}}) {
+	    print "\t$key=", $ref->{$name}->{$key}, "\n";
+	}
+	print STDERR "},\n";
+
+	$connections{$name} = $ref->{$name};
+    }
+    print STDERR ") called\n";
     y2milestone(%{$_[0]});
 }
 
@@ -200,6 +225,7 @@ BEGIN { $TYPEINFO{deleteConnection} = ["function", "void", "string" ]; }
 sub deleteConnection($)
 {
     my $name = shift;
+    print STDERR "IPsecConfig::deleteConnection($name) called\n";
     delete $connections{$name};
 }
 
@@ -213,6 +239,12 @@ sub addConnection($$)
 {
     my $name = shift;
     my $ref = shift;
+
+    print STDERR "IPsecConfig::addConnection($name => {";
+    for my $key (sort keys %{$ref}) {
+	print "\t$key=", $ref->{$key}, "\n";
+    }
+    print STDERR "}) called\n";
     $connections{$name} = $ref;
 }
 
