@@ -509,7 +509,7 @@ any FreeSWANSettingsDialog ()
 		`Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::getNatTraversal())),
 		`Left(`CheckBox(`id(`strictcrlpolicy), IPsec::strictcrlpolicy_str, IPsec::getStrictCRLPolicy())),
 		`VSpacing(0.2),
-		`Left(`IntField(`id(`crlcheckinterval), "CRL check interval", 0, 99999, IPsec::getCrlCheckInterval())),
+		`Left(`IntField(`id(`crlcheckinterval), IPsec::crlcheckinterval_str, 0, 99999, IPsec::getCrlCheckInterval())),
 		`VSpacing(0.7)
 	    )
 	), `HStretch()
