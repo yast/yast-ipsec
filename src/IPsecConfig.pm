@@ -160,27 +160,21 @@ sub Read
     return Boolean(0);
 }
 
+##
+ # Write all ipsec settings
+ # @return true on success
+ #
+BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
+sub Write
+{
+    # TODO
+    return Boolean(1);
+}
+
 BEGIN { $TYPEINFO{LastError} = ["function", "string"]; }
 sub LastError()
 {
     return $fsutil->errstr();
-}
-
-BEGIN { $TYPEINFO{Connections} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
-sub Connections()
-{
-    print STDERR "IPsecConfig::Connections() => {\n";
-    for my $name (sort keys %connections) {
-	my $conn = $connections{$name};
-	print STDERR "\tconn ", $name, " => {\n";
-	for my $key (sort keys %{$conn}) {
-	    my $val = $conn->{$key};
-	    print STDERR "\t\t$key=$val\n";
-	}
-	print STDERR "\t},\n";
-    }
-    print STDERR "}\n";
-    return \%connections;
 }
 
 BEGIN { $TYPEINFO{Settings} = ["function", [ "map", "string", "string" ]]; }
@@ -217,24 +211,22 @@ sub setSettings($)
     y2milestone(%{$ref});
 }
 
-# first parameter is a map of strings
-BEGIN { $TYPEINFO{setConnections} = ["function", "void" , [ "map", "string", [ "map", "string", "string" ]]]; }
-sub setConnections($)
+
+BEGIN { $TYPEINFO{Connections} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
+sub Connections()
 {
-    my $ref = shift;
-
-    print STDERR "IPsecConfig::setConnections(\n";
-    for my $name (sort keys %{$ref}) {
-	print STDERR "$name => {\n";
-	for my $key (sort keys %{$ref->{$name}}) {
-	    print "\t$key=", $ref->{$name}->{$key}, "\n";
+    print STDERR "IPsecConfig::Connections() => {\n";
+    for my $name (sort keys %connections) {
+	my $conn = $connections{$name};
+	print STDERR "\tconn ", $name, " => {\n";
+	for my $key (sort keys %{$conn}) {
+	    my $val = $conn->{$key};
+	    print STDERR "\t\t$key=$val\n";
 	}
-	print STDERR "},\n";
-
-	$connections{$name} = $ref->{$name};
+	print STDERR "\t},\n";
     }
-    print STDERR ") called\n";
-    y2milestone(%{$_[0]});
+    print STDERR "}\n";
+    return \%connections;
 }
 
 ##
@@ -265,17 +257,6 @@ sub addConnection($$)
     }
     print STDERR "}) called\n";
     $connections{$name} = $ref;
-}
-
-##
- # Write all ipsec settings
- # @return true on success
- #
-BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
-sub Write
-{
-    # TODO
-    return Boolean(1);
 }
 
 BEGIN { $TYPEINFO{newDefaultConnection} = ["function", [ "map", "string", "string" ]]; }
