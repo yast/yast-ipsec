@@ -27,6 +27,7 @@ use FreeSwanCerts;
 #use ycp;
 use YaST::YCP qw(:LOGGING Boolean);
 YaST::YCP::Import ("IPsecPopups");
+YaST::YCP::Import ("Popup");
 
 setlocale(LC_MESSAGES, "");
 textdomain("ipsec");
@@ -189,13 +190,20 @@ sub Read
 
 ##
  # Write all ipsec settings
+ # opens popups on error
  # @return true on success
  #
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write
 {
-    my @errors = FreeSwanCerts::commit_scheduled_file_operations();
-    return Boolean(1);
+    my $success = 1;
+#    my @errors = FreeSwanCerts::commit_scheduled_file_operations();
+    if($fsutil and !$fsutil->save())
+    {
+	Popup::Error(_("Error saving IPsec config:") . "\n" . $fsutil->errstr());
+	$success = 0;
+    }
+    return Boolean($success);
 }
 
 BEGIN { $TYPEINFO{LastError} = ["function", "string"]; }

@@ -450,8 +450,8 @@ global boolean Write()
     settings["crlcheckinterval"] = sformat("%1", crlcheckinterval);
 
     IPsecConfig::setSettings(settings);
-    if(!IPsecConfig::Write())
-	Report::Error (_("Cannot write IPsec settings."));
+
+    IPsecConfig::Write();
 
     // Write Network settings
     if(Abort()) return false;
