@@ -478,7 +478,7 @@ sub extract_P12(%)
         if($ossl) {
             $blub = $ossl->convert(
                 DATATYPE  =>'CERTIFICATE',
-                P12PASSWD => $pass,
+                INPASSWD  => $pass,
                 INFORM    => "PKCS12",
                 INFILE    => $file,
                 OUTFORM   => "PEM"
