@@ -102,7 +102,14 @@ sub Read
 	print STDERR "IPsecConfig::Read() ",
 	             "FreeSwanConfig->load_config() => OK\n";
 	%settings = %{$fsutil->{'setup'}};
-	for my $name (keys %{$fsutil->{'conn'} || {}}) {
+
+	print STDERR "HAVE CONNS: ", join(", ", $fsutil->conns()), "\n";
+
+	my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
+
+	print STDERR "WANT CONNS: ", join(", ", @conns), "\n";
+
+        for my $name (@conns) {
 	    next unless(exists($fsutil->{'conn'}->{$name}->{'data'}));
 	    print STDERR "connections += $name\n";
 	    $connections{$name} = $fsutil->{'conn'}->{$name}->{'data'};
