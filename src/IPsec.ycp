@@ -646,7 +646,9 @@ global list CertOverview()
     map<string,map<string,string> > certificates = IPsecConfig::Certificates();
 
     foreach(string name, map cert, certificates, ``{
-	overview = add(overview, `item(`id(name), name, cert["DN"]:"?"));
+	string new = " ";
+	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
+	overview = add(overview, `item(`id(name), new, name, cert["DN"]:"?"));
     });
 
     return overview;
@@ -659,7 +661,9 @@ global list CACertOverview()
     map<string,map<string,string> > cacertificates = IPsecConfig::CACertificates();
 
     foreach(string name, map cert, cacertificates, ``{
-	overview = add(overview, `item(`id(name), name, cert["DN"]:"?"));
+	string new = " ";
+	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
+	overview = add(overview, `item(`id(name), new, name, cert["DN"]:"?"));
     });
 
     return overview;
@@ -672,7 +676,9 @@ global list CRLOverview()
     map<string,map<string,string> > crls = IPsecConfig::CRLs();
 
     foreach(string name, map cert, crls, ``{
-	overview = add(overview, `item(`id(name), name, cert["NEXT_UPDATE"]:"?", cert["ISSUER"]:"?"));
+	string new = " ";
+	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
+	overview = add(overview, `item(`id(name), new, name, cert["NEXT_UPDATE"]:"?", cert["ISSUER"]:"?"));
     });
 
     return overview;
@@ -685,7 +691,9 @@ global list KeyOverview()
     map<string,map<string,string> > keys = IPsecConfig::Keys();
 
     foreach(string name, map cert, keys, ``{
-	overview = add(overview, `item(`id(name), name));
+	string new = " ";
+	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
+	overview = add(overview, `item(`id(name), new, name));
     });
 
     return overview;

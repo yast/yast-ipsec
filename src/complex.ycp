@@ -294,8 +294,8 @@ term CertificateOverviewContents(term header, list content)
 void setCertContents()
 {
     // DN is a X509 property called "Distinguised Name". Probably not
-    // translatable
-    CertificateOverviewContents(`header(_("File"), _("DN")), IPsec::CertOverview());
+    // translatable. 'N' stands for new.
+    CertificateOverviewContents(`header(_("N"), _("File"), _("DN")), IPsec::CertOverview());
     UI::ChangeWidget(`id(`certs), `Value, true);
     UI::SetFocus(`id(`imp));
 
@@ -303,20 +303,22 @@ void setCertContents()
 void setCACertContents()
 {
     // DN is a X509 property called "Distinguised Name". Probably not
-    // translatable
-    CertificateOverviewContents(`header(_("File"), _("DN")), IPsec::CACertOverview());
+    // translatable. 'N' stands for new.
+    CertificateOverviewContents(`header(_("N"), _("File"), _("DN")), IPsec::CACertOverview());
     UI::ChangeWidget(`id(`cacerts), `Value, true);
     UI::SetFocus(`id(`imp));
 }
 void setCRLContents()
 {
-    CertificateOverviewContents(`header(_("File"), _("Next Update"), _("Issuer")), IPsec::CRLOverview());
+    // 'N' stands for new.
+    CertificateOverviewContents(`header(_("N"), _("File"), _("Next Update"), _("Issuer")), IPsec::CRLOverview());
     UI::ChangeWidget(`id(`crls), `Value, true);
     UI::SetFocus(`id(`imp));
 }
 void setKeyContents()
 {
-    CertificateOverviewContents(`header(_("File")), IPsec::KeyOverview());
+    // 'N' stands for new.
+    CertificateOverviewContents(`header(_("N"), _("File")), IPsec::KeyOverview());
     UI::ChangeWidget(`id(`keys), `Value, true);
     UI::SetFocus(`id(`imp));
 }
@@ -369,6 +371,23 @@ any CertificateOverviewDialog ()
 	    {
 		Popup::Error(msg);
 		continue;
+	    }
+
+	    if(mode == `cacerts)
+	    {
+		setCACertContents();
+	    }
+	    else if(mode == `certs)
+	    {
+		setCertContents();
+	    }
+	    else if(mode == `keys)
+	    {
+		setKeyContents();
+	    }
+	    else if(mode == `crls)
+	    {
+		setCRLContents();
 	    }
 
 	    continue;
