@@ -99,6 +99,26 @@ any SummaryDialog() {
 
     UI::SetFocus(`id(`the_richtext));
 
+    if(!IPsec::didaskaboutemptycertificates && !IPsec::haveCertificates())
+    {
+	IPsec::didaskaboutemptycertificates = true;
+	if(Popup::YesNo(
+	    _("There are no certificates imported yet.\nDo you want to import certificates now?")) == true)
+	{
+	    return `import;
+	}
+    }
+
+    if(!IPsec::didaskaboutemptyconnections && !IPsec::haveConnections())
+    {
+	IPsec::didaskaboutemptyconnections = true;
+	if(Popup::YesNo(
+	    _("There are no connections defined yet.\nDo you want to define connections now?")) == true)
+	{
+	    return `configure;
+	}
+    }
+
     any ret = nil;
     while(true) {
 
