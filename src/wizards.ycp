@@ -28,7 +28,7 @@ any ImportSequence();
 any AddSequence() {
 
     map aliases = $[
-	"config1"	: [ ``(NewConnectionDialog()), true ],
+	"newconn"	: ``(NewConnectionDialog()),
 	"askname"	: [ ``(AskConnectionNamePopup()), true ],
 	"configl"	: ``(LeftConnectionConfigDialog()),
 	"configr"	: ``(RightConnectionConfigDialog()),
@@ -37,12 +37,13 @@ any AddSequence() {
 	"done"		: ``(ConnectionDoneDialog()),
 	"importl"	: [ ``( ImportSequence() ), true ],
 	"importr"	: [ ``( ImportSequence() ), true ],
+	"importrw"	: [ ``( ImportSequence() ), true ],
 	"roadwarrior"	: ``( EasyRoadWarriorDialog() ),
     ];
 
     map sequence = $[
-	"ws_start" : "config1",
-	"config1" : $[
+	"ws_start" : "newconn",
+	"newconn" : $[
 	    `abort	: `abort,
 	    `custom	: "askname",
 	    `roadwarrior: "roadwarrior",
@@ -54,6 +55,7 @@ any AddSequence() {
 	"roadwarrior" : $[
 	    `abort	: `abort,
 	    `next	: "startmode",
+	    `needcert	: "importrw",
 	],
 	"configl" : $[
 	    `abort	: `abort,
@@ -81,6 +83,10 @@ any AddSequence() {
 	    `abort	: `abort,
 	    `next	: "configr"
 	],
+	"importrw" : $[
+	    `abort	: `abort,
+	    `next	: "roadwarrior",
+	],
 	"done" : $[
 	    `abort	: `abort,
 	    `next	: `next
@@ -97,30 +103,30 @@ any AddSequence() {
 any ImportSequence() {
 
     map aliases = $[
-	"config1"	: ``(CertificateImportDialog1()),
-	"configfiles"	: ``(CertificateImportDialogFiles()),
-	"configpkcs12"	: ``(CertificateImportDialogPKCS12()),
-	"configzip"	: ``(CertificateImportDialogFiles()),
+	"certstart"	: ``(CertificateImportDialog1()),
+	"certfiles"	: ``(CertificateImportDialogFiles()),
+	"certpkcs12"	: ``(CertificateImportDialogPKCS12()),
+	"certzip"	: ``(CertificateImportDialogFiles()),
     ];
 
     map sequence = $[
-	"ws_start" : "config1",
-	"config1" : $[
+	"ws_start" : "certstart",
+	"certstart" : $[
 	    `abort	: `abort,
 	    `next	: `next,
-	    `files	: "configfiles",
-	    `pkcs12	: "configpkcs12",
-	    `zip	: "configzip",
+	    `files	: "certfiles",
+	    `pkcs12	: "certpkcs12",
+	    `zip	: "certzip",
 	],
-	"configfiles" : $[
-	    `abort	: `abort,
-	    `next	: `next,
-	],
-	"configpkcs12" : $[
+	"certfiles" : $[
 	    `abort	: `abort,
 	    `next	: `next,
 	],
-	"configzip" : $[
+	"certpkcs12" : $[
+	    `abort	: `abort,
+	    `next	: `next,
+	],
+	"certzip" : $[
 	    `abort	: `abort,
 	    `next	: `next,
 	],
