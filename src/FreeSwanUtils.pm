@@ -16,7 +16,7 @@ use File::Glob ':glob';
 
 our $VERSION     = 0.1;
 our $DEBUG       = 0;
-our $DEPTH       = undef;
+our $DEPTH       = 10; # default from ipsec.secrets(5)
 our %DEFS        = (
     'ipsec_version'  => '2.0',
     'ipsec_root'     => '',
@@ -263,6 +263,7 @@ sub _load_ipsec_secrets
     {
         my $line = shift;
         my $keys = shift;
+        my $file = shift;
 
         if($line =~ /^(.*?)\s*:\s+(RSA|PSK)\s+(.*?)\s*$/i) {
             my $index = $1 || '';
@@ -301,7 +302,8 @@ sub _load_ipsec_secrets
                 }
                 return (0, (
                     'type'  => 'RSA',
-                    'file'  => $rfile,
+                    'file'  => $file,
+                    'x509'  => $rfile,
                     'pass'  => $rpass,
                     'data'  => $kdata,
                     'index' => $index,
@@ -311,7 +313,8 @@ sub _load_ipsec_secrets
                 $kdata =~ s/\"\s*$//;
                 return (0, (
                     'type'  => 'PSK',
-                    'file'  => undef,
+                    'file'  => $file,
+                    'x509'  => undef,
                     'pass'  => $kdata,
                     'data'  => undef,
                     'index' => $index,
@@ -333,7 +336,7 @@ sub _load_ipsec_secrets
 
         if($line =~ /^\s*$/ or $line =~ /^#/) {
             if($prev) {
-                my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
                 if($ret) {
                     return ($lnum-1, file=>$file, %res);
                 }
@@ -344,22 +347,65 @@ sub _load_ipsec_secrets
         }
 
         if($line =~ /^include/) {
+            my $depth = undef;
+            if(defined($dpth)) {
+                if(0 >= $dpth) {
+                    return (-3, emsg=>"recursion depth reached",
+                                file=>$file, line=>$line);
+                }
+                $depth = $dpth - 1;
+            }
+
             if($prev) {
-                my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
                 if($ret) {
                     return ($lnum-1, file=>$file, %res);
                 }
                 push(@{$secr->{'keys'}}, \%res);
                 $prev = undef;
             }
-            # FIXME!!!
+
+            if($line =~ /^include[ \t]+(\S+)[ \t]*$/) {
+                my $incl = $1;
+                my $full = $incl;
+                my $pref = '';
+                if($incl !~ /^\//) {
+                    $pref = $file;
+                    $pref =~ s/[^\/]+$//;
+                    $full = $pref . $incl;
+                }
+
+                my @list = bsd_glob($full, GLOB_ERR | GLOB_LIMIT);
+                if(0 >= scalar(@list)) {
+                    return ($lnum, emsg=>"invalid include glob",
+                                   file=>$file, line=>$line);
+                }
+                for my $name (@list) {
+                    next unless($name);
+                    if(($name eq $file) or ($name eq $secr->{'file'})) {
+                        return ($lnum, emsg=>"recursive inclusion",
+                                       file=>$file, line=>$line);
+                    }
+
+                    print STDERR "INCLUDE '$incl' => $name\n" if($DEBUG);
+
+                    my ($ret, %err) = load_ipsec_secrets($secr, $name, $depth);
+                    return ($ret, %err) if(0 != $ret);
+                }
+                push(@{$secr->{'include'}}, { 'incl' =>  $incl,
+                                              'file' =>  $file,
+                                              'list' => [@list] });
+            } else {
+                return ($lnum, emsg=>"invalid include line",
+                               file=>$file, line=>$line);
+            }
             next;
         }
 
         if($line =~ /^\S+/) {
             # line with new key
             if($prev) {
-                my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
                 if($ret) {
                     return ($lnum-1, file=>$file, %res);
                 }
@@ -378,7 +424,7 @@ sub _load_ipsec_secrets
         }
     }
     if($prev) {
-        my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+        my ($ret, %res) = _parse_key($prev, $secr->{'keys'}, $file);
         if($ret) {
             return ($lnum-1, file=>$file, %res);
         }
@@ -680,7 +726,7 @@ sub _load_ipsec_conf
             my $depth = undef;
             if(defined($dpth)) {
                 if(0 >= $dpth) {
-                    return (-1, emsg=>"recursion depth reached",
+                    return (-3, emsg=>"recursion depth reached",
                                 file=>$file, line=>$line);
                 }
                 $depth = $dpth - 1;
@@ -698,14 +744,14 @@ sub _load_ipsec_conf
 
                 my @list = bsd_glob($full, GLOB_ERR | GLOB_LIMIT);
                 if(0 >= scalar(@list)) {
-                    return (-3, emsg=>"invalid include glob",
-                                file=>$file, line=>$line);
+                    return ($lnum, emsg=>"invalid include glob",
+                                   file=>$file, line=>$line);
                 }
                 for my $name (@list) {
                     next unless($name);
                     if(($name eq $file) or ($name eq $conf->{'file'})) {
-                        return (-3, emsg=>"recursive inclusion",
-                                    file=>$file, line=>$line);
+                        return ($lnum, emsg=>"recursive inclusion",
+                                       file=>$file, line=>$line);
                     }
 
                     print STDERR "INCLUDE '$incl' => $name\n" if($DEBUG);
