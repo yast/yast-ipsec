@@ -244,15 +244,69 @@ sub parse_crl($$)
 
 
 # --------------------------------------------------------------------
-sub parse_key($$)
+# openssl, filename, password
+sub parse_key($$$)
 {
-    return undef;
+    my $openssl = shift;
+    my $filename = shift;
+    my $password = shift;
+    my %hash;
+    $hash{"PASSWORD"} = $password;
+    return \%hash;
 }
 
 sub is_certificate($)
 {
 # if /------BEGIN CERTIF/ ...
 	return 1;
+}
+
+our %save_certificates;
+our @delete_certificates;
+
+##
+ # schedule a certificate to be saved under /etc/ipsed.d/certifiates
+ # @param absolute filename of file to import, e.g. /floppy/foo.pem
+ # @param filename to store it as, e.g. cert.pem
+sub save_certificate_as($$)
+{
+    my $filename = shift;
+    my $saveas = shift;
+
+    $save_certificates{$saveas} = $filename;
+}
+
+sub delete_certificae($)
+{
+    my $name = shift;
+    push @delete_certificates, $name;
+}
+
+
+# copy a file
+sub do_cp($$)
+{
+    my $from = shift;
+    my $to = shift;
+
+    my @cmd = ('/bin/cp', $from, $to);
+
+    system @cmd or return sprintf(_("Could not copy %s to %s\n"), $from, $to);
+    return undef;
+}
+
+# copy certificates, crls, keys etc to /etc/ipsec.d
+sub commit_scheduled_file_operations()
+{
+    my $saveas;
+    my @errors;
+    foreach $saveas (keys %save_certificates)
+    {
+	my $err = do_cp($save_certificates{$saveas}, $DEFS{'ipsec_certs'}.'/'.$saveas);
+	push @errors, $err if(defined $err);
+    }
+#TODO more
+    return \@errors;
 }
 
 

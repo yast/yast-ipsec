@@ -204,7 +204,7 @@ sub Read
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write
 {
-    # TODO
+    my @errors = FreeSwanCerts::commit_scheduled_file_operations();
     return Boolean(1);
 }
 
@@ -367,28 +367,43 @@ sub deleteCertificate($)
 }
 
 ##
+ # get a name for certificate, ccacertificate, crl or key
+ # @param prefix, e.g. "cert"
+ # @param suffix, e.g. ".pem"
+ # @param hash reference, e.g. \%certificates
+ # @return $prefix$somenumber.$suffix
+sub get_free_key_for_hash($$$)
+{
+    my $prefix = shift;
+    my $suffix = shift;
+    my $href = shift;
+    my $idx = 0;
+    my $saveas = $prefix.$suffix;
+    while (exists $href->{$saveas})
+    {
+	$idx++;
+	$saveas = $prefix.$idx.$suffix
+    }
+    return $saveas;
+}
+
+##
  # import a certificate from file
  # @param filename to import
  # @return error message on error or undef on success
 BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
 sub importCertificate($)
 {
-    # TODO
     my $filename = shift;
     my $href = parse_cert($openssl, $filename);
 
-    if(! defined $href)
-    {
-	return _("importing certificate failed"); # FIXME
-    }
+    return _("importing certificate failed") unless (defined $href);
 
-    my $idx = 0;
-    while (exists $certificates{"/etc/ipsec.d/certs/cert".$idx.".pem"})
-    {
-	$idx++;
-    }
+    my $saveas = get_free_key_for_hash("cert", ".pem", \%certificates);
+    return _("importing certificate failed") unless (defined $saveas);
 
-    $certificates{"/etc/ipsec.d/certs/cert".$idx.".pem"} = $href;
+    FreeSwanCerts::save_certificate_as($filename, $saveas);
+    $certificates{$saveas} = $href;
 
     return undef;
 }
@@ -422,9 +437,22 @@ sub deleteCACertificate($)
 BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
 sub importCACertificate($)
 {
-    # TODO
     my $filename = shift;
-    return _("importing CA certificates not supported yet");
+    my $href = parse_cert($openssl, $filename);
+
+    if(!defined $href)
+    {
+	return _("importing CA certificate failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $cacertificates{"cacert".$idx.".pem"})
+    {
+	$idx++;
+    }
+    $cacertificates{"cacert".$idx.".pem"} = $href;
+
+    return undef;
 }
 
 
@@ -457,9 +485,22 @@ sub deleteCRL($)
 BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
 sub importCRL($)
 {
-    # TODO
     my $filename = shift;
-    return _("importing CRLs not supported yet");
+    my $href = parse_crl($openssl, $filename);
+
+    if(!defined $href)
+    {
+	return _("importing CRL failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $crls{"crl".$idx.".pem"})
+    {
+	$idx++;
+    }
+    $crls{"crl".$idx.".pem"} = $href;
+
+    return undef;
 }
 
 ##
@@ -492,10 +533,23 @@ sub deleteKey($)
 BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
 sub importKey($)
 {
-    # TODO
     my $filename = shift;
     my $password = shift;
-    return _("importing keys not supported yet");
+    my $href = parse_key($openssl, $filename, $password);
+
+    if(!defined $href)
+    {
+	return _("importing key failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $keys{"key".$idx.".pem"})
+    {
+	$idx++;
+    }
+    $keys{"key".$idx.".pem"} = $href;
+
+    return undef;
 }
 
 ##
