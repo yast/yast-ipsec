@@ -340,6 +340,13 @@ boolean settingtoboolean(string key, boolean deflt)
     }
 }
 
+void settings_to_variables()
+{
+    strictcrlpolicy  = settingtoboolean("strictcrlpolicy", default_strictcrlpolicy);
+    crlcheckinterval = settingtointeger("crlcheckinterval", default_crlcheckinterval);
+    nat_traversal    = settingtoboolean("nat_traversal", default_nat_traversal);
+}
+
 /**
  * Read all ipsec settings
  * @return true on success
@@ -411,9 +418,7 @@ global boolean Read() {
 	settings = $[];
     }
 
-    strictcrlpolicy  = settingtoboolean("strictcrlpolicy", default_strictcrlpolicy);
-    crlcheckinterval = settingtointeger("crlcheckinterval", default_crlcheckinterval);
-    nat_traversal    = settingtoboolean("nat_traversal", default_nat_traversal);
+    settings_to_variables();
 
     if(Abort()) return false;
     Progress::NextStage();
@@ -465,6 +470,12 @@ string boolean2yesorno(boolean val)
     return "no";
 }
 
+void variables_to_settings()
+{
+    settings["nat_traversal"] = boolean2yesorno(nat_traversal);
+    settings["strictcrlpolicy"] = boolean2yesorno(strictcrlpolicy);
+    settings["crlcheckinterval"] = sformat("%1", crlcheckinterval);
+}
 
 /**
  * Write all ipsec settings
@@ -506,9 +517,7 @@ global boolean Write()
 
     y2milestone("save ipsec.conf");
 
-    settings["nat_traversal"] = boolean2yesorno(nat_traversal);
-    settings["strictcrlpolicy"] = boolean2yesorno(strictcrlpolicy);
-    settings["crlcheckinterval"] = sformat("%1", crlcheckinterval);
+    variables_to_settings();
 
     IPsecConfig::setSettings(settings);
 
@@ -572,8 +581,15 @@ global boolean Write()
  * @param settings The YCP structure to be imported.
  * @return boolean True on success
  */
-global boolean Import (map settings) {
-    // TODO FIXME: your code here (fill the above mentioned variables)...
+global boolean Import (map importsettings) {
+
+    settings = importsettings["settings"]:$[];
+    settings_to_variables();
+
+    connections = importsettings["connections"]:$[];
+
+    start = importsettings["start"]:false;
+
     return true;
 }
 
@@ -583,8 +599,11 @@ global boolean Import (map settings) {
  * @return map Dumped settings (later acceptable by Import ())
  */
 global map Export () {
-    // TODO FIXME: your code here (return the above mentioned variables)...
-    return $[];
+    return $[
+	"settings" : settings,
+	"connections" : connections,
+	"start" : start,
+    ];
 }
 
 /**
@@ -599,10 +618,31 @@ string addConnectionValueIfDefined(map conn, string name, string key)
     return "";
 }
 
-/** create summary of connections */
-string ConnectionSummary()
+/**
+ * add hyperlink or headline 3
+ * @param link link destination
+ * @param text link text
+ * @param href set to true if hyperlink should be created, false for headline
+ * */
+string MaybeHref(string link, string text, boolean href)
 {
-    string summary = sformat ("<p><a href=\"connections\">%1</a><br>", "Connections");
+    string line = "";
+
+    if(href)
+	line = sformat ("<p><a href=\"%1\">%2</a><br>", link, text);
+    else
+	line = "<h3>" + text + "</h3>";
+
+    return line;
+}
+
+/** create summary of connections */
+string ConnectionSummary(boolean href)
+{
+    string summary = "";
+
+    summary = summary + MaybeHref("connections", "Connections", href);
+
     summary = summary + "<ul>";
 
     if(size(connections) == 0)
@@ -624,23 +664,6 @@ string ConnectionSummary()
 		text = sformat(_("Establish connection with %1"), conn["right"]:_("Unknown"));
 	    }
 	    summary = summary + sformat("<li>%1: %2</li>", name, text);
-
-/*
-	    summary = summary + sformat("<li>%1:</li>", name);
-	    summary = summary + "<ul type=\"square\">";
-
-	    summary = summary + addConnectionValueIfDefined(conn, _("Start Mode"), "auto");
-
-	    setCurrentConnection(name);
-
-	    list<string> devs = getNetworkDevicesUP();
-	    if(size(devs) != 0)
-	    {
-	       summary = summary + sformat("<li>%1: %2</li>", _("Initiate with Interfaces "), mergestring(devs, ", "));
-	    }
-
-	    summary = summary + "</ul>";
-*/
 	});
     }
 
@@ -650,9 +673,12 @@ string ConnectionSummary()
 }
 
 /** create summary of certificates */
-string CertificateSummary()
+string CertificateSummary(boolean href)
 {
-    string summary = sformat ("<p><a href=\"certificates\">%1</a><br>", "Certificates");
+    string summary =  "";
+
+    summary = summary + MaybeHref("certificates", "Certificates", href);
+
     summary = summary + "<ul>";
 
     map<string,map<string,string> > certificates = IPsecConfig::Certificates();
@@ -665,14 +691,6 @@ string CertificateSummary()
     {
 	foreach(string name, map cert, certificates, ``{
 	    summary = summary + sformat("<li>%1: %2</li>", _("Certificate"), cert["subjectAltName"]:"?");
-
-	    /*
-	    summary = summary + sformat("<li>%1: %2</li>", _("Certificate"), name);
-	    summary = summary + "<ul type=\"square\">";
-	    summary = summary + sformat("<li>Subject: %1</li>", cert["subjectAltName"]:"?");
-	    summary = summary + sformat("<li>DN: %1</li>", cert["DN"]:"?");
-	    summary = summary + "</ul>";
-	    */
 	});
     }
 
@@ -686,38 +704,25 @@ string CertificateSummary()
     {
 	foreach(string name, map cert, cacertificates, ``{
 	    summary = summary + sformat("<li>%1: %2</li>", _("CA Certificate"), cert["subjectAltName"]:"?");
-	    /*
-	    summary = summary + sformat("<li>%1: %2</li>", _("CA Certificate"), name);
-	    summary = summary + "<ul type=\"square\">";
-	    summary = summary + sformat("<li>Subject: %1</li>", cert["subjectAltName"]:"?");
-	    summary = summary + sformat("<li>DN: %1</li>", cert["DN"]:"?");
-	    summary = summary + "</ul>";
-	    */
 	});
     }
-
 
     summary = summary + "</ul></p>";
 
     return summary;
 }
 
-/**
- * Create a textual summary and a list of unconfigured cards
- * @return summary of the current configuration
- */
-global list Summary()
+/** create summary of settings */
+string SettingsSummary(boolean href)
 {
     boolean scpchanged = getStrictCRLPolicy() != default_strictcrlpolicy;
-    boolean ntchanged = getNatTraversal() != default_nat_traversal;
-    boolean cichanged = getCrlCheckInterval() != default_crlcheckinterval;
+    boolean ntchanged  = getNatTraversal() != default_nat_traversal;
+    boolean cichanged  = getCrlCheckInterval() != default_crlcheckinterval;
+
     string summary = "";
 
-    summary = summary + ConnectionSummary();
+    summary = summary + MaybeHref("settings", settings_str, href);
 
-    summary = summary + CertificateSummary();
-
-    summary = summary + sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
     summary = summary + "<ul>";
     if(scpchanged || ntchanged || cichanged)
     {
@@ -735,6 +740,47 @@ global list Summary()
 	summary = summary + sformat("<li>%1</li>", _("Defaults"));
     }
     summary = summary + "</ul></p>";
+
+    return summary;
+}
+
+/**
+ * Textual summary for standalone Module
+ * @return summary of the current configuration
+ */
+global string MainSummary()
+{
+    string summary = "";
+
+    summary = summary + ConnectionSummary(true);
+
+    summary = summary + CertificateSummary(true);
+
+    summary = summary + SettingsSummary(true);
+
+    return summary;
+}
+
+/**
+ * Textual summary for auto installation and proposal
+ * @return summary of the current configuration
+ */
+global list Summary()
+{
+    string summary = "";
+
+    if(start)
+    {
+	summary = summary + ConnectionSummary(false);
+
+	summary = summary + CertificateSummary(false);
+
+	summary = summary + SettingsSummary(false);
+    }
+    else
+    {
+	summary = summary + _("VPN service is disabled");
+    }
 
     return [ summary, [] ];
 }
