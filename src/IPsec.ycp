@@ -206,60 +206,6 @@ string b2yn(boolean val)
     return _("No");
 }
 
-/**
- */
-map<string, map<string, string> > FakeConnections()
-{
-    return $[
-	"roadwarrior" :
-	    $[
-		"left" : "%defaultroute",
-		"right": "%any",
-		"keyingtries": "3",
-		"leftcert": "cert.pem",
-		"leftrsasigkey": "%cert",
-		"rightrsasigkey": "%cert",
-		"pfs": "yes",
-		"auto": "add",
-	    ],
-	"ipv6" :
-	    $[
-		"left" : "2001:780:101:a00:2e0:4cff:fe9f:619a",
-		"right": "2001:780:101:a00:200:1cff:fee5:a796",
-		"keyingtries": "3",
-		"leftcert": "cert.pem",
-		"leftrsasigkey": "%cert",
-		"rightrsasigkey": "%cert",
-		"leftid": "root@hewitt.suse.de",
-		"rightid": "root@laptop",
-		"pfs": "yes",
-		"auto": "ignore",
-	    ]
-    ];
-}
-
-map FakeCertificates()
-{
-    return $[
-	"cert.pem" :
-	    $[
-		"DN" : "/C=DE/ST=Franken/L=Nuernberg/O=SUSE/OU=Entwicklung/CN=hewitt.suse.de/emailAddress=root@hewitt.suse.de",
-		"subjectAltName" : "root@hewitt.suse.de"
-	    ]
-    ];
-}
-
-map FakeCACertificates()
-{
-    return $[
-	"cacert.pem" :
-	    $[
-		"DN" : "/C=DE/ST=Franken/L=Nuernberg/O=SUSE/OU=Entwicklung/CN=ca26test/emailAddress=root@hewitt.suse.de",
-		"subjectAltName" : "root@hewitt.suse.de"
-	    ]
-    ];
-}
-
 list bootmodes = [ "start", "add", "ignore" ];
 list bootmodes_str = [ _("Initiate Connection"), _("Prepare Connection"), _("Ignore Connection") ];
 
@@ -394,28 +340,21 @@ global boolean Read() {
     if(Abort()) return false;
     Progress::NextStep();
 
-    if(Mode::test == true)
-    {
-	connections = FakeConnections();
-    }
-    else
-    {
-	if(!IPsecConfig::Read())
-	    Popup::Error(_("Unable to read IPsec settings. Error message was:")
-		+ "\n" + IPsecConfig::LastError());
+    if(!IPsecConfig::Read())
+	Popup::Error(_("Unable to read IPsec settings. Error message was:")
+	    + "\n" + IPsecConfig::LastError());
 
-	connections = IPsecConfig::Connections();
-	if(connections == nil)
-	    connections = $[];
-	settings    = IPsecConfig::Settings();
-	if(settings == nil) {
-	    settings = $[];
-	}
-
-	strictcrlpolicy  = settingtoboolean("strictcrlpolicy", default_strictcrlpolicy);
-	crlcheckinterval = settingtointeger("crlcheckinterval", default_crlcheckinterval);
-	nat_traversal    = settingtoboolean("nat_traversal", default_nat_traversal);
+    connections = IPsecConfig::Connections();
+    if(connections == nil)
+	connections = $[];
+    settings    = IPsecConfig::Settings();
+    if(settings == nil) {
+	settings = $[];
     }
+
+    strictcrlpolicy  = settingtoboolean("strictcrlpolicy", default_strictcrlpolicy);
+    crlcheckinterval = settingtointeger("crlcheckinterval", default_crlcheckinterval);
+    nat_traversal    = settingtoboolean("nat_traversal", default_nat_traversal);
 
     if(Abort()) return false;
     Progress::NextStage();
@@ -426,18 +365,6 @@ global boolean Read() {
     {
 	IPsecConfig::enableTestMode();
     }
-
-/*
-    certificates = (map)SCR::Read(.etc.ipsec.d.certs);
-    cacertificates = (map)SCR::Read(.etc.ipsec.d.cacerts);
-    crls = (map)SCR::Read(.etc.ipsec.d.crls);
-    keys = (map)SCR::Read(.etc.ipsec.d.private);
-
-    if(certificates == nil) certificates = $[];
-    if(cacertificates == nil) cacertificates = $[];
-    if(crls == nil) crls = $[];
-    if(keys == nil) keys = $[];
-*/
 
     // read current settings
     if(Abort()) return false;
@@ -638,7 +565,7 @@ string CertificateSummary()
 	});
     }
 
-    map<string,map<string,string> > cacertificates = IPsecConfig::Certificates();
+    map<string,map<string,string> > cacertificates = IPsecConfig::CACertificates();
 
     if(size(cacertificates) == 0)
     {
