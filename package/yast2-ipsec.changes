@@ -1,4 +1,11 @@
 -------------------------------------------------------------------
+Thu Apr  8 16:35:26 CEST 2004 - lnussel@suse.de
+
+- initial autoyast support
+- help text improvements
+- 2.9.5
+
+-------------------------------------------------------------------
 Thu Mar 25 16:05:17 CET 2004 - lnussel@suse.de
 
 - support and enforce %dynamic as 'left' if needed
