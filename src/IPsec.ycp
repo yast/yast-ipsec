@@ -455,7 +455,7 @@ global boolean Read() {
 	Report::Warning(_("Could not read firewall settings."));
     }
 
-    needaskfirewall = (SuSEFirewall::start == true && SuSEFirewall::IsIPsecAllowed() != true);
+    needaskfirewall = (SuSEFirewall::GetEnableService() == true && SuSEFirewall::GetTrustIPsecAs() == "no");
 
     if(Abort()) return false;
     /* Progress finished */
