@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Thu Mar 25 16:05:17 CET 2004 - lnussel@suse.de
+
+- support and enforce %dynamic as 'left' if needed
+- disable opportunistic connections per default if an empy config was read
+- use 'VPN' instead of 'IPsec' at most places
+- display 'Defaults' instead of individual settings if only defaults are used
+- 2.9.4
+
+-------------------------------------------------------------------
 Mon Mar 22 16:06:09 CET 2004 - lnussel@suse.de
 
 - use perl-OPENSSL instead of perl-OpenCA
