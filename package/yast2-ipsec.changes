@@ -1,4 +1,76 @@
 -------------------------------------------------------------------
+Wed Jul 28 12:31:53 CEST 2004 - lnussel@suse.de
+
+- 2.9.14
+
+-------------------------------------------------------------------
+Thu Jul 22 16:15:21 CEST 2004 - lnussel@suse.de
+
+- add (TM) to "Windows" button (#43136)
+- add two missing gettext calls (#41404)
+
+-------------------------------------------------------------------
+Fri Jul  9 14:34:51 CEST 2004 - mt@suse.de
+
+- fixed saving of secrets and config (#42795)
+
+-------------------------------------------------------------------
+Mon May 10 14:36:10 CEST 2004 - lnussel@suse.de
+
+- replaced _() with dgettext calls (#40160)
+- fixed list_* functions to not to return CRL's while CERT's needed
+- 2.9.13
+
+-------------------------------------------------------------------
+Tue May  4 15:04:35 CEST 2004 - lnussel@suse.de
+
+- merged proofread texts
+- 2.9.12
+
+-------------------------------------------------------------------
+Fri Apr 30 12:31:49 CEST 2004 - lnussel@suse.de
+
+- name of desktop icon is "vpn"
+- 2.9.11
+
+-------------------------------------------------------------------
+Mon Apr 26 14:42:49 CEST 2004 - lnussel@suse.de
+
+- don't warn about %dynamic if connection is completely ignored anyway
+- actually remove subnet definition from connection map if gateway option is
+  unchecked
+- 2.9.10
+
+-------------------------------------------------------------------
+Fri Apr 23 13:57:36 CEST 2004 - lnussel@suse.de
+
+- remove superfluous print
+- assemble remote network address with NETWORK key instead of IPADDR, windows
+  doesn't like e.g. 10.10.3.20/16
+- remove quotes at rightsubnet, doesn't work.
+- 2.9.9
+
+-------------------------------------------------------------------
+Thu Apr 22 16:04:12 CEST 2004 - lnussel@suse.de
+
+- fix exported config file to actually work on windows
+- 2.9.8
+
+-------------------------------------------------------------------
+Fri Apr 16 14:52:23 CEST 2004 - lnussel@suse.de
+
+- implement exporting connections. Using the exported connection in Windows is
+  untested and doesn't work for sure.
+- remove 'Import' button since this cannot be implemented properly in time.
+  Instead add a 'View' button so view a pretty print of the connection.
+- support multiple subjAltName (see also #38865)
+- strip "ip address" instead of "ip" from subjAltName
+- fix importing of RSA keys
+- fix ipsec config setup loading / saveing
+- compare x509 secret keys by absolute and relative names
+- 2.9.7
+
+-------------------------------------------------------------------
 Thu Apr  8 16:35:26 CEST 2004 - lnussel@suse.de
 
 - initial autoyast support

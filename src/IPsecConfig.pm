@@ -33,8 +33,8 @@ BEGIN {
 use strict;
 use warnings;
 use diagnostics;
-use Locale::gettext;
-use POSIX;     # Needed for setlocale()
+use Locale::gettext ("!textdomain");
+use POSIX;  # Needed for setlocale()
 use File::Temp qw(tempdir);
 use File::Path;
 
@@ -47,8 +47,9 @@ use YaST::YCP qw(:LOGGING Boolean);
 YaST::YCP::Import ("IPsecPopups");
 YaST::YCP::Import ("Popup");
 
-setlocale(LC_MESSAGES, "");
-textdomain("ipsec");
+POSIX::setlocale(LC_MESSAGES, "");
+my $TXTDOMAIN = "ipsec";
+$FreeSwanUtils::TXTDOMAIN = $TXTDOMAIN;
 
 my $fsutil;
 my %connections;
@@ -69,10 +70,6 @@ sub debug {
 	YaST::YCP::y2_logger($level, "Perl", $filename,
 	                     $line, $subroutine, join("", @_));
    }
-}
-
-sub _ {
-    return gettext($_[0]);
 }
 
 our %TYPEINFO;
@@ -193,7 +190,8 @@ sub Write
 	$fsutil->conn($name, %{$connections{$name}});
     }
     if($fsutil and not($fsutil->save_config())) {
-	Popup::Error("IPsecConfig", _("Failed to save ipsec.conf:")."\n" # FIXME: module name
+	Popup::Error("IPsecConfig", dgettext($TXTDOMAIN,
+	             "Failed to save ipsec.conf:")."\n"
 	             . $fsutil->errstr());
 	return Boolean(0);
     }
@@ -218,7 +216,8 @@ sub Write
         debug "updateing 509-key '$file' in secrets";
     }
     if($fsutil and not($fsutil->save_secrets())) {
-	Popup::Error("IPsecConfig", _("Failed to save ipsec.secrets:")."\n" # FIXME: module name
+	Popup::Error("IPsecConfig", dgettext($TXTDOMAIN,
+	             "Failed to save ipsec.secrets:")."\n"
 	             . $fsutil->errstr());
 	return Boolean(0);
     }
@@ -238,8 +237,10 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
-	                           $file, $err)."\n");
+	    Popup::Error("IPsecConfig",
+	                 sprintf(dgettext($TXTDOMAIN,
+	                         "Cannot write file %s: %s"),
+	                         $file, $err)."\n");
 	    return Boolean(0);
 	} else {
 	    debug "write_pem_data($file) SUCCESS";
@@ -258,8 +259,10 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
-	                           $file, $err)."\n");
+	    Popup::Error("IPsecConfig",
+	                 sprintf(dgettext($TXTDOMAIN,
+	                         "Cannot write file %s: %s"),
+	                         $file, $err)."\n");
 	    return Boolean(0);
 	} else {
 	    debug "write_pem_data($file) SUCCESS";
@@ -278,8 +281,10 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
-	                           $file, $err)."\n");
+	    Popup::Error("IPsecConfig",
+	                 sprintf(dgettext($TXTDOMAIN,
+	                         "Cannot write file %s: %s"),
+	                         $file, $err)."\n");
 	    return Boolean(0);
 	} else {
 	    debug "write_pem_data($file) SUCCESS";
@@ -298,8 +303,10 @@ sub Write
 
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error("IPsecConfig", sprintf(_("Can't write file %s: %s"), # FIXME: module name
-	                           $file, $err)."\n");
+	    Popup::Error("IPsecConfig",
+	                 sprintf(dgettext($TXTDOMAIN,
+	                         "Cannot write file %s: %s"),
+	                         $file, $err)."\n");
 	    return Boolean(0);
 	} else {
 	    debug "write_pem_data($file) SUCCESS";
@@ -391,9 +398,11 @@ sub validConnectionName($)
 
     my $err = $fsutil->is_valid_conn_name($name);
     if($err) {
-	return sprintf(_("Connection name '%s' is a reserved / implicit name"),
-	               $name) if(2 == $err);
-	return _("A connection name can contain only a-z, 0-9, _ and - characters");
+	return sprintf(dgettext($TXTDOMAIN,
+	               "Connection name '%s' is a reserved or implicit name."),
+                       $name) if(2 == $err);
+	return dgettext($TXTDOMAIN,
+	       "A connection name can contain only a-z, 0-9, _, and - characters.");
     }
     return undef;
 }
@@ -422,13 +431,14 @@ BEGIN { $TYPEINFO{newDefaultConnection} = ["function", [ "map", "string", "strin
 sub newDefaultConnection()
 {
     my %conn = (
-	"left" => "%defaultroute",
-	"leftrsasigkey" => "%cert",
-	"rightrsasigkey" => "%cert",
+	"left" => "\%defaultroute",
+	"leftrsasigkey" => "\%cert",
+	"rightrsasigkey" => "\%cert",
 	"keyingtries" => "3",
 	"auto" => "ignore",
 	"esp" => "aes,3des",
 	"pfs" => "yes",
+	"authby" => "rsasig",
     );
 
     return \%conn;
@@ -442,8 +452,8 @@ sub newServerConnection()
 {
     my $conn = newDefaultConnection();
 
-    $conn->{"left"} = "%defaultroute";
-    $conn->{"right"} = "%any";
+    $conn->{"left"} = "\%defaultroute";
+    $conn->{"right"} = "\%any";
     $conn->{"auto"} = "add";
 
     return $conn;
@@ -457,7 +467,7 @@ sub newClientConnection()
 {
     my $conn = newDefaultConnection();
 
-    $conn->{"left"} = "%defaultroute";
+    $conn->{"left"} = "\%defaultroute";
     $conn->{"right"} = "";
     $conn->{"auto"} = "start";
 
@@ -694,7 +704,7 @@ sub prepareImportFile($)
     my $list = extract_ANY(file => $file, pwcb => \&passwordPrompt);
 
     unless(defined($list) and scalar(@{$list})) {
-	return sprintf(_("nothing found in %s"), $file);
+	return sprintf(dgettext($TXTDOMAIN,"Nothing found in %s."), $file);
     }
 
     for my $dref (@{$list}) {
@@ -888,77 +898,174 @@ sub importConnection($)
  # export a ipsec.conf file
  # @param name of connection
  # @param filename to store it. overwrite it if already exists
+ # @param boolean whether to use freeswan format. false if windows
  # @returns undef on success, error string otherwise
  #
-BEGIN { $TYPEINFO{exportConnection} = ["function", "string", "string", "string" ]; }
+BEGIN { $TYPEINFO{exportConnection} = ["function", "string", "string", "string", "boolean" ]; }
 sub exportConnection($$)
 {
     my $pkg = shift; # FIXME
     my $name = shift;
     my $file = shift;
+    my $freeswan = shift;
 
     if(!exists($connections{$name}))
     {
-       return sprintf(_("Connection \"%s\" does not exist"), $name);
+       return sprintf(dgettext($TXTDOMAIN,
+                      "Connection \"%s\" does not exist."), $name);
     }
 
-    # TODO
-    return "importing configs not yet implemented";
-    
+    my $conn = $connections{$name};
+
+    unlink($file);
+
+    sysopen(HANDLE, $file, O_RDWR|O_CREAT|O_EXCL) or return "sysopen $file: $!";
+
+    my $host = `/bin/hostname -f` || 'server';
+    $host =~ s/\n$//;
+    my $conname = $host;
+    $conname =~ s/[^a-zA-Z]/_/g;
+
+    my $crlcheckinterval = $settings{"crlcheckinterval"} || "0";
+    my $strictcrlpolicy = $settings{"strictcrlpolicy"} || "no";
+    my $nat_traversal = $settings{"nat_traversal"} || "no";
+
+    my $esp = $conn->{'esp'};
+    my $keyingtries = $conn->{'keyingtries'};
+    my $pfs = $conn->{'pfs'};
+    my $right = $conn->{'left'};
+    my $rightid = $conn->{'leftid'};
+    my $leftid = $conn->{'rightid'};
+    my $leftsubnet = $conn->{'rightsubnet'};
+    my $rightsubnet = $conn->{'leftsubnet'};
+
+    $right = $host if($right =~ /^%/) ;
+
+    if($freeswan)
+    {
+	print HANDLE (
+	"# configuration file for Linux FreeS/WAN Version 2\n",
+	"# modify for your needs and save it as /etc/ipsec.conf\n",
+	"#\n",
+	"# Note: To extract the private key from your client\n",
+	"# certificate in p12 format into a pem file, use:\n",
+	"#\n",
+	"#   openssl pkcs12 -nocerts -nodes -in FILE.p12 \\\n",
+	"#           -out /etc/ipsec.d/private/key_01.pem\n",
+	"#\n",
+	"# To extract the client certificate, use:\n",
+	"#\n",
+	"#   openssl pkcs12 -clcerts -nokeys -in FILE.p12 \\\n",
+	"#           -out /etc/ipsec.d/certs/cert_01.pem\n",
+	"#\n",
+	"# To extract the CA certificate, use:\n",
+	"#\n",
+	"#   openssl pkcs12 -cacerts -nokeys -in FILE.p12 \\\n",
+	"#           -out /etc/ipsec.d/cacerts/cacert_01.pem\n",
+	"#\n",
+	"# Do not forget to add (replace) a key reference\n",
+	"# line in the /etc/ipsec.secrets file, e.g.:\n",
+	"#   : RSA /etc/ipsec.d/private/key_01.pem \"\"\n",
+	"#\n",
+	"# and to apply proper permissions to both files:\n",
+	"#\n",
+	"#   chmod 0600  /etc/ipsec.secrets \\\n",
+	"#               /etc/ipsec.d/private/key_01.pem\n",
+	"#   chown root: /etc/ipsec.secrets \\\n",
+	"#               /etc/ipsec.d/private/key_01.pem\n",
+	"#\n",
+	"#\n",
+	"version 2.0\n",
+	"\n",
+	"# basic configuration\n",
+	"config setup\n",
+	"	crlcheckinterval=\"$crlcheckinterval\"\n",
+	"	strictcrlpolicy=\"$strictcrlpolicy\"\n",
+	"	nat_traversal=\"$nat_traversal\"\n",
+	"\n",
+	"conn \%default\n",
+	"	leftrsasigkey=\%cert\n",
+	"	rightrsasigkey=\%cert\n",
+	"\n",
+	"# OE policy groups are disabled by default\n",
+	"conn block\n",
+	"	auto=ignore\n",
+	"\n",
+	"conn clear\n",
+	"	auto=ignore\n",
+	"\n",
+	"conn private\n",
+	"	auto=ignore\n",
+	"\n",
+	"conn private-or-clear\n",
+	"	auto=ignore\n",
+	"\n",
+	"conn clear-or-private\n",
+	"	auto=ignore\n",
+	"\n",
+	"conn packetdefault\n",
+	"	auto=ignore\n",
+	"\n",
+	);
+
+	print HANDLE "conn me_to_$conname\n";
+	print HANDLE "\tauto=\"start\"\n";
+	print HANDLE "\tauthby=\"rsasig\"\n";
+	print HANDLE "\tesp=\"$esp\"\n" if $esp;
+	print HANDLE "\tkeyingtries=\"$keyingtries\"\n" if $keyingtries;
+	print HANDLE "\tpfs=\"$pfs\"\n" if $pfs;
+	print HANDLE "\tleft=\"\%defaultroute\"\n";
+	print HANDLE "\tleftid=\"$leftid\"\n" if ($leftid && $leftid ne '%any');
+	print HANDLE "\t# change this to the actual name of your certificate\n";
+	print HANDLE "\tleftcert=\"/etc/ipsec.d/certs/cert_01.pem\"\n";
+	print HANDLE "\tleftrsasigkey=\"\%cert\"\n";
+	print HANDLE "\tleftsubnet=\"$leftsubnet\"\n" if $leftsubnet;
+	print HANDLE "\tright=\"$right\"\n";
+	print HANDLE "\trightid=\"$rightid\"\n";
+	print HANDLE "\trightrsasigkey=\"\%cert\"\n";
+	print HANDLE "\trightsubnet=\"$rightsubnet\"\n" if $rightsubnet;
+    }
+    else
+    {
+	my $leftcert = $conn->{"leftcert"};
+	my $issuer = $certificates{$leftcert}->{"ISSUER_FORWINDOWSEXPORT"} || 'CN=CA, ...';
+
+	print HANDLE (
+	"#\r\n",
+	"# ipsec.conf - IPSec configuration file sample.\r\n",
+	"#\r\n",
+	"### WinXP/2k ###############################\r\n",
+	"#\r\n",
+	"# ==>> Configuration for WinXP and Win2K  <<==\r\n",
+	"#\r\n",
+	"#   See also: http://vpn.ebootis.de/\r\n",
+	"#\r\n",
+	"conn me_to_$conname\r\n",
+	"	pfs=$pfs\r\n",
+	"	auto=start\r\n",
+	"	network=auto\r\n",
+	"	#\r\n",
+	"	# Local side:\r\n",
+	"	left=\%any\r\n",
+	"	#\r\n",
+	"	# Remote side:\r\n",
+	"	#   $host Hostname/IP:\r\n",
+	"	right=$right\r\n",
+	"	# $host CA Issuer DN:\r\n",
+	"	rightca=\"$issuer\"\r\n",
+	);
+	
+	print HANDLE "\trightsubnet=$rightsubnet\r\n" if $rightsubnet;
+    }
+
+    close HANDLE;
+
     return undef;
 }
 
-
-######################################################################
-##### CRAP, REMOVE ME IF UNUSED ######################################
-######################################################################
-
-##
- # import a CA certificate from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
-sub importCACertificate($)
-{
-    debug "importCACertificate is obsolete!";
-    return _("obsolete function - use prepareImportFile!");
-}
-
-
-##
- # import a CRL from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
-sub importCRL($)
-{
-    debug "importCRL is obsolete!";
-    return _("obsolete function - use prepareImportFile!");
-}
-
-
-##
- # import a certificate from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
-sub importCertificate($)
-{
-    debug "importCertificate is obsolete!";
-    return _("obsolete function - use prepareImportFile!");
-}
-
-##
- # import a Key from file
- # @param filename to import
- # @param passwort (maybe empty, means no password)
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
-sub importKey($)
-{
-    debug "importKEY is obsolete!";
-    return _("obsolete function - use prepareImportFile!");
-}
+__END__
+Help YaST2 distutils a little bit:
+    Textdomain "ipsec"
 
 # EOF
 # vim: sw=4

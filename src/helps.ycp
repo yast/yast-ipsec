@@ -40,58 +40,62 @@ An additional dialog informs whether it is safe to do so.
 
     /* Summary dialog help 1/4 */
     "summary" : _("<p><b><big>VPN Configuration</big></b><br>
-This module allows you to configure Virtual Private Networks (VPN) based on
+This module allows you to configure virtual private networks (VPN) based on
 IPsec. Select <b>Enable VPN Services</b> to start the IPsec daemon and to add
-it to the the boot process. Select <b>Disable VPN Services</b> stop the daemon
-and to remove it from the boot process.<br></p> ") +
+it to the the boot process. Select <b>Disable VPN Services</b> to stop the daemon
+and to remove it from the boot process.<br></p> 
+") +
 
     /* Summary dialog help 2/4 */
     _("<p><b><big>Connections:</big></b><br>
-Summary of already configured connections. Click on the <b>'Connections...'</b>
-button to add new connections or edit existing ones.</p>")
+Summary of already configured connections. Click <b>'Connections...'</b>
+to add new connections or edit existing ones.</p>
+")
     +
 
     /* Summary dialog help 3/4 */
     _("<p><b><big>Certificates:</big></b><br>
-Summary of installed certificates and CA certificates. Click on the
-<b>'Certificates...'</b> button to import or delete certificates, CA
-certificates, certificate revoke lists (CRLs) and keys.</p>")
+Summary of installed certificates and CA certificates. Click 
+<b>'Certificates...'</b> to import or delete certificates, CA
+certificates, certificate revoke lists (CRLs), and keys.</p>
+")
     +
 
     /* Summary dialog help 4/4 */
     _("<p><b><big>Common Settings:</big></b><br>
 Summary of settings that affect all IPsec connections and certificates.
-Click on the <b>'Settings...'</b> button to change the settings"),
+Click <b>'Settings...'</b> to change the settings
+"),
 
     /* Ovreview dialog help 1/4 */
     "overview" : _("<p><b><big>Connection Overview</big></b><br>
-This screen gives you an overview about the configured IPsec connections and
-allows you to edit them.<br></p>
+This screen gives an overview of the configured IPsec connections and
+allows editing them.<br></p>
 ") +
 
     /* Ovreview dialog help 2/4 */
-_("<p><b><big>Adding a new connection:</big></b><br>
+_("<p><b><big>Adding a New Connection:</big></b><br>
 Press <b>Add</b> to start a wizard that helps you configure a new IPsec connection.</p>
 ") +
 
     /* Ovreview dialog help 3/4 */
 _("<p><b><big>Editing or Deleting:</big></b><br>
-Select the connection you want to edit or delete from the list.
+Select the connection to edit or delete from the list.
 Then press <b>Edit</b> or <b>Delete</b> as desired.</p>
 ") +
 
     /* Ovreview dialog help 3/4 */
-_("<p><b><big>Importing or Exporting:</big></b><br>
+_("<p><b><big>Export:</big></b><br>
 Select a server connection and press <b>Export</b> to generate a config file
-suitable for imporing by a client. Press <b>Import</b> on the client to import
-such a server generated config file.</p>
+suitable for use by a Linux FreeS/WAN or Windows client.</p>
 "),
 
     /* Certificate dialog help 1/3 */
     "certificates" : _("<p><b><big>Certifiate Overview</big></b><br>
-This screen gives you an overview about the certificates used by IPsec. Click
-<b>Current View</b> to switch between views of CA certificates, certificates,
-certificate revoke lists (CRLs) and keys.</p> ") +
+This screen gives an overview of the certificates used by IPsec. Click
+<b>Current View</b> to switch among views of CA certificates, certificates,
+certificate revoke lists (CRLs), and keys.</p> 
+") +
 
 "<ul>" +
 "<li>" +
@@ -108,8 +112,9 @@ partners.") +
 
 "<li>" +
 // list item in help text
-_("CRLs enable detection of revoked certificates. To reject revoked certificates
-you need to enable <em>Strict CRL Policy</em> under <em>Common Settings</em>.") +
+_("CRLs enable detection of revoked certificates. To reject revoked certificates,
+enable <em>Strict CRL Policy</em> under <em>Common Settings</em>.
+") +
 "</li>" +
 
 "<li>" +
@@ -120,15 +125,17 @@ _("Keys are required for the actual encryption.") +
 "</ul>" +
 
     /* Certificate dialog help 2/3 */
-_("<p>Pressing <b>'Import'</b> opens a dialog that allows you to choose a file
+_("<p>Pressing <b>Import</b> opens a dialog that allows you to choose a file
 containing certificates or keys to import into the IPsec
-configuration. Currently supported file formats are PEM, PKCS#12 and ZIP-files
-containing PEM files. You may use the YaST2 CA Management module to generate
-the necessary files.</p>") +
+configuration. Currently supported file formats are PEM, PKCS#12, and ZIP files
+containing PEM files. Use the YaST2 CA Management module to generate
+the necessary files.</p>
+") +
 
     /* Certificate dialog help 3/3 */
-_("<p>Pressing <b>'Delete'</b> removes the selected item from the
-IPsec configuration.</p>"),
+_("<p>Pressing <b>Delete</b> removes the selected item from the
+IPsec configuration.</p>
+"),
 
     /* Settings dialog help 1/4 */
     "settings": sformat("<p><b><big>%1:</big></b><br>", IPsec::settings_str) +
@@ -137,44 +144,50 @@ IPsec configuration.</p>"),
 _("<p><b><big>NAT Traversal</big></b> means that IPsec packets will be
 encapsulated in a way that allows them to be transmitted through routers that
 modify their IP address. Check this option if your host is behind a router that
-performs Network Address Translation or Masquerading and you want to establish
+performs network address translation or masquerading and you want to establish
 IPsec tunnels across it. Also check this option if you run a server and want
-clients behind routers to be able to connect via IPsec</p>") +
+clients behind routers to be able to connect via IPsec.</p>
+") +
 
     /* Settings dialog help 3/4 */
 _("<p><b><big>Strict CRL Policy</big></b> means that a valid certificate revoke
 list (CRL) must exist for every certificate authority specified in any
 certificate. Check this option if you want to ensure that all certificates are
-valid. Note that although a strict CRL policy helps to increase security it's
-often cumbersome to ensure that a valid CRL is always present. If for example
+valid. Although a strict CRL policy helps to increase security, it is
+often cumbersome to ensure that a valid CRL is always present. If, for example,
 the CRL expires before a new one could be fetched, no more connections will be
-accepted.</p>") +
+accepted.</p>
+") +
 
     /* Settings dialog help 4/4 */
-_("<p><b><big>CRL check interval</big></b> specifies the number of seconds
+_("<p><b><big>CRL Check Interval</big></b> specifies the number of seconds
 after which the IPsec daemon checks whether certificates have been expired or
-whether new certificate revoke lists have to be fetched. A typical value is 600
-seconds (ten minutes). Set to zero to disable fetching of new CRLs.</p>"),
+whether new certificate revoke lists should be fetched. A typical value is 600
+seconds (ten minutes). Set to zero to disable fetching of new CRLs.</p>
+"),
 
     /* Client connection dialog help 1/5 */
     "easyroadwarriorclient": _("<p><b><big>Create Client Connection:</big></b><br>") +
 
     /* Client connection dialog help 2/5 */
-_("<p><b><big>Server Address:</big></b> Enter the IP address or hostname of the
-server you want to connect to.</p>") +
+_("<p><b><big>Server Address:</big></b> Enter the IP address or host name of the
+server to which to connect.</p>
+") +
 
     /* Client connection dialog help 3/5 */
-_("<p><b><big>Server acts as Gateway:</big></b> Check this item if the server
-allows access to a subnet behind it, for example the company's local
+_("<p><b><big>Server Acts as Gateway:</big></b> Check this item if the server
+allows access to a subnet behind it, for example, the company's local
 network. Also fill in the <b>Network</b> field in this case. An example subnet
-definition looks like 192.168.0.0/24</p>") +
+definition looks like 192.168.0.0/24.</p>
+") +
 
     /* Client connection dialog help 4/5 */
 _("<p><b><big>Server Identification:</big></b> Enter the identification the
 server uses for this IPsec connection. The identification typically is the
-Distinguished name of the server certificate or an IP-address, host name or
-email-address specified in the 'Subject Alternative Name' of the server
-certificate.</p>") +
+distinguished name of the server certificate or an IP address, host name, or
+e-mail address specified in the 'Subject Alternative Name' of the server
+certificate.</p>
+") +
 
     /* Client connection dialog help 5/5 */
 _("<p><b><big>Certificate:</big></b> Choose the certificate to use for this
@@ -189,10 +202,11 @@ connection when booting the system.</p>") +
 
 "<ul>" +
     /* Start Mode dialog help 3/6 */
-_("<li><i>Initiate Connection:</i> The system will try to immediately
+_("<li><i>Initiate Connection:</i> The system immediately tries to 
 establish a connection with the remote server. This may fail if you use dynamic
-IP addresses or the server is only reachable when beeing dialed into the
-internet.</li>") +
+IP addresses or the server is only reachable when there is an active
+Internet connection.</li>
+") +
 
     /* Start Mode dialog help 4/6 */
 _("<li><i>Prepare Connection:</i> The connection will be prepared for use,
@@ -206,20 +220,22 @@ _("<li><i>Ignore Connection:</i> The connection will not be handled at boot time
 
     /* Start Mode dialog help 6/6 */
 _("<p><b><big>Start Dynamically:</big></b> Check this item if you want to start the
-IPsec connection when some network interface is brought online, e.g. when
-dialing into the internet. Also choose an interface from the list in this
-case.</p>"),
+IPsec connection when some network interface is brought online, such as when
+dialing into the Internet. Also choose an interface from the list in this
+case.</p>
+"),
 
     /* Local connection config dialog help 1/5 */
     "leftconfigdialog" : _("<p><b><big>Connection Configuration</big></b></p>") +
 
     /* Local connection config dialog help 2/5 */
 _("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
-should use for this connection. You may enter <i>%defaultroute</i> to indicate
-that the IP address of the device where the default route points at should be
+should use for this connection. Enter <i>%defaultroute</i> to indicate
+that the IP address of the device at which the default route points should be
 used. If you plan to start this connection dynamically (configurable later in
-this workflow), enter <i>%dynamic</i> so that the IP address gets filled in
-automatically.</p>") +
+this workflow), enter <i>%dynamic</i> so that the IP address is filled in
+automatically.</p>
+") +
 
     /* Local connection config dialog help 3/5 */
 _("<p><b><big>Act as Gateway:</big></b> Check this item if you want to allow
@@ -232,66 +248,75 @@ connection.</p>") +
 
     /* Local connection config dialog help 5/5 */
 _("<p><b><big>Identification:</big></b> Enter the identification that should be
-used for this connection. The identification typically is the Distinguished
-name of the certificate or an IP-address, host name or email-address
-specified in the 'Subject Alternative Name' of the certificate.</p>"),
+used for this connection. The identification typically is the distinguished
+name of the certificate or an IP address, host name, or e-mail address
+specified in the 'Subject Alternative Name' of the certificate.</p>
+"),
 
     /* Remote connection config dialog help 1/5 */
     "rightconfigdialog" : _("<p><b><big>Connection Configuration</big></b></p>") +
 
     /* Remote connection config dialog help 2/5 */
 _("<p><b><big>Remote IP Address:</big></b> Enter the IP address of the remote
-system. You may enter <i>%any</i> if you want to accept connections from any
-system with a valid certificate.</p>") +
+system. Enter <i>%any</i> to accept connections from any
+system with a valid certificate.</p>
+") +
 
     /* Remote connection config dialog help 3/5 */
 _("<p><b><big>Act as Gateway:</big></b> Check this item if the remote system
 allows access to a subnet. Also fill in the <b>Remote Subnet</b> field in this
-case</p>") +
+case.</p>
+") +
 
     /* Remote connection config dialog help 4/5 */
 _("<p><b><big>Certificate:</big></b> Choose the certificate that the remote
 system uses. Leave empty to use the certificate the remote system transmits
-over the network when establishing the connection. It's recommended to leave
-this field empty.</p>") +
+over the network when establishing the connection. It is recommended to leave
+this field empty.</p>
+") +
 
     /* Remote connection config dialog help 5/5 */
 _("<p><b><big>Identification:</big></b> Enter the identification of the remote
-system. The identification typically is the Distinguished name of the
-remote's certificate or an IP-address, host name or email-address specified in the
-'Subject Alternative Name' of the remote's certificate. You may leave this
+system. The identification typically is the distinguished name of the
+remote certificate or an IP address, host name, or e-mail address specified in the
+'Subject Alternative Name' of the remote certificate. Leave this
 field empty to accept any remote system that presents a valid
-certifiate.</p>"),
+certificate.</p>
+"),
 
     /* New Connection dialog help 1/5 */
     "newconnection": _("<p><b><big>Connection Configuration:</big></b><br>") +
 
     /* New Connection dialog help 2/5 */
-_("Choose a pre defined connection type with a simplified configuration workflow or <b>Custom</b>") +
+_("Choose a predefined connection type with a simplified configuration workflow or <b>Custom</b>.") +
 
     /* New Connection dialog help 3/5 */
 _("<p><b><big>Server for Road Warriors:</big></b> Check this item to configure
 a server that accepts connections from any client that presents a valid
-certificate</p>") +
+certificate.</p>
+") +
 
     /* New Connection dialog help 4/5 */
 _("<p><b><big>Road Warrior Client:</big></b> Check this item to configure
-a client that establishes a connection to a server over the internet</p>") +
+a client that establishes a connection to a server over the Internet.</p>
+") +
 
     /* New Connection dialog help 5/5 */
 _("<p><b><big>Custom:</big></b> Check this item to configure
-a custom client or server connection</p>"),
+a custom client or server connection.</p>
+"),
 
     /* Server connection dialog help 1/4 */
     "easyroadwarriorserver": _("<p><b><big>Create Server Connection:</big></b><br>") +
 
     /* Server connection dialog help 2/4 */
 _("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
-should use for this connection. You may enter <i>%defaultroute</i> to indicate
-that the IP address of the device where the default route points at should be
+should use for this connection. Enter <i>%defaultroute</i> to indicate
+that the IP address of the device at which the default route points should be
 used. If you plan to start this connection dynamically (configurable later in
-this workflow), enter <i>%dynamic</i> so that the IP address gets filled in
-automatically.</p>") +
+this workflow), enter <i>%dynamic</i> so that the IP address is filled in
+automatically.</p>
+") +
 
     /* Server connection dialog help 3/4 */
 _("<p><b><big>Act as Gateway:</big></b> Check this item if you want to allow

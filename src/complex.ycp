@@ -116,7 +116,9 @@ symbol SummaryEnableDisable()
     {
 	IPsec::didaskaboutemptycertificates = true;
 	if(Popup::YesNo(
-	    _("There are no certificates imported yet.\nDo you want to import certificates now?")) == true)
+	    _("There are no certificates imported yet.
+Import certificates now?
+")) == true)
 	{
 	    return `certificates;
 	}
@@ -126,7 +128,9 @@ symbol SummaryEnableDisable()
     {
 	IPsec::didaskaboutemptyconnections = true;
 	if(Popup::YesNo(
-	    _("There are no connections defined yet.\nDo you want to define connections now?")) == true)
+	    _("There are no connections defined yet.
+Define connections now?
+")) == true)
 	{
 	    return `configure;
 	}
@@ -246,11 +250,13 @@ void OverviewDialogCreate()
 	    // menu button
 	    _("E&xpert..."), [
 		// menubutton item
+		`item (`id (`view_button), _("&View")),
+		// menubutton item
 		`item (`id (`export_button), _("&Export")),
 		// menubutton item
-		`item (`id (`import_button), _("&Import")),
+		//`item (`id (`import_button), _("&Import")),
 		// menubutton item
-		`item (`id (`expert_button), _("Details")),
+		`item (`id (`expert_button), _("&Details")),
 	])
     );
 
@@ -333,6 +339,15 @@ any OverviewDialog()
             ret = `export;
 	    break;
 	}
+        else if(ret == `view_button) {
+	    string name = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(!IPsec::setCurrentConnection(name))
+		continue;
+
+	    Popup::LongText(sformat(_("Settings for Connection '%1'"), name),
+		`RichText(IPsec::ConnectionAsText()), 60, 18);
+            continue;
+        }
         else if(ret == `import_button) {
             ret = `import;
 	    break;
@@ -366,7 +381,7 @@ term CertificateOverviewContents(term header, list content)
 	*/
 	`ComboBox(`id (`cbox), `opt(`notify),
 	    // combo box
-	    _("Current view"), [
+	    _("Current View"), [
 		// combobox item
 		`item(`id(`cacerts), _("CA Certificates")),
 		// combobox item
@@ -487,7 +502,7 @@ any CertificateOverviewDialog ()
 	{
 	    string file = UI::AskForExistingFile( IPsec::certimportdir,
 		"*.pem *.PEM *.p12 *.P12 *.zip *.ZIP",
-		_("Choose file to import"));
+		_("Choose the file to import."));
 
 	    if(!IPsec::updateImportDir(file)) continue;
 
@@ -664,8 +679,9 @@ any ConnectionExpertDialog ()
 
 	/* abort? */
 	if(ret == `abort || ret == `cancel) {
-	    if(ReallyAbort()) break;
-	    else continue;
+//	    if(ReallyAbort()) break;
+//	    else continue;
+	    break;
 	}
 	else if(ret == `delete)
 	{

@@ -206,7 +206,7 @@ any MainSequence() {
 	    `next	: "summary",
 	],
 	"configE" : $[
-	    `abort	: `abort,
+	    `abort	: "overview", // do not quit whole workflow
 	    `next	: "overview",
 	],
 	"export" : $[

@@ -397,7 +397,7 @@ global boolean Read() {
     {
 	if(!Require::AreAllPackagesInstalled(requiredpackages) )
 	{
-	    string help = _("FreeS/WAN is required for IPsec. Do you want to install the required packages now?");
+	    string help = _("FreeS/WAN is required for IPsec. Install the required packages now?");
 	    if(!Require::RequireAndConflict( requiredpackages, [], help ) )
 	    {
 		if(!Require::LastOperationCanceled())
@@ -452,7 +452,7 @@ global boolean Read() {
     Progress::NextStage();
     if(SuSEFirewall::Read() != true)
     {
-	Report::Warning(_("Couldn't read firewall settings"));
+	Report::Warning(_("Could not read firewall settings."));
     }
 
     needaskfirewall = (SuSEFirewall::start == true && SuSEFirewall::IsIPsecAllowed() != true);
@@ -501,14 +501,14 @@ global boolean Write()
 	    /* Progress stage 2/3 */
 	    _("Write network settings"),
 	    /* Progress stage 3/3 */
-	    _("Adjust Runlevel links")
+	    _("Adjust runlevel links")
 	], [
 	    /* Progress step 1/3 */
 	    _("Writing IPsec settings..."),
 	    /* Progress step 2/3 */
 	    _("Writing network settings..."),
 	    /* Progress step 2/3 */
-	    _("Adjusting Runlevel links..."),
+	    _("Adjusting runlevel links..."),
 	    /* Progress finished */
 	    _("Finished")
 	],
@@ -548,26 +548,26 @@ global boolean Write()
 	{
 	    if(!Service::Enable("ipsec"))
 	    {
-		Report::Error(_("Could not enable 'ipsec' bootscript:") + Service::Error());
+		Report::Error(_("Could not enable 'ipsec' boot script:") + Service::Error());
 	    }
 	}
 
 	if(Service::Restart("ipsec") != true)
 	{
 	    // TODO: use output
-	    Report::Error(_("couln't start IPsec"));
+	    Report::Error(_("Could not start IPsec."));
 	}
     }
     else if(Service::Enabled("ipsec"))
     {
 	if(!Service::Disable("ipsec"))
 	{
-	    Report::Error(_("Could not disable 'ipsec' bootscript:") + Service::Error());
+	    Report::Error(_("Could not disable 'ipsec' boot script:") + Service::Error());
 	}
 	if(Service::Stop("ipsec") != true)
 	{
 	    // TODO: use output
-	    Report::Error(_("couln't stop IPsec"));
+	    Report::Error(_("Could not stop IPsec."));
 	}
     }
 
@@ -645,7 +645,7 @@ string ConnectionSummary(boolean href)
 {
     string summary = "";
 
-    summary = summary + MaybeHref("connections", "Connections", href);
+    summary = summary + MaybeHref("connections", _("Connections"), href);
 
     summary = summary + "<ul>";
 
@@ -660,12 +660,12 @@ string ConnectionSummary(boolean href)
 	    string text = "";
 	    if(conn["right"]:"" == "%any")
 	    {
-		text = _("Accept client connections");
+		text = _("Accept Client Connections");
 	    }
 	    else
 	    {
 		// %1 = IP Adress or hostname
-		text = sformat(_("Establish connection with %1"), conn["right"]:_("Unknown"));
+		text = sformat(_("Establish Connection with %1"), conn["right"]:_("Unknown"));
 	    }
 	    summary = summary + sformat("<li>%1: %2</li>", name, text);
 	});
@@ -681,7 +681,7 @@ string CertificateSummary(boolean href)
 {
     string summary =  "";
 
-    summary = summary + MaybeHref("certificates", "Certificates", href);
+    summary = summary + MaybeHref("certificates", _("Certificates"), href);
 
     summary = summary + "<ul>";
 
@@ -783,7 +783,7 @@ global list Summary()
     }
     else
     {
-	summary = summary + _("VPN service is disabled");
+	summary = summary + _("VPN service is disabled.");
     }
 
     return [ summary, [] ];
@@ -1057,7 +1057,7 @@ global string mayEditCurrentConnection()
 	|| current_connection["rightrsasigkey"]:"%cert" != "%cert")
     {
 	return _("The selected connection does not use certificates for authentication.")+ "\n"
-		+ _("You can only edit connections that use certificaes.");
+		+ _("You can only edit connections that use certificates.");
     }
 
     return nil;
@@ -1131,17 +1131,17 @@ global list getIPaddresses()
 global list getNetworks()
 {
     if(Mode::test == true)
-	return [ "10.10.0.0/16", "192.168.1.0/24" ];
+	return [ "10.10.99.0/16", "192.168.88.0/24" ];
 
     list<string> devices = getDevices();
 
     list nets = [];
     foreach(string dev, devices, ``{
 	if(!NetworkDevices::Select(dev)) continue;
-	if(haskey(NetworkDevices::Current, "IPADDR")
+	if(haskey(NetworkDevices::Current, "NETWORK")
 	    && haskey(NetworkDevices::Current, "NETMASK"))
 	{
-	    string ip = NetworkDevices::Current["IPADDR"]:"" + "/"
+	    string ip = NetworkDevices::Current["NETWORK"]:"" + "/"
 		+ Netmask::ToBits(NetworkDevices::Current["NETMASK"]:"");
 	    nets = add(nets, ip);
 	}
@@ -1163,22 +1163,63 @@ global list getCertificateFiles()
     return certs;
 }
 
+string removesubaltnameprefix(string s)
+{
+    list<string> tostrip = [ "email:", "ip address:", "dns:" ];
+    foreach(string pattern, tostrip,
+    ``{
+	y2milestone("%1", tolower(substring(s, 0, size(pattern))));
+	if(tolower(substring(s, 0, size(pattern))) == pattern)
+	{
+	    s = substring(s, size(pattern));
+	    break;
+	}
+    });
 
-/** return list of DN and subjectAltNames (currently only one possible) */
-global list getIdsOfCert(string name)
+    return s;
+}
+
+/** return list of subjectAltName(s) and DN.
+ * SubjectAltName is first if available since it's usually an EMail Address
+ * (YaST2 CA module only supports EMail addresses) */
+global list<string> getIdsOfCert(string name)
 {
     map<string,map<string,string> > certificates = IPsecConfig::Certificates();
 
     if(size(name) == 0 || !haskey(certificates, name))
 	return [];
 
-    map cert = certificates[name]:$[];
+    map<string,string> cert = certificates[name]:$[];
 
-    list ids = [];
+    list<string> ids = [];
+    string altname = nil;
+    if(haskey(cert, "subjectAltName"))
+    {
+	altname = cert["subjectAltName"]:nil;
+    }
+
+    if(altname != nil)
+    {
+	while(true)
+	{
+	    integer pos = find(altname, ", ");
+	    if(pos == -1) break;
+
+	    string s = substring(altname, 0, pos);
+	    altname = substring(altname, pos+2);
+
+	    s = removesubaltnameprefix(s);
+	    if(s != "")
+		ids = add(ids, s);
+	}
+
+	altname = removesubaltnameprefix(altname);
+	if(altname != "")
+	    ids = add(ids, altname);
+    }
+
     if(haskey(cert, "DN") && cert["DN"]:nil != nil)
-	    ids = add(ids, cert["DN"]:"");
-    if(haskey(cert, "subjectAltName") && cert["subjectAltName"]:nil != nil)
-	    ids = add(ids, cert["subjectAltName"]:"");
+	ids = add(ids, cert["DN"]:"");
 
     return ids;
 }
@@ -1304,52 +1345,38 @@ global list<string> getDialupInterfaces()
     return ret;
 }
 
-/**
- * import certificate in PEM or DER format
- * @param filename file to import
- * @return nil on success, error string otherwise
- * */
-global string importCertificate(string filename)
+/** return text: <value of setting> if setting is in current connection */
+string ConnectionAsText_additem(string text, string setting)
 {
-    if(filename == nil) return nil;
-    return IPsecConfig::importCertificate(filename);
+    if(!haskey(current_connection, setting))
+	return "";
+
+    string val = current_connection[setting]:nil;
+
+    if(val == "%defaultroute" || val == "%dynamic" || val == "%any")
+	return "";
+
+    return sformat("<b>%1</b> %2<br>", text, val );
 }
 
-/**
- * import CA certificate in PEM or DER format
- * @param filename file to import
- * @return nil on success, error string otherwise
- * */
-global string importCACertificate(string filename)
+/** create a detailed richttext summary of the current connection */
+global string ConnectionAsText()
 {
-    // TODO
-    if(filename == nil) return nil;
-    return IPsecConfig::importCACertificate(filename);
-}
+    string text = "";
 
-/**
- * import CRL in PEM or DER format
- * @param filename file to import
- * @return nil on success, error string otherwise
- * */
-global string importCRL(string filename)
-{
-    // TODO
-    if(filename == nil) return nil;
-    return IPsecConfig::importCRL(filename);
-}
+    text = text + ConnectionAsText_additem(_("Address:"), "left");
+    text = text + ConnectionAsText_additem(_("Identification:"), "leftid");
+    text = text + ConnectionAsText_additem(_("Network:"), "leftsubnet");
+    text = text + ConnectionAsText_additem(_("Remote Address:"), "right");
+    text = text + ConnectionAsText_additem(_("Remote Identification:"), "rightid");
+    text = text + ConnectionAsText_additem(_("Remote Network:"), "rightsubnet");
+    text = text + "<br>";
+    text = text + ConnectionAsText_additem(_("Encryption Algorithms:"), "esp");
+    // Translator: probably not translatable, technical term
+    text = text + ConnectionAsText_additem(_("Perfect Forward Secrecy:"), "pfs");
+    text = text + ConnectionAsText_additem(_("Keying Tries:"), "keyingtries");
 
-/**
- * import key in PEM or DER format
- * @param filename file to import
- * @param password key password. empty string for no password.
- * @return nil on success, error string otherwise
- * */
-global string importKey(string filename, string password)
-{
-    // TODO
-    if(filename == nil) return nil;
-    return IPsecConfig::importKey(filename, password);
+    return text;
 }
 
 /* EOF */
