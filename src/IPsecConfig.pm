@@ -577,11 +577,28 @@ sub cancelPreparedP12()
 {
 }
 
-BEGIN { $TYPEINFO{FinishImport} = ["function", "void" ]; }
+##
+ # adds file contents into current %imports repository
+ # @param	file to import content from
+ # @return	error message on error or \%imports
+ #
+ #BEGIN { $TYPEINFO{prepareImportFile} = ["function", ???? ]; }
+sub prepareImportFile($)
+{
+}
+
+##
+ # intergrates currents imports
+ # @return	undef or error string
+ #
+BEGIN { $TYPEINFO{finishImport} = ["function", "string" ]; }
 sub finishImport()
 {
 }
 
+##
+ # import cleanup method - destroys current imports
+ #
 BEGIN { $TYPEINFO{cleanupImport} = ["function", "void" ]; }
 sub cleanupImport()
 {
@@ -595,6 +612,9 @@ sub cleanupImport()
     );
 }
 
+##
+ # global cleanup method called on exit
+ #
 BEGIN { $TYPEINFO{cleanup} = ["function", "void" ]; }
 sub cleanup()
 {
