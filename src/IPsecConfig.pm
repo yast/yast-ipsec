@@ -320,6 +320,7 @@ sub Settings()
 BEGIN { $TYPEINFO{setSettings} = ["function", "void" , [ "map", "string", "string" ]]; }
 sub setSettings($)
 {
+    my $pkg = shift; # FIXME
     my $ref = shift;
 
     debug "{";
@@ -360,6 +361,7 @@ sub Connections()
 BEGIN { $TYPEINFO{deleteConnection} = ["function", "void", "string" ]; }
 sub deleteConnection($)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     debug "name => $name";
     delete $connections{$name};
@@ -372,6 +374,7 @@ sub deleteConnection($)
 BEGIN { $TYPEINFO{validConnectionName} = ["function", "string", "string" ]; }
 sub validConnectionName($)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
 
     my $err = $fsutil->is_valid_conn_name($name);
@@ -391,6 +394,7 @@ sub validConnectionName($)
 BEGIN { $TYPEINFO{addConnection} = ["function", "void", "string", [ "map", "string", "string" ]]; }
 sub addConnection($$)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     my $ref = shift;
 
@@ -465,6 +469,10 @@ sub mark4delete($\%)
 	# is absolute file name if not new
 	$deleted{$name} = 1 unless($_new);
 	delete($href->{$name});
+    }
+    else
+    {
+	y2error("$name does not exist in hash");
     }
 }
 
@@ -593,6 +601,7 @@ sub Certificates()
 BEGIN { $TYPEINFO{deleteCertificate} = ["function", "void" , "string" ]; }
 sub deleteCertificate($)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     mark4delete($name, %certificates);
 }
@@ -613,6 +622,7 @@ sub CACertificates()
 BEGIN { $TYPEINFO{deleteCACertificate} = ["function", "void" , "string" ]; }
 sub deleteCACertificate($)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     mark4delete($name, %cacertificates);
 }
@@ -633,6 +643,7 @@ sub CRLs()
 BEGIN { $TYPEINFO{deleteCRL} = ["function", "void" , "string" ]; }
 sub deleteCRL($)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     mark4delete($name, %crls);
 }
@@ -653,6 +664,7 @@ sub Keys()
 BEGIN { $TYPEINFO{deleteKey} = ["function", "void" , "string" ]; }
 sub deleteKey($)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     mark4delete($name, %keys);
 }
@@ -665,6 +677,7 @@ sub deleteKey($)
 BEGIN { $TYPEINFO{prepareImportFile} = ["function", "string", "string" ]; }
 sub prepareImportFile($)
 {
+    my $pkg = shift; # FIXME
     my $file = shift;
     my $list = extract_ANY(file => $file, pwcb => \&passwordPrompt);
 
@@ -838,7 +851,8 @@ sub cleanup()
  #
 sub passwordPrompt($)
 {
-    return IPsecPopups::Password(shift);
+    my $headline = shift;
+    return IPsecPopups::Password("fsdf", $headline); # FIXME
 }
 
 ##
@@ -849,6 +863,7 @@ sub passwordPrompt($)
 BEGIN { $TYPEINFO{importConnection} = ["function", "string", "string" ]; }
 sub importConnection($)
 {
+    my $pkg = shift; # FIXME
     my $file = shift;
 
     # TODO
@@ -866,6 +881,7 @@ sub importConnection($)
 BEGIN { $TYPEINFO{exportConnection} = ["function", "string", "string", "string" ]; }
 sub exportConnection($$)
 {
+    my $pkg = shift; # FIXME
     my $name = shift;
     my $file = shift;
 
