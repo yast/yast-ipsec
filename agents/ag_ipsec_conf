@@ -11,7 +11,7 @@ use strict;
 my $ipsecconf  = "/etc/ipsec.conf";
 
 my %defaultsetup = (
-    nat_traversal => "no",
+    nat_traversal => "yes",
     strictcrlpolicy => "no",
     crlcheckinterval => "10",
 );
@@ -106,6 +106,10 @@ sub main()
 		ycp::Return( "true" );
 	    }
 	    ycp::Return( "false" );
+	}
+	if( $command eq "Read" && $path eq ".")
+	{
+	    ycp::Return( { "config setup" => \%defaultsetup } );
 	}
 	# result: we must exit
 	elsif ($command eq "result")
