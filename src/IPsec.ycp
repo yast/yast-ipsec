@@ -72,28 +72,27 @@ global boolean Modified() {
     return modified;
 }
 
+/**
+ * map of strings
+ *  +-> "nat_traversal" = "yes"
+ *  +-> "rp_filter" = "%unchanged"
+ *  ...
+ */
+map settings = $[];
 
-/** do not set, use setstrictcrlpolicy */
-global boolean strictcrlpolicy = false;
+/** default value. FIXME: get from lower layer? */
+boolean default_strictcrlpolicy = false;
 
-/** do not set, use setCrlCheckInterval */
-global integer crlcheckinterval = 10;
+/** default value. FIXME: get from lower layer? */
+integer default_crlcheckinterval = 0;
 
-/** do not set, use setNatTraversal */
-global boolean nattraversal = false;
+/** default value. FIXME: get from lower layer? */
+boolean default_nattraversal = false;
 
-/** do not set, use setStart */
-global boolean start = false;
+/** whether FreeS/WAN is started at boot */
+boolean start = false;
 
-global void setstrictcrlpolicy(boolean val)
-{
-    if(val != strictcrlpolicy)
-    {
-	modified = true;
-	strictcrlpolicy = val;
-    }
-}
-
+/** whether to start FreeS/WAN at boot. Sets modified flag */
 global void setStart(boolean val)
 {
     if(val != start)
@@ -103,22 +102,58 @@ global void setStart(boolean val)
     }
 }
 
-global void setNatTraversal(boolean val)
+/** determine whether FreeS/WAN is started at boot */
+global boolean getStart()
 {
-    if(val != nattraversal)
+    return start;
+}
+
+/** set strictcrlpolicy. Sets modified flag */
+global void setStrictCRLPolicy(boolean val)
+{
+    if(val != settings["strictcrlpolicy"]:default_strictcrlpolicy)
     {
 	modified = true;
-	nattraversal = val;
+	settings["strictcrlpolicy"] = val;
     }
 }
 
-global void setCrlCheckInterval(integer val)
+/** @return whether strictcrlpolicy is set */
+global boolean getStrictCRLPolicy()
 {
-    if(val != crlcheckinterval)
+    return settings["strictcrlpolicy"]:default_strictcrlpolicy;
+}
+
+/** set nat_traversal. Sets modified flag */
+global void setNatTraversal(boolean val)
+{
+    if(val != settings["nat_traversal"]:default_nattraversal)
     {
 	modified = true;
-	crlcheckinterval = val;
+	settings["nat_traversal"] = val;
     }
+}
+
+/** @return whether nat_traversal is set */
+global boolean getNatTraversal()
+{
+    return settings["nat_traversal"]:default_nattraversal;
+}
+
+/** set crlcheckinterval. Sets modified flag */
+global void setCrlCheckInterval(integer val)
+{
+    if(val != settings["crlcheckinterval"]:default_crlcheckinterval)
+    {
+	modified = true;
+	settings["crlcheckinterval"] = val;
+    }
+}
+
+/** @return crlcheckinterval */
+global integer getCrlCheckInterval()
+{
+    return settings["crlcheckinterval"]:default_crlcheckinterval;
 }
 
 /**
@@ -291,6 +326,47 @@ global boolean updateImportDir(string file)
     return true;
 }
 
+
+/** extract string value for key from settings map and reinsert it as integer.
+ * If the value is no valid integer, the key is removed from the map */
+void settingtointeger(string key)
+{
+    if(!haskey(settings,key)) return;
+
+    integer val = tointeger(settings[key]:"");
+    if(val == nil)
+    {
+	y2warning("key %s has no integer value", key);
+	settings = remove(settings, key);
+	return;
+    }
+
+    settings[key] = val;
+}
+/** extract string value for key from settings map and reinsert it as boolean.
+ * If the value is no valid boolean, the key is removed from the map
+ * */
+void settingtoboolean(string key)
+{
+    if(!haskey(settings,key)) return;
+
+    string val = tolower(settings[key]:"");
+
+    if(val == "no" || val == "false" || val == "0")
+    {
+	settings[key] = false;
+    }
+    else if(val == "yes" || val == "true" || val == "1")
+    {
+	settings[key] = true;
+    }
+    else if(val == nil)
+    {
+	y2warning("key %s has no boolean value", key);
+	settings = remove(settings, key);
+    }
+}
+
 /**
  * Read all ipsec settings
  * @return true on success
@@ -339,6 +415,14 @@ global boolean Read() {
 	connections = IPsecConfig::Connections();
 	if(connections == nil)
 	    connections = $[];
+	settings    = IPsecConfig::Settings();
+	if(settings == nil) {
+	    settings = $[];
+	}
+
+	settingtointeger("crlcheckinterval");
+	settingtoboolean("nat_traversal");
+	settingtoboolean("strictcrlpolicy");
     }
 
     if(Abort()) return false;
@@ -590,10 +674,14 @@ global list Summary() {
     /* Configuration summary text for autoyast */
     string summary = sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
     summary = summary + "<ul>";
-    summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(start));
-    summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(strictcrlpolicy));
-    summary = summary + sformat("<li>%1: %2</li>", crlchekinterval_str, crlcheckinterval);
-    summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(nattraversal));
+    summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(getStart()));
+    summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(getStrictCRLPolicy()));
+    if(getCrlCheckInterval() != 0)
+    {
+	summary = summary + sformat("<li>%1: %2</li>", crlchekinterval_str,
+	    sformat(_("%1 second", "%1 seconds", getCrlCheckInterval()), getCrlCheckInterval()));
+    }
+    summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(getNatTraversal()));
     summary = summary + "</ul></p>";
 
     summary = summary + CertificateSummary();
