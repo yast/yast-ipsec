@@ -89,15 +89,42 @@ such a server generated config file.</p>
 
     /* Certificate dialog help 1/3 */
     "certificates" : _("<p><b><big>Certifiate Overview</big></b><br>
-This screen gives you an overview about the certificates used by IPsec. The
-four buttons on the top switch between views of CA certificates, certificates,
+This screen gives you an overview about the certificates used by IPsec. Click
+<b>Current View</b> to switch between views of CA certificates, certificates,
 certificate revoke lists (CRLs) and keys.</p> ") +
+
+"<ul>" +
+"<li>" +
+// list item in help text
+_("Certificates are required to establish secure connections. Additionally a
+matching key and CA certificate is required for every certificate.") +
+"</li>" +
+
+"<li>" +
+// list item in help text
+_("CA certificates are required to verify the identity of communication
+partners.") +
+"</li>" +
+
+"<li>" +
+// list item in help text
+_("CRLs enable detection of revoked certificates. To reject revoked certificates
+you need to enable <em>Strict CRL Policy</em> under <em>Common Settings</em>.") +
+"</li>" +
+
+"<li>" +
+// list item in help text
+_("Keys are required for the actual encryption.") +
+"</li>" +
+
+"</ul>" +
 
     /* Certificate dialog help 2/3 */
 _("<p>Pressing <b>'Import'</b> opens a dialog that allows you to choose a file
 containing certificates or keys to import into the IPsec
 configuration. Currently supported file formats are PEM, PKCS#12 and ZIP-files
-containing PEM files.</p>") +
+containing PEM files. You may use the YaST2 CA Management module to generate
+the necessary files.</p>") +
 
     /* Certificate dialog help 3/3 */
 _("<p>Pressing <b>'Delete'</b> removes the selected item from the
@@ -118,7 +145,10 @@ clients behind routers to be able to connect via IPsec</p>") +
 _("<p><b><big>Strict CRL Policy</big></b> means that a valid certificate revoke
 list (CRL) must exist for every certificate authority specified in any
 certificate. Check this option if you want to ensure that all certificates are
-valid.</p>") +
+valid. Note that although a strict CRL policy helps to increase security it's
+often cumbersome to ensure that a valid CRL is always present. If for example
+the CRL expires before a new one could be fetched, no more connections will be
+accepted.</p>") +
 
     /* Settings dialog help 4/4 */
 _("<p><b><big>CRL check interval</big></b> specifies the number of seconds
@@ -271,6 +301,13 @@ Subnet</b> field in this case</p>") +
     /* Server connection dialog help 4/4 */
 _("<p><b><big>Certificate:</big></b> Choose the certificate to use for this
 connection.</p>"),
+
+/*  expert config dialog hep 1/2 */
+    "expert": _("<p><b><big>Configuration Options:</big></b><br>") +
+
+/*  expert config dialog hep 2/2 */
+_("This screen enables you to edit the IPsec configuration. <u>Only modify
+settings if you are familiar with FreeS/WAN.</u>"),
 
 ];
 

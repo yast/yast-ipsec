@@ -455,13 +455,13 @@ any ConnectionStartModeDialog () {
 	    {
 		if(!left_is_dynamic)
 		{
-		    if(Popup::YesNo(sformat(_("You chose '%1' as local IP address but want to start the connection dynamically.\nDo you want to set the local IP address to %%dynamic?."), IPsec::current_connection["left"]:"")) == false)
+		    if(IPsec::silently_use_left_dynamic || Popup::YesNo(sformat(_("You chose '%1' as local IP address but want to start the connection dynamically.\nDo you want to set the local IP address to %%dynamic?."), IPsec::current_connection["left"]:"")) == true)
 		    {
-			continue;
+			IPsec::current_connection["left"] = "%dynamic";
 		    }
 		    else
 		    {
-			IPsec::current_connection["left"] = "%dynamic";
+			continue;
 		    }
 		}
 
@@ -648,7 +648,7 @@ any EasyRoadWarriorServerDialog () {
 
     if(size(certfiles) == 0)
     {
-	if(Popup::ContinueCancel(_("You need to import certificates first")))
+	if(Popup::ContinueCancel(_("You need to import certificates first.\nPress 'Continue' to import certificates now.")))
 	    return `needcert;
 	return `back;
     }
@@ -777,7 +777,7 @@ any EasyRoadWarriorClientDialog () {
 
     if(size(certfiles) == 0)
     {
-	if(Popup::ContinueCancel(_("You need to import certificates first")))
+	if(Popup::ContinueCancel(_("You need to import certificates first.\nPress 'Continue' to import certificates now.")))
 	    return `needcert;
 	return `back;
     }
