@@ -290,13 +290,22 @@ map FakeKeys()
 list bootmodes = [ "start", "add", "ignore" ];
 list bootmodes_str = [ _("Initiate Connection"), _("Prepare Connection"), _("Ignore Connection") ];
 
-/** return list of `item(`id("bootmode"), "text") */
+/** return list of `item(`id("bootmode"), "text")
+ * if current connection has right == %any, start will be omitted
+ * */
 global list getBootModeItems()
 {
     integer i = 0;
     integer max = size(bootmodes);
 
     list items = [];
+
+    // start is invalid for %any
+    if(size(current_connection) > 0
+	&& current_connection["right"]:"" == "%any")
+    {
+	i = i + 1;
+    }
 
     while(i < max )
     {
