@@ -17,7 +17,7 @@ textdomain "ipsec";
 
 import "IPsecConfig";
 import "Progress";
-import "Runlevel";
+import "Service";
 import "Report";
 import "Popup";
 import "Summary";
@@ -365,8 +365,6 @@ global boolean Read() {
     if(Abort()) return false;
     Progress::NextStage();
 
-    start = Runlevel::ServiceEnabled("ipsec");
-
     if(Mode::test == true)
     {
 	IPsecConfig::enableTestMode();
@@ -375,8 +373,8 @@ global boolean Read() {
     // read current settings
     if(Abort()) return false;
     Progress::NextStage();
-    /* Error message */
-    if(false) Report::Error(_("Cannot read current settings."));
+
+    start = Service::Enabled("ipsec");
 
     // detect devices
     if(Abort()) return false;
@@ -417,13 +415,8 @@ global boolean Write()
     /* IPsec read dialog caption */
     string caption = _("Saving IPsec Configuration");
 
-    // TODO FIXME And set the right number of stages
     integer steps = 3;
 
-    integer sl = 500;
-    sleep(sl);
-
-    // TODO FIXME Names of real stages
     // We do not set help text here, because it was set outside
     Progress::New(caption, " ", steps, [
 	    /* Progress stage 1/3 */
@@ -431,14 +424,14 @@ global boolean Write()
 	    /* Progress stage 2/3 */
 	    _("Write network settings"),
 	    /* Progress stage 3/3 */
-	    _("Run SuSEconfig")
+	    _("Adjust Runlevel links")
 	], [
 	    /* Progress step 1/3 */
 	    _("Writing IPsec settings..."),
 	    /* Progress step 2/3 */
 	    _("Writing network settings..."),
 	    /* Progress step 2/3 */
-	    _("Running SuSEconfig..."),
+	    _("Adjusting Runlevel links..."),
 	    /* Progress finished */
 	    _("Finished")
 	],
@@ -448,8 +441,6 @@ global boolean Write()
     // write settings
     if(Abort()) return false;
     Progress::NextStage();
-    /* Error message */
-    if(false) Report::Error (_("Cannot write settings."));
 
     settings["nat_traversal"] = boolean2yesorno(nat_traversal);
     settings["strictcrlpolicy"] = boolean2yesorno(strictcrlpolicy);
@@ -465,17 +456,37 @@ global boolean Write()
     if(!NetworkDevices::Write(""))
 	Report::Error (_("Writing network settings failed."));
 
-    // run SuSEconfig
     if(Abort()) return false;
     Progress::NextStage ();
-    /* Error message */
-    if(false) Report::Error (_("SuSEconfig script failed."));
-    sleep(sl);
+
+    if(start && !Service::Enabled("ipsec"))
+    {
+	if(!Service::Adjust("ipsec","enable"))
+	{
+	    Popup::Error(_("Could not enable IPsec bootscript:") + Service::Error());
+	}
+	if(Service::RunInitScript("ipsec", "start") != 0)
+	{
+	    // TODO: use output
+	    Popup::Error(_("couln't start IPsec"));
+	}
+    }
+    else if(!start && Service::Enabled("ipsec"))
+    {
+	if(!Service::Adjust("ipsec","disable"))
+	{
+	    Popup::Error(_("Could not disable IPsec bootscript:") + Service::Error());
+	}
+	if(Service::RunInitScript("ipsec", "stop") != 0)
+	{
+	    // TODO: use output
+	    Popup::Error(_("couln't stop IPsec"));
+	}
+    }
 
     if(Abort()) return false;
     /* Progress finished */
     Progress::NextStage();
-    sleep(sl);
 
     if(Abort()) return false;
     return true;
