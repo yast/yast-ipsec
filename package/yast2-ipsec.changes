@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Oct 19 15:11:39 CEST 2004 - lnussel@suse.de
+
+- change %s -> %1 in format strings to fix build
+- 2.11.0
+
+-------------------------------------------------------------------
 Tue Sep 14 09:34:57 CEST 2004 - jsrain@suse.cz
 
 - adapted testsuite to changes in yast2-firewall
