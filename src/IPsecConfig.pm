@@ -204,14 +204,18 @@ sub Write
     for my $kref ($fsutil->secrets(type => 'RSA')) {
 	next unless(defined($kref->{'x509'}));
 	unless(exists($keys{$kref->{'x509'}})) {
-	    $fsutil->secret_del($kref->{'x509'});
-	}
+            debug "deleting x509-key '", $kref->{'x509'}, "' from secrets";
+	    $fsutil->secret_del(type => 'RSA', x509 => $kref->{'x509'});
+	} else {
+            debug "keeping x509-key '", $kref->{'x509'}, "' in secrets";
+        }
     }
     for my $file (keys %keys) {
 	my $pass = $keys{$file}->{'PASSWORD'};
 	$fsutil->secret_set(type => 'RSA',
 	                    x509 => $file,
 	                    pass => $pass);
+        debug "updateing 509-key '$file' in secrets";
     }
     if($fsutil and not($fsutil->save_secrets())) {
 	Popup::Error("IPsecConfig", _("Failed to save ipsec.secrets:")."\n" # FIXME: module name
