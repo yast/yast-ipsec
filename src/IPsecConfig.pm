@@ -48,7 +48,6 @@ my %crls;
 my %keys;
 
 my $temp_tree;
-my %imports;
 
 #
 # NOTE: debug for developement only!
@@ -386,7 +385,7 @@ BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
 sub importCertificate($)
 {
     my $filename = shift;
-    my $href = parse_cert($openssl, $filename);
+    my $href = parse_cert($openssl, file => $filename);
 
     return _("importing certificate failed") unless (defined $href);
 
@@ -429,7 +428,7 @@ BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
 sub importCACertificate($)
 {
     my $filename = shift;
-    my $href = parse_cert($openssl, $filename);
+    my $href = parse_cert($openssl, file => $filename);
 
     if(!defined $href)
     {
@@ -477,7 +476,7 @@ BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
 sub importCRL($)
 {
     my $filename = shift;
-    my $href = parse_crl($openssl, $filename);
+    my $href = parse_crl($openssl, file => $filename);
 
     if(!defined $href)
     {
@@ -526,7 +525,7 @@ sub importKey($)
 {
     my $filename = shift;
     my $password = shift;
-    my $href = parse_key($openssl, $filename, $password);
+    my $href = parse_key($openssl, file => $filename, pass => $password);
 
     if(!defined $href)
     {
@@ -580,40 +579,86 @@ sub cancelPreparedP12()
 }
 
 ##
- # adds file contents into current %imports repository
+ # adds file contents into current repositories
  # @param	file to import content from
  # @return	error message on error or undef
  #
 BEGIN { $TYPEINFO{prepareImportFile} = ["function", "string", "string" ]; }
 sub prepareImportFile($)
 {
+    my $file = shift;
+    my $list = extract_ANY(file => $file, pwcb => \&passwordPrompt);
+
+    unless(defined($list) and scalar(@{$list})) {
+	return sprintf(_("nothing found in %s"), $file);
+    }
+
+    for my $dref (@{$list}) {
+	debug "IMPORTING: ", $dref->{'info'}, $dref->{'name'} ?
+	                     " (from '".$dref->{'name'}.")" : "";
+
+	my $iref = parse_pem_data($openssl, info => $dref->{'info'},
+	                                    data => $dref->{'data'},
+					    pwcb => \&passwordPrompt);
+	if(defined($iref) and defined($iref->{'hash'})) {
+	    my $idx = 0;
+	    my $pem;
+
+	    # mark it imported / new
+	    $iref->{'hash'}->{'NEW'} = 1;
+
+	    if($iref->{'type'} eq 'KEY') {
+		do {
+		    $pem = sprintf("key_%02d.pem", ++$idx);
+		} while(exists($keys{$pem}));
+		$keys{$pem} = $iref->{'hash'};
+		next;
+	    }
+
+	    if($iref->{'type'} eq 'CRL') {
+		do {
+		    $pem = sprintf("crl_%02d.pem", ++$idx);
+		} while(exists($crls{$pem}));
+		$crls{$pem} = $iref->{'hash'};
+		next;
+	    }
+
+	    if($iref->{'type'} eq 'CERT') {
+		if($iref->{'hash'}->{"IS_CA"}) {
+		    do {
+			$pem = sprintf("cacert_%02d.pem", ++$idx);
+		    } while(exists($cacertificates{$pem}));
+		    $cacertificates{$pem} = $iref->{'hash'};
+		} else {
+		    do {
+			$pem = sprintf("cert_%02d.pem", ++$idx);
+		    } while(exists($certificates{$pem}));
+		    $certificates{$pem} = $iref->{'hash'};
+		}
+		next;
+	    }
+	}
+    }
     return undef;
 }
 
 ##
- # intergrates currents imports
+ # intergrates currents imports (removes new flags)
  # @return	undef or error string
  #
 BEGIN { $TYPEINFO{finishImport} = ["function", "string" ]; }
 sub finishImport()
 {
-    return undef
+    return undef;
 }
 
 ##
- # import cleanup method - destroys current imports
+ # import cleanup method - deletes imported stuff
  #
 BEGIN { $TYPEINFO{cleanupImport} = ["function", "void" ]; }
 sub cleanupImport()
 {
     # FIXME: delete any temp files, ...
-    %imports = (
-	'CACERTIFICATES' => [],
-	'CERTIFICATES'   => [],
-	'CRLS'           => [],
-	'KEYS'           => [],
-	'CONFIGS'        => [],
-    );
 }
 
 ##
