@@ -14,6 +14,7 @@ textdomain "ipsec";
 import "Label";
 import "Wizard";
 import "IPsec";
+import "IPsecConfig";
 
 include "ipsec/helps.ycp";
 
@@ -124,13 +125,28 @@ any AskConnectionNamePopup()
     UI::ChangeWidget(`id(`value), `ValidChars, "-_0123456789abcdefghijklmnopqrstuvwxyz");
     UI::SetFocus(`id(`value));
 
-    if( UI::UserInput() != `ok)
-    {
-	UI::CloseDialog();
-	return `back;
-    }
+    string name = nil;
 
-    string name = (string) UI::QueryWidget(`id(`value), `Value);
+    while(true)
+    {
+	any ret = UI::UserInput();
+	if( ret != `ok)
+	{
+	    UI::CloseDialog();
+	    return `back;
+	}
+
+	name = (string) UI::QueryWidget(`id(`value), `Value);
+
+	string err = IPsecConfig::validConnectionName(name);
+
+	if( err != nil )
+	{
+	    Popup::Error(err);
+	}
+	else
+	    break;
+    }
 
     UI::CloseDialog();
 

@@ -81,7 +81,7 @@ sub enableTestMode()
     # TODO
 }
 
-##
+## FIXME: error handling
  # Read all ipsec settings
  # @return true on success
  #
@@ -151,20 +151,20 @@ sub Read
             debug "IPsecConfig::Read() copy connections += $name";
             $connections{$name} = {$fsutil->conn($name)};
 	}
-	return Boolean(1);
     } else {
 	debug "IPsecConfig::Read() ipsec.conf parsing error: ",
 	      $fsutil->errstr();
     }
 
     if($openssl) {
-	%crls           = list_CRLs($openssl);
-	%certificates   = list_CERTs($openssl);
-	%cacertificates = list_CAs($openssl);
+	%crls           = FreeSwanCerts::list_CRLs($openssl);
+	%certificates   = FreeSwanCerts::list_CERTs($openssl);
+	%cacertificates = FreeSwanCerts::list_CAs($openssl);
+	y2milestone(%certificates);
     } else {
 	debug "HUH? No openssl-shell instance?";
     }
-    return Boolean(0);
+    return Boolean(1);
 }
 
 ##
@@ -245,6 +245,22 @@ sub deleteConnection($)
     my $name = shift;
     debug "IPsecConfig::deleteConnection($name)";
     delete $connections{$name};
+}
+
+##
+ # check whether a user entered connection name is valid for ipsec.conf
+ # @return undef if ok, error string otherwise
+ #
+BEGIN { $TYPEINFO{validConnectionName} = ["function", "string", "string" ]; }
+sub validConnectionName($)
+{
+    my $name = shift;
+
+    return _("A connection name may not contain spaces") if $name =~ / /;
+
+    # TODO: more checks
+    
+    return undef;
 }
 
 ##
