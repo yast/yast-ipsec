@@ -89,7 +89,7 @@ sub errstr
 {
     my $self = shift;
 
-    my $err  = "SUCCESS";
+    my $err  = '';
     if($self->{'error'}->{'code'}) {
         $err  = "ERROR[".$self->{'error'}->{'code'}."]: ";
         $err .= $self->{'error'}->{'emsg'};
@@ -401,10 +401,235 @@ sub conn_delete
     my $conf = \%{$self->{'conf'}};
     my $conn = \%{$conf->{'conn'}};
 
-    return unless(exists($conn->{$name}));
-    unless(grep($name eq $_, (@CONN_IMPLICIT, @CONN_DEFAULTS))) {
-        delete($conn->{$name});
+    if(exists($conn->{$name}) and not(grep($name eq $_,
+       (@CONN_IMPLICIT, @CONN_DEFAULTS)))) {
+        return delete($conn->{$name});
     }
+    return undef;
+}
+
+# --------------------------------------------------------------------
+sub secrets
+{
+    my $self = shift;
+    my %args = @_;
+    my $secr = \%{$self->{'secr'}};
+    my @list = ();
+
+    my $type = $args{'type'};
+    for my $kref (@{$secr->{'keys'} || []}) {
+        if(defined($type)) {
+            next unless(uc($kref->{'type'}) eq uc($type));
+        }
+        my %copy = %{$kref};
+        if(defined($copy{'x509'}) and $copy{'x509'} !~ /^\//) {
+            $copy{'x509'} = $DEFS{'ipsec_private'}.'/'.$copy{'x509'};
+        }
+        push(@list, \%copy);
+    }
+    return sort @list;
+}
+
+# --------------------------------------------------------------------
+sub secret_get
+{
+    my $self = shift;
+    my %args = @_;
+    my $secr = \%{$self->{'secr'}};
+
+    my $type = $args{'type'};
+    my $x509 = $args{'x509'};
+    my $index= $args{'index'};
+    if(defined($index)) {
+        $index = '%any'  if($index eq '' and not defined($x509));
+        $index = '%any'  if($index eq '0.0.0.0');
+        $index = '%any6' if($index eq '::');
+    }
+    for(my $i=0; $i<scalar(@{$secr->{'keys'} || []}); $i++) {
+        my $kref = $secr->{'keys'}->[$i];
+        if(defined($type)) {
+            next unless(uc($kref->{'type'}) eq uc($type));
+        }
+        if(defined($x509)) {
+            next unless(defined($kref->{'x509'}));
+            my $file = $kref->{'x509'};
+            if($file !~ /^\//) {
+               $file = $DEFS{'ipsec_private'}.'/'.$file;
+            }
+            if($file eq $x509) {
+                return $kref;
+            }
+        }
+        if(defined($index)) {
+            my $itemp = $kref->{'index'};
+            $itemp = '%any'  if($itemp eq '' and not defined($x509));
+            $itemp = '%any'  if($itemp eq '0.0.0.0');
+            $itemp = '%any6' if($itemp eq '::');
+            if($index eq $itemp) {
+                return $kref;
+            }
+        }
+    }
+    return undef;
+}
+
+# --------------------------------------------------------------------
+sub secret_set
+{
+    my $self = shift;
+    my %args = @_;
+    my $secr = \%{$self->{'secr'}};
+    my %nkey = ();
+    my $kref;
+
+    # apply default index if not given
+    $args{'index'} = '' unless(defined($args{'index'}));
+
+    unless(defined($args{'type'}) and $args{'type'} =~ /^(?:RSA|PSK)$/i) {
+        return undef; # type is mandatory
+    }
+
+    if(uc($args{'type'}) eq 'RSA') {
+
+        # check required values
+        if(defined($args{'x509'})) {
+            return undef unless(defined($args{'pass'}) and $args{'x509'} =~ /^\S+/);
+        } else {
+            return undef unless(defined($args{'data'}) or 'HASH' eq ref($args{'hash'}));
+        }
+
+        if($args{'x509'}) {
+            #
+            # RSA x509
+            #
+            $nkey{'index'} = $args{'index'};
+            $nkey{'type'}  = 'RSA';
+            $nkey{'x509'}  = $args{'x509'};
+            $nkey{'pass'}  = $args{'pass'};
+            $nkey{'hash'}  = undef;
+            $nkey{'data'}  = undef;
+            $kref = $self->secret_get('type' => 'RSA',
+                                      'x509' => $nkey{'x509'});
+        } else {
+            #
+            # RSA {...}
+            #
+            my $data = '';
+            my %hash = ();
+            my %want = (modulus=>0, exponent1=>0, exponent2=>0,
+                        privateexponent=>0, publicexponent=>0,
+                        coefficient=>0, prime1=>0, prime2=>0);
+
+            if(ref($args{'hash'}) eq 'HASH') {
+                for my $key (keys %{$args{'hash'}}) {
+                    my $val = $args{'hash'}->{$key};
+                    if(defined($val)
+                       and $val = /^\S+$/
+                       and exists($want{lc($key)})
+                       and (0 == $want{lc($key)})) {
+                        $want{lc($key)} = 1;
+                        $hash{$key} = $val;
+                        $data .= "\t".$key.": ".$val;
+                    }
+                }
+            } else {
+                my $data = $args{'data'} || '';
+                my $temp = $data;
+                while($temp =~ s/^\s+(\S+):\s+(\S+)//) {
+                    my ($key, $val) = ($1, $2);
+                    if(exists($want{lc($key)})) {
+                        $want{lc($key)} = 1;
+                        $hash{$key} = $val;
+                    }
+                }
+            }
+            # abort if a key component missed
+            for my $val (values %want) {
+                return undef if(0 == $val);
+            }
+            $nkey{'index'} = $args{'index'};
+            $nkey{'type'}  = 'RSA';
+            $nkey{'x509'}  = undef;
+            $nkey{'pass'}  = undef;
+            $nkey{'hash'}  = {%hash};
+            $nkey{'data'}  = $data;
+            $kref = $self->secret_get('type' => 'RSA',
+                                      'index' => $nkey{'index'});
+        }
+    } else {
+        # check required values
+        return undef unless(defined($args{'pass'}) and defined($args{'index'}));
+
+        #
+        # PSK
+        #
+        $nkey{'index'} = $args{'index'};
+        $nkey{'type'}  = 'PSK';
+        $nkey{'pass'}  = $args{'pass'};
+        $nkey{'x509'}  = undef;
+        $nkey{'hash'}  = undef;
+        $nkey{'data'}  = undef;
+        $kref = $self->secret_get('type'  => 'PSK',
+                                  'index' => $nkey{'index'});
+    }
+
+    if(defined($kref)) {
+        #
+        # just update kref
+        #
+        %{$kref} = %nkey;
+    } else {
+        #
+        # add a new secret
+        #
+        push(@{$secr->{'keys'}}, {%nkey});
+    }
+    return \%nkey;
+}
+
+# --------------------------------------------------------------------
+sub secret_del
+{
+    my $self = shift;
+    my %args = @_;
+    my $secr = \%{$self->{'secr'}};
+
+    my $type = $args{'type'};
+    my $x509 = $args{'x509'};
+    my $index= $args{'index'};
+    if(defined($index)) {
+        $index = '%any'  if($index eq '' and not defined($x509));
+        $index = '%any'  if($index eq '0.0.0.0');
+        $index = '%any6' if($index eq '::');
+    }
+    for(my $i=0; $i<scalar(@{$secr->{'keys'} || []}); $i++) {
+        my $kref = $secr->{'keys'}->[$i];
+        if(defined($type)) {
+            next unless(uc($kref->{'type'}) eq uc($type));
+        }
+        if(defined($x509)) {
+            next unless(defined($kref->{'x509'}));
+            my $file = $kref->{'x509'};
+            if($file !~ /^\//) {
+               $file = $DEFS{'ipsec_private'}.'/'.$file;
+            }
+            if($file eq $x509) {
+                splice(@{$secr->{'keys'}}, $i, 1);
+                return $kref;
+            }
+        }
+        if(defined($index)) {
+            my $itemp = $kref->{'index'};
+            $itemp = '%any'  if($itemp eq '' and not defined($x509));
+            $itemp = '%any'  if($itemp eq '0.0.0.0');
+            $itemp = '%any6' if($itemp eq '::');
+            if($index eq $itemp) {
+                splice(@{$secr->{'keys'}}, $i, 1);
+                return $kref;
+            }
+        }
+    }
+    return undef;
 }
 
 # --------------------------------------------------------------------
@@ -749,16 +974,14 @@ sub dump_ipsec_secrets
         $eol = 1;
         if($kref->{'type'} eq 'RSA') {
             if($kref->{'x509'}) {
-                if($kref->{'pass'}) {
-                    push(@data, $kref->{'index'}.': RSA '.
-                                $kref->{'x509'} .' "'.
-                                $kref->{'pass'} .'"');
-                } else {
-                    push(@data, $kref->{'index'}.': RSA '.
-                                $kref->{'x509'});
+                unless(defined($kref->{'pass'})) {
+                    $kref->{'pass'} = '';
                 }
+                push(@data, $kref->{'index'}.': RSA '.
+                            $kref->{'x509'} .' "'.
+                            $kref->{'pass'} .'"');
             } else {
-                my $kdata = " ".$kref->{'data'};
+                my $kdata = $kref->{'data'};
                 push(@data, $kref->{'index'}.": RSA {");
                 while($kdata =~ s/^\s+(\S+:\s+\S+)//) {
                     push(@data, "\t".$1);
@@ -766,8 +989,11 @@ sub dump_ipsec_secrets
                 push(@data, "\t}");
             }
         } else {
+            unless(defined($kref->{'pass'})) {
+                $kref->{'pass'} = '';
+            }
             push(@data, $kref->{'index'}.': PSK "'.
-                        $kref->{'data'}.'"');
+                        $kref->{'pass'}.'"');
         }
     }
     push(@data, "") if($eol);
@@ -1291,7 +1517,7 @@ sub _save_ipsec_secrets
                 unless($kdata =~ /^{/) {
                     if($kdata =~ /^(\S+)\s+(.*)$/) {
                         $rfile = $1;
-                        $rpass = $2;
+                        $rpass = defined($2) ? $2 : '';
                         $rpass =~ s/^\s*\"//;
                         $rpass =~ s/\"\s*$//;
                     } elsif($kdata =~ /^(\S+)$/) {
@@ -1301,7 +1527,8 @@ sub _save_ipsec_secrets
                 } else {
                     $kdata =~ s/^{\s*//;
                     $kdata =~ s/\s*}\s*$//;
-                    my $temp = " ".$kdata;
+                    $kdata = "\t".$kdata;
+                    my $temp = $kdata;
                     while($temp =~ s/^\s+(\S+):\s+(\S+)//) {
                         $rdata->{$1} = $2 if(defined($1));
                     }
@@ -1369,16 +1596,14 @@ sub _save_ipsec_secrets
             # OK, dump the key with _our_ values
             if($kref->{'type'} eq 'RSA') {
                 if($kref->{'x509'}) {
-                    if($kref->{'pass'}) {
-                        push(@data, $index.': '.$ktype.' '.
-                                    $kref->{'x509'} .' "'.
-                                    $kref->{'pass'} .'"');
-                    } else {
-                        push(@data, $index.': '.$ktype.' '.
-                                    $kref->{'x509'});
+                    unless(defined($kref->{'pass'})) {
+                        $kref->{'pass'} = '';
                     }
+                    push(@data, $index.': '.$ktype.' '.
+                                $kref->{'x509'} .' "'.
+                                $kref->{'pass'} .'"');
                 } else {
-                    my $kdata = " ".$kref->{'data'};
+                    my $kdata = $kref->{'data'};
                     push(@data, $index.": $ktype {");
                     while($kdata =~ s/^\s+(\S+:\s+\S+)//) {
                         push(@data, "\t".$1);
@@ -1386,8 +1611,11 @@ sub _save_ipsec_secrets
                     push(@data, "\t}");
                 }
             } else {
+                unless(defined($kref->{'pass'})) {
+                    $kref->{'pass'} = '';
+                }
                 push(@data, $index.': '.$ktype.' "'.
-                            $kref->{'data'}.'"');
+                            $kref->{'pass'}.'"');
             }
 
             return (0, @comm, @data);
@@ -1538,16 +1766,14 @@ sub _save_ipsec_secrets
         $eol = 1;
         if($kref->{'type'} eq 'RSA') {
             if($kref->{'x509'}) {
-                if($kref->{'pass'}) {
-                    push(@fout, $kref->{'index'}.': RSA '.
-                                $kref->{'x509'} .' "'.
-                                $kref->{'pass'} .'"');
-                } else {
-                    push(@fout, $kref->{'index'}.': RSA '.
-                                $kref->{'x509'});
+                unless(defined($kref->{'pass'})) {
+                    $kref->{'pass'} = '';
                 }
+                push(@fout, $kref->{'index'}.': RSA '.
+                            $kref->{'x509'} .' "'.
+                            $kref->{'pass'} .'"');
             } else {
-                my $kdata = " ".$kref->{'data'};
+                my $kdata = $kref->{'data'};
                 push(@fout, $kref->{'index'}.": RSA {");
                 while($kdata =~ s/^\s+(\S+:\s+\S+)//) {
                     push(@fout, "\t".$1);
@@ -1555,8 +1781,11 @@ sub _save_ipsec_secrets
                 push(@fout, "\t}");
             }
         } else {
+            unless(defined($kref->{'pass'})) {
+                $kref->{'pass'} = '';
+            }
             push(@fout, $kref->{'index'}.': PSK "'.
-                        $kref->{'data'}.'"');
+                        $kref->{'pass'}.'"');
         }
         splice(@{$secr->{'keys'}}, $i, 1);
     }
@@ -1642,7 +1871,7 @@ sub _load_ipsec_secrets
                 unless($kdata =~ /^{/) {
                     if($kdata =~ /^(\S+)\s+(.*)$/) {
                         $rfile = $1;
-                        $rpass = $2;
+                        $rpass = defined($2) ? $2 : '';
                         $rpass =~ s/^\s*\"//;
                         $rpass =~ s/\"\s*$//;
                     } elsif($kdata =~ /^(\S+)$/) {
@@ -1652,7 +1881,8 @@ sub _load_ipsec_secrets
                 } else {
                     $kdata =~ s/^{\s*//;
                     $kdata =~ s/\s*}\s*$//;
-                    my $temp = " ".$kdata;
+                    $kdata = "\t".$kdata;
+                    my $temp = $kdata;
                     while($temp =~ s/^\s+(\S+):\s+(\S+)//) {
                         $rdata->{$1} = $2 if(defined($1));
                     }
