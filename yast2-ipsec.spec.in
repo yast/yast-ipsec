@@ -1,8 +1,8 @@
 @HEADER-COMMENT@
-# neededforbuild yast2-devel-packages
+# neededforbuild yast2-devel-packages yast2-network yast2-country yast2-installation
 
 @HEADER@
-Requires:	yast2
+Requires:	yast2 perl-OpenCA-CRL perl-OpenCA-X509 perl-OpenCA-OpenSSL
 
 BuildArchitectures:	noarch
 
@@ -27,4 +27,6 @@ Summary:	Configuration of ipsec
 @clientdir@/ipsec_*.ycp
 @moduledir@/IPsec.*
 @desktopdir@/ipsec.desktop
+@scrconfdir@/*
+@agentdir@/*
 %doc @docdir@
