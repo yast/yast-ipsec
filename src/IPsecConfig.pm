@@ -61,6 +61,7 @@ BEGIN
 BEGIN { $TYPEINFO{enableTestMode} = ["function", "void"]; }
 sub enableTestMode()
 {
+    # TODO
 }
 
 ##
@@ -180,6 +181,7 @@ sub Settings()
 BEGIN { $TYPEINFO{setSettings} = ["function", "void" , [ "map", "string", "string" ]]; }
 sub setSettings($)
 {
+    # TODO
     y2milestone(%{$_[0]});
 }
 
@@ -187,6 +189,7 @@ sub setSettings($)
 BEGIN { $TYPEINFO{setConnections} = ["function", "void" , [ "map", "string", [ "map", "string", "string" ]]]; }
 sub setConnections($)
 {
+    # TODO
     y2milestone(%{$_[0]});
 }
 
@@ -220,6 +223,7 @@ sub addConnection($$)
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write
 {
+    # TODO
     return Boolean(1);
 }
 
@@ -265,6 +269,7 @@ sub newRoadWarriorConnection()
 BEGIN { $TYPEINFO{Certificates} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Certificates()
 {
+    # TODO
     return \%certificates;
 }
 
@@ -274,6 +279,7 @@ sub Certificates()
 BEGIN { $TYPEINFO{deleteCertificate} = ["function", "void" , "string" ]; }
 sub deleteCertificate($)
 {
+    # TODO
     my $name = shift;
     delete $certificates{$name};
 }
@@ -285,6 +291,7 @@ sub deleteCertificate($)
 BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
 sub importCertificate($)
 {
+    # TODO
     my $filename = shift;
     return _("importing certificates not supported yet");
 }
@@ -296,6 +303,7 @@ sub importCertificate($)
 BEGIN { $TYPEINFO{CACertificates} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub CACertificates()
 {
+    # TODO
     return \%cacertificates;
 }
 
@@ -305,6 +313,7 @@ sub CACertificates()
 BEGIN { $TYPEINFO{deleteCACertificate} = ["function", "void" , "string" ]; }
 sub deleteCACertificate($)
 {
+    # TODO
     my $name = shift;
     delete $cacertificates{$name};
 }
@@ -316,6 +325,7 @@ sub deleteCACertificate($)
 BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
 sub importCACertificate($)
 {
+    # TODO
     my $filename = shift;
     return _("importing CA certificates not supported yet");
 }
@@ -328,6 +338,7 @@ sub importCACertificate($)
 BEGIN { $TYPEINFO{CRLs} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub CRLs()
 {
+    # TODO
     return \%crls;
 }
 
@@ -337,6 +348,7 @@ sub CRLs()
 BEGIN { $TYPEINFO{deleteCRL} = ["function", "void" , "string" ]; }
 sub deleteCRL($)
 {
+    # TODO
     my $name = shift;
     delete $crls{$name};
 }
@@ -348,6 +360,7 @@ sub deleteCRL($)
 BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
 sub importCRL($)
 {
+    # TODO
     my $filename = shift;
     return _("importing CRLs not supported yet");
 }
@@ -359,6 +372,7 @@ sub importCRL($)
 BEGIN { $TYPEINFO{Keys} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Keys()
 {
+    # TODO
     return \%keys;
 }
 
@@ -368,6 +382,7 @@ sub Keys()
 BEGIN { $TYPEINFO{deleteKey} = ["function", "void" , "string" ]; }
 sub deleteKey($)
 {
+    # TODO
     my $name = shift;
     delete $keys{$name};
 }
@@ -380,6 +395,7 @@ sub deleteKey($)
 BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
 sub importKey($)
 {
+    # TODO
     my $filename = shift;
     my $password = shift;
     return _("importing keys not supported yet");
@@ -393,6 +409,7 @@ sub importKey($)
 BEGIN { $TYPEINFO{prepareImportP12} = ["function", [ "map", "string", "string" ], "string", "string" ]; }
 sub prepareImportP12($$)
 {
+    # TODO
     my $file = shift;
     my $password = shift;
     # return ( "error" => "not yet implemented" );
@@ -405,6 +422,7 @@ sub prepareImportP12($$)
 BEGIN { $TYPEINFO{importPreparedP12} = ["function", "void" ]; }
 sub importPreparedP12()
 {
+    # TODO
     return "importing PKCS#12 not yet implemented";
 }
 
