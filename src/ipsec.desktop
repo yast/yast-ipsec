@@ -21,3 +21,4 @@ Exec=/sbin/yast2 ipsec
 
 Name=VPN
 GenericName=Configure IPsec Virtual Private Networks (VPNs)
+X-KDE-SubstituteUID=true
