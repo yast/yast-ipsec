@@ -26,7 +26,7 @@ use FreeSwanCerts;
 
 #use ycp;
 use YaST::YCP qw(:LOGGING Boolean);
-#YaST::YCP::Import ("SCR");
+YaST::YCP::Import ("IPsecPopups");
 
 setlocale(LC_MESSAGES, "");
 textdomain("ipsec");
@@ -121,6 +121,7 @@ sub Read
 #
 #    %connections = %{$ref};
 #
+
     debug "FreeSwanUtils => ",  $fsutil ? "OK" : "ERR";
     %settings = ();
     %connections = ();
@@ -634,7 +635,7 @@ sub cleanup()
  #
 sub passwordPrompt($)
 {
-    return undef;
+    return IPsecPopups::Password(shift);
 }
 
 # EOF

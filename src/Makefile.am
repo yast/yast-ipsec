@@ -19,6 +19,7 @@ desktop_DATA =			\
 
 module_DATA =			\
 	IPsec.ycp               \
+	IPsecPopups.ycp         \
 	IPsecConfig.pm		\
 	FreeSwanUtils.pm        \
 	FreeSwanCerts.pm
