@@ -20,7 +20,8 @@ desktop_DATA =			\
 module_DATA =			\
 	IPsec.ycp               \
 	IPsecConfig.pm		\
-	FreeSwanUtils.pm
+	FreeSwanUtils.pm        \
+	FreeSwanCerts.pm
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
 
