@@ -15,9 +15,19 @@ package IPsecConfig;
 # NOTE: debug for developement only!
 #       we use own y2logger helper
 #
-my $DEBUG = 0;
+my $DEBUG;
 BEGIN {
+    #
+    # Some perl modules writes to STDERR while
+    # they are imported / destroyed...
+    # This breaks the output of the ncurses UI.
+    #
+    $DEBUG = 0;
+    if(exists($ENV{'Y2DEBUG'}) or exists($ENV{'Y2DEBUG_IPSEC'})) {
+	$DEBUG = 1;
+    }
     open(STDERR, ">", "/dev/null") unless($DEBUG);
+    $SIG{'PIPE'} = 'IGNORE';
 }
 
 use strict;
@@ -31,6 +41,7 @@ use File::Path;
 use lib "/usr/share/YaST2/modules"; #### FIXME!!!
 use FreeSwanUtils;
 use FreeSwanCerts;
+use Date::Calc qw (Parse_Date Date_to_Time);
 
 use YaST::YCP qw(:LOGGING Boolean);
 YaST::YCP::Import ("IPsecPopups");
@@ -49,7 +60,6 @@ my %settings;
 #    +-> "DN" = "/foo/bar/baz"
 #    \-> "subjectAltName" = "foo@bar"
 
-my $openssl;
 my %cacertificates;
 my %certificates;
 my %crls;
@@ -78,12 +88,6 @@ BEGIN
     $DEBUG = 1 if(exists($ENV{'Y2DEBUG_IPSEC'}));
 
     $fsutil = new FreeSwanUtils();
-    $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
-
-    # it does not exists per default...
-    unless(-d "/etc/ipsec.d/certs") {
-        mkdir("/etc/ipsec.d/certs", 0755);
-    }
 }
 
 ##
@@ -122,18 +126,18 @@ sub Read
 	debug "ipsec.conf parsing error: ", $fsutil->errstr();
     }
 
-    if($openssl) {
-	%cacertificates = FreeSwanCerts::list_CAs($openssl);
-	%certificates   = FreeSwanCerts::list_CERTs($openssl);
-	%crls           = FreeSwanCerts::list_CRLs($openssl);
-	%keys           = FreeSwanCerts::list_KEYs($openssl);
-	#
-	# FIXME: Lookup passwd's for keys in /etc/ipsec.secrets ??
-	#
-	#y2milestone(%certificates);
-    } else {
-	debug "HUH? No openssl-shell instance?";
+    # FIXME: skip duplicates:
+    %cacertificates = FreeSwanCerts::list_CAs();
+    if(-d "/etc/ipsec.d/certs") {
+    %certificates   = FreeSwanCerts::list_CERTs();
     }
+    %crls           = FreeSwanCerts::list_CRLs();
+    %keys           = FreeSwanCerts::list_KEYs();
+    #
+    # FIXME: Lookup passwd's for keys in /etc/ipsec.secrets ??
+    #
+    #y2milestone(%certificates);
+
     return Boolean(1);
 }
 
@@ -145,6 +149,14 @@ sub Read
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write
 {
+    # it does not exists per default...
+    unless(-d "/etc/ipsec.d/certs") {
+        mkdir("/etc/ipsec.d/certs", 0755);
+    }
+
+    #
+    # Save FreeS/WAN config
+    #
     my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
     for my $name (@conns) {
 	unless(exists($connections{$name})) {
@@ -162,6 +174,15 @@ sub Write
 	return Boolean(0);
     }
 
+    #
+    # Save FreeS/WAN secrets
+    #
+    #TODO:
+
+
+    #
+    # Delete scheduled files
+    #
     for my $file (keys %deleted) {
 	if(length($file) and -f $file) {
 	    debug "deleting file $file";
@@ -169,6 +190,9 @@ sub Write
 	}
     }
 
+    #
+    # Write new CAs, CRLs, CERTs, KEYs
+    #
     for my $file (keys %cacertificates) {
 	my $href = $cacertificates{$file};
 	my $_new = $href->{'NEW'} || 0;
@@ -406,16 +430,128 @@ sub newClientConnection()
 ## certificate handling
 ###################
 
+##
+ # mark file in hash for deletion
+ # @param name
+ # @param href
 sub mark4delete($\%)
 {
     my $name = shift;
-    my $hash = shift;
-    if($hash and $name and exists($hash->{$name})) {
-	my $_new = $hash->{$name}->{'NEW'} || 0;
+    my $href = shift;
+    if($href and $name and exists($href->{$name})) {
+	my $_new = $href->{$name}->{'NEW'} || 0;
 	# is absolute file name if not new
 	$deleted{$name} = 1 unless($_new);
-	delete($hash->{$name});
+	delete($href->{$name});
     }
+}
+
+##
+ # get a unused name for cert, ca, crl or key
+ # @param prefix, e.g. "cert_"
+ # @param suffix, e.g. ".pem"
+ # @param hash reference, e.g. \%certificates
+ # @return $prefix$somenumber.$suffix
+sub get_free_idx($$\%)
+{
+    my $prefix = shift;
+    my $suffix = shift;
+    my $href   = shift;
+    my $idx    = 0;
+    my $name;
+    do {
+	$name = $prefix.sprintf("%02d", ++$idx).$suffix;
+    } while(exists($href->{$name}));
+    return $name;
+}
+
+##
+ # checks if specified cert/cacert exists in hash
+ # @param  cert attribute hash
+ # @param  hash we search in
+ # @return true if found or false
+sub check_new_cert(\%\%)
+{
+    my $cert = shift;
+    my $href = shift;
+
+    for my $idx (keys %{$href}) {
+	if(($cert->{'DN'} || '') eq ($href->{$idx}->{'DN'} || '')) {
+	    debug "cert dn already exists: ", $cert->{'DN'} || '';
+	    return 0;
+	}
+    }
+    debug "cert dn is new: ", $cert->{'DN'} || '';
+    return 1;
+}
+
+##
+ # checks if specified key exists in hash
+ # @param  key attribute hash
+ # @param  hash we search in
+ # @return true if found or false
+sub check_new_key(\%\%)
+{
+    my $key  = shift;
+    my $href = shift;
+
+    debug "key is always new :-)";
+    return 1; # currently not implemented
+}
+
+##
+ # checks if specified crl exists in hash and is newer
+ # @param  crl attribute hash
+ # @param  hash we search in
+ # @return name of the crl to override, "" for add or undef
+sub check_new_crl(\%\%)
+{
+    my $crl  = shift;
+    my $href = shift;
+
+    return undef unless(defined($crl->{'ISSUER'}) and $crl->{'ISSUER'} ne "");
+    for my $idx (keys %{$href}) {
+	if($crl->{'ISSUER'} eq $href->{$idx}->{'ISSUER'}) {
+	    #
+	    # NEXT_UPDATE => 'Apr  1 09:13:05 2004 GMT'
+	    #
+	    my $cmp = cmp_crl_date_time($crl->{'NEXT_UPDATE'},
+	                                $href->{$idx}->{'NEXT_UPDATE'});
+	    if(defined($cmp)) {
+		if($cmp > 0) {
+		    debug "crl is newer: ", $crl->{'ISSUER'};
+		    return $idx; # overwrite it
+		}
+	    }
+	    debug "crl issuer exists or older: ", $crl->{'ISSUER'};
+	    return undef; # discard crl
+	}
+    }
+    debug "crl issuer is new: ", $crl->{'ISSUER'};
+    return "";
+}
+
+##
+ # compares CRL date-time strings
+ # e.g.: "Mar 10 09:13:05 2004 GMT"
+ # @param string1
+ # @param string2
+ # @return the difference or undef on error
+sub cmp_crl_date_time
+{
+    my $str1 = shift;
+    my $str2 = shift;
+    my @time1 = ($str1 =~ /(\d\d):(\d\d):(\d\d)/);
+    my @time2 = ($str2 =~ /(\d\d):(\d\d):(\d\d)/);
+    my @date1 = Parse_Date($str1);
+    my @date2 = Parse_Date($str2);
+
+    if(3 == scalar(@time1) and 3 == scalar(@time2) and
+       3 == scalar(@date1) and 3 == scalar(@date2)) {
+       return Date_to_Time(@date1, @time1)
+            - Date_to_Time(@date2, @time2);
+    }
+    return undef;
 }
 
 ##
@@ -517,11 +653,10 @@ sub prepareImportFile($)
 	debug "IMPORTING: ", $dref->{'info'}, $dref->{'name'} ?
 	                     " (from '".$dref->{'name'}.")" : "";
 
-	my $iref = parse_pem_data($openssl, info => $dref->{'info'},
-	                                    data => $dref->{'data'},
-					    pwcb => \&passwordPrompt);
+	my $iref = parse_pem_data(info => $dref->{'info'},
+	                          data => $dref->{'data'},
+				  pwcb => \&passwordPrompt);
 	if(defined($iref) and defined($iref->{'hash'})) {
-	    my $idx = 0;
 	    my $pem;
 
 	    # mark it imported / new
@@ -530,32 +665,39 @@ sub prepareImportFile($)
 	    $iref->{'hash'}->{'data'} = $dref->{'data'};
 
 	    if($iref->{'type'} eq 'KEY') {
-		do {
-		    $pem = sprintf("key_%02d.pem", ++$idx);
-		} while(exists($keys{$pem}));
-		$keys{$pem} = $iref->{'hash'};
+		unless(check_new_key(%{$iref->{'hash'}}, %keys)) {
+		    $pem = get_free_idx("key_", ".pem", %keys);
+		    $keys{$pem} = $iref->{'hash'};
+		}
 		next;
 	    }
 
 	    if($iref->{'type'} eq 'CRL') {
-		do {
-		    $pem = sprintf("crl_%02d.pem", ++$idx);
-		} while(exists($crls{$pem}));
-		$crls{$pem} = $iref->{'hash'};
+		my $pem = check_new_crl(%{$iref->{'hash'}}, %crls);
+		if(defined($pem)) {
+		    if($pem eq "") {
+			$pem = get_free_idx("crl_", ".pem", %crls);
+		    }
+		    $crls{$pem} = $iref->{'hash'};
+		}
 		next;
 	    }
 
 	    if($iref->{'type'} eq 'CERT') {
 		if($iref->{'hash'}->{"IS_CA"}) {
-		    do {
-			$pem = sprintf("cacert_%02d.pem", ++$idx);
-		    } while(exists($cacertificates{$pem}));
-		    $cacertificates{$pem} = $iref->{'hash'};
+		    if(check_new_cert(%{$iref->{'hash'}},
+		                      %cacertificates)) {
+			$pem = get_free_idx("cacert_", ".pem",
+			                    %cacertificates);
+			$cacertificates{$pem} = $iref->{'hash'};
+		    }
 		} else {
-		    do {
-			$pem = sprintf("cert_%02d.pem", ++$idx);
-		    } while(exists($certificates{$pem}));
-		    $certificates{$pem} = $iref->{'hash'};
+		    if(check_new_cert(%{$iref->{'hash'}},
+		                      %certificates)) {
+			$pem = get_free_idx("cert_", ".pem",
+		                            %certificates);
+		        $certificates{$pem} = $iref->{'hash'};
+		    }
 		}
 		next;
 	    }
@@ -666,170 +808,6 @@ sub passwordPrompt($)
     return IPsecPopups::Password(shift);
 }
 
-
-
-######################################################################
-##### CRAP, REMOVE ME IF UNUSED ######################################
-######################################################################
-
-##
- # get a name for certificate, ccacertificate, crl or key
- # @param prefix, e.g. "cert"
- # @param suffix, e.g. ".pem"
- # @param hash reference, e.g. \%certificates
- # @return $prefix$somenumber.$suffix
-sub get_free_key_for_hash($$$)
-{
-    my $prefix = shift;
-    my $suffix = shift;
-    my $href = shift;
-    my $idx = 0;
-    my $saveas = $prefix.$suffix;
-    while (exists $href->{$saveas})
-    {
-	$idx++;
-	$saveas = $prefix.$idx.$suffix
-    }
-    return $saveas;
-}
-
-
-##
- # import a CA certificate from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
-sub importCACertificate($)
-{
-    my $filename = shift;
-    my $href = parse_cert($openssl, file => $filename);
-
-    if(!defined $href)
-    {
-	return _("importing CA certificate failed"); # FIXME
-    }
-
-    my $idx = 0;
-    while (exists $cacertificates{"cacert".$idx.".pem"})
-    {
-	$idx++;
-    }
-    $cacertificates{"cacert".$idx.".pem"} = $href;
-
-    return undef;
-}
-
-
-##
- # import a CRL from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
-sub importCRL($)
-{
-    my $filename = shift;
-    my $href = parse_crl($openssl, file => $filename);
-
-    if(!defined $href)
-    {
-	return _("importing CRL failed"); # FIXME
-    }
-
-    my $idx = 0;
-    while (exists $crls{"crl".$idx.".pem"})
-    {
-	$idx++;
-    }
-    $crls{"crl".$idx.".pem"} = $href;
-
-    return undef;
-}
-
-
-##
- # import a certificate from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
-sub importCertificate($)
-{
-    my $filename = shift;
-    my $href = parse_cert($openssl, file => $filename);
-
-    return _("importing certificate failed") unless (defined $href);
-
-    my $saveas = get_free_key_for_hash("cert", ".pem", \%certificates);
-    return _("importing certificate failed") unless (defined $saveas);
-
-    FreeSwanCerts::save_certificate_as($filename, $saveas);
-    $certificates{$saveas} = $href;
-
-    return undef;
-}
-
-##
- # import a Key from file
- # @param filename to import
- # @param passwort (maybe empty, means no password)
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
-sub importKey($)
-{
-    my $filename = shift;
-    my $password = shift;
-    my $href = parse_key($openssl, file => $filename, pass => $password);
-
-    if(!defined $href)
-    {
-	return _("importing key failed"); # FIXME
-    }
-
-    my $idx = 0;
-    while (exists $keys{"key".$idx.".pem"})
-    {
-	$idx++;
-    }
-    $keys{"key".$idx.".pem"} = $href;
-
-    return undef;
-}
-
-##
- # Look at PKCS#12 file and extract it's components
- # @param path to p12 file
- # @param password for the file
- # @return hash with keys cacerts, certs, key or key error with error string
-BEGIN { $TYPEINFO{prepareImportP12} = ["function", [ "map", "string", "string" ], "string", "string" ]; }
-sub prepareImportP12($$;$)
-{
-    # TODO
-    my $file = shift;
-    my $password = shift;
-    #
-    # return ( "error" => "not yet implemented" );
-    #
-    return { "cacert" => "FIXME", "cert" => "FIXME", "key" => "FIXME" };
-}
-
-##
- # really import the file that was prepared via PrepareImportP12()
- # @return undef or error string
-BEGIN { $TYPEINFO{importPreparedP12} = ["function", "void" ]; }
-sub importPreparedP12()
-{
-    # TODO
-    return "importing PKCS#12 not yet implemented";
-}
-
-##
- # cancel an import that was started with prepareImportP12. Delete any
- # temporary files.
- #
-BEGIN { $TYPEINFO{cancelPreparedP12} = ["function", "void" ]; }
-sub cancelPreparedP12()
-{
-}
-
 ##
  # import a ipsec.conf file
  # @param filename to load
@@ -860,13 +838,126 @@ sub exportConnection($$)
 
     if(!exists($connections{$name}))
     {
-	return sprintf(_("Connection \"%s\" does not exist"), $name);
+       return sprintf(_("Connection \"%s\" does not exist"), $name);
     }
 
     # TODO
     return "importing configs not yet implemented";
     
     return undef;
+}
+
+
+######################################################################
+##### CRAP, REMOVE ME IF UNUSED ######################################
+######################################################################
+
+##
+ # import a CA certificate from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
+sub importCACertificate($)
+{
+#    my $filename = shift;
+#    my $href = parse_cert(file => $filename);
+#
+#    if(!defined $href)
+#    {
+#	return _("importing CA certificate failed"); # FIXME
+#    }
+#
+#    my $idx = 0;
+#    while (exists $cacertificates{"cacert".$idx.".pem"})
+#    {
+#	$idx++;
+#    }
+#    $cacertificates{"cacert".$idx.".pem"} = $href;
+#
+#    return undef;
+    debug "importCACertificate is obsolete!";
+    return _("obsolete function - use prepareImportFile!");
+}
+
+
+##
+ # import a CRL from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
+sub importCRL($)
+{
+#    my $filename = shift;
+#    my $href = parse_crl(file => $filename);
+#
+#    if(!defined $href)
+#    {
+#	return _("importing CRL failed"); # FIXME
+#    }
+#
+#    my $idx = 0;
+#    while (exists $crls{"crl".$idx.".pem"})
+#    {
+#	$idx++;
+#    }
+#    $crls{"crl".$idx.".pem"} = $href;
+#
+#    return undef;
+    debug "importCRL is obsolete!";
+    return _("obsolete function - use prepareImportFile!");
+}
+
+
+##
+ # import a certificate from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
+sub importCertificate($)
+{
+#    my $filename = shift;
+#    my $href = parse_cert(file => $filename);
+#
+#    return _("importing certificate failed") unless (defined $href);
+#
+#    my $saveas = get_free_key_for_hash("cert", ".pem", \%certificates);
+#    return _("importing certificate failed") unless (defined $saveas);
+#
+#    FreeSwanCerts::save_certificate_as($filename, $saveas);
+#    $certificates{$saveas} = $href;
+#
+#    return undef;
+    debug "importCertificate is obsolete!";
+    return _("obsolete function - use prepareImportFile!");
+}
+
+##
+ # import a Key from file
+ # @param filename to import
+ # @param passwort (maybe empty, means no password)
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
+sub importKey($)
+{
+#    my $filename = shift;
+#    my $password = shift;
+#    my $href = parse_key(file => $filename, pass => $password);
+#
+#    if(!defined $href)
+#    {
+#	return _("importing key failed"); # FIXME
+#    }
+#
+#    my $idx = 0;
+#    while (exists $keys{"key".$idx.".pem"})
+#    {
+#	$idx++;
+#    }
+#    $keys{"key".$idx.".pem"} = $href;
+#
+#    return undef;
+    debug "importKEY is obsolete!";
+    return _("obsolete function - use prepareImportFile!");
 }
 
 # EOF
