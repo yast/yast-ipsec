@@ -26,6 +26,7 @@ import "Report";
 import "Summary";
 
 import "CommandLine";
+import "Mode";
 include "ipsec/wizards.ycp";
 
 map cmdline_description = $[
@@ -36,13 +37,10 @@ map cmdline_description = $[
     "initialize"        : IPsec::Read,
     "finish"            : IPsec::Write,
     "actions"           : $[
-	// FIXME TODO: fill the functionality description here
     ],
     "options"		: $[
-	// FIXME TODO: fill the option descriptions here
     ],
     "mapping"		: $[
-	// FIXME TODO: fill the mappings of actions and options here
     ]
 ];
 
@@ -60,7 +58,8 @@ if(size(args) > 0) {
 any ret = nil;
 
 if(propose) ret = IPsecAutoSequence();
-else ret = CommandLine::Run(cmdline_description);
+//else ret = CommandLine::Run(cmdline_description);
+else ret = IPsecSequence();
 y2debug("ret=%1", ret);
 
 /* Finish */

@@ -29,7 +29,7 @@ any ConnectionConfigDialog1 () {
     /* IPsec configure1 dialog contents */
     term contents = `HBox(
 	`HStretch(),
-	`TextEntry(`id(`name), `opt(`default), _("Connection Name"), IPsec::current_connection_name),
+	`TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
 	`HStretch()
     );
 
@@ -57,6 +57,7 @@ any ConnectionConfigDialog1 () {
 	    if(size(name)==0)
 	    {
 		Popup::Message(_("Please fill in a name"));
+		UI::SetFocus(`id(`name));
 		continue;
 	    }
 
@@ -81,8 +82,12 @@ any ConnectionConfigDialog1 () {
 
 void ReplaceLeftRightConnectionConfigDialogIdCombo(string cert, string value)
 {
+    y2error("%1 %2", cert, value);
+    list ids = IPsec::getIdsOfCert(cert);
     UI::ReplaceWidget(`id(`idcombo),
-	`ComboBox(`id(`ident), `opt(`editable, `hstretch), _("Identification"), IPsec::getIdsOfCert(cert)));
+	`ComboBox(`id(`ident), `opt(`editable, `hstretch), _("Identification"), ids));
+    if(value == "")
+	value = ids[0]:"";
     UI::ChangeWidget(`id(`ident), `Value, value );
 }
 
@@ -98,6 +103,8 @@ any LeftRightConnectionConfigDialog(
     list ips,
     list networks)
 {
+    list certfiles = IPsec::getCertificateFiles();
+
     /* IPsec configure2 dialog caption */
     string caption = _("IPsec Configuration");
 
@@ -113,7 +120,7 @@ any LeftRightConnectionConfigDialog(
 	    ),
 	    `VSpacing(2),
 	    `HBox(
-		`ComboBox(`id(`cert), `opt(`editable, `hstretch, `notify), _("Certificate"), IPsec::getCertificateFiles()),
+		`ComboBox(`id(`cert), `opt(`editable, `hstretch, `notify), _("Certificate"), certfiles),
 		`PushButton(`id(`certbutton), _("Import..."))
 	    ),
 	    `ReplacePoint(`id(`idcombo), `Empty())
@@ -124,24 +131,23 @@ any LeftRightConnectionConfigDialog(
     Wizard::SetContentsButtons(caption, contents, HELPS["c2"]:"",
 	    Label::BackButton(), Label::NextButton());
 
-    UI::SetFocus(`id(`addr));
-
     string tmp = IPsec::current_connection[side]:"";
     if(side == "left" && tmp == "" )
 	tmp = "%defaultroute";
 
     UI::ChangeWidget(`id(`addr), `Value, tmp );
-
-    UI::ChangeWidget(`id(`addr), `ValidChars, ".0123456789:" );
     UI::ChangeWidget(`id(`subnet), `Value, IPsec::current_connection[side+"subnet"]:"" );
-    UI::ChangeWidget(`id(`subnet), `ValidChars, ".0123456789:/" );
 
     tmp = IPsec::current_connection[side+"cert"]:"";
+    if (side == "left" && tmp == "")
+    {
+	tmp = certfiles[0]:"";
+    }
     if (side == "right" || tmp != "")
 	UI::ChangeWidget(`id(`cert), `Value, tmp );
 
-    ReplaceLeftRightConnectionConfigDialogIdCombo(IPsec::current_connection[side+"cert"]:"",
-	IPsec::current_connection[side+"id"]:"");
+    ReplaceLeftRightConnectionConfigDialogIdCombo(tmp, IPsec::current_connection[side+"id"]:"");
+    y2error("asfsd");
 
     if(IPsec::current_connection[side+"subnet"]:"" == "")
     {
@@ -150,6 +156,8 @@ any LeftRightConnectionConfigDialog(
     }
     else
 	UI::ChangeWidget(`id(`isgateway), `Value, true );
+
+    UI::SetFocus(`id(`addr));
 
     any ret = nil;
     while(true) {
@@ -167,6 +175,7 @@ any LeftRightConnectionConfigDialog(
 	    if(ret == `next && size(addr)==0)
 	    {
 		Popup::Message(_("You must set an Address"));
+		UI::SetFocus(`id(`addr));
 		continue;
 	    }
 
@@ -175,6 +184,7 @@ any LeftRightConnectionConfigDialog(
 	    if(ret == `next && gw == true && size(subnet)==0)
 	    {
 		Popup::Message(_("You must set a subnet address if you configure a gateway"));
+		UI::SetFocus(`id(`subnet));
 		continue;
 	    }
 
@@ -184,6 +194,7 @@ any LeftRightConnectionConfigDialog(
 	    if(ret == `next && size(cert)==0 && side == "left")
 	    {
 		Popup::Message(_("You must select a certificate"));
+		UI::SetFocus(`id(`cert));
 		continue;
 	    }
 
@@ -302,16 +313,21 @@ any FreeSWANSettingsDialog ()
 {
     string caption = _("FreeS/WAN settings");
 
-    term contents = `HBox (
-	`VBox(`Frame(IPsec::settings_str, `VBox(
-	    `Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::start)),
-	    `Left(`CheckBox(`id(`strictcrlchecking), IPsec::strictcrlchecking_str, IPsec::strictcrlchecking)),
-	    `Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::nattraversal))
-	)))
+    term contents = `HBox (`HStretch(),
+	`Frame(IPsec::settings_str,
+	    `VBox(
+		`Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::start)),
+		`Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::nattraversal)),
+		`Left(`CheckBox(`id(`strictcrlpolicy), IPsec::strictcrlpolicy_str, IPsec::strictcrlpolicy)),
+		`Left(`IntField(`id(`crlcheckinterval), "CRL check interval", 0, 99999, IPsec::crlcheckinterval))
+	    )
+	), `HStretch()
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["freeswansettings"]:"",
 	    Label::BackButton(), Label::NextButton());
+
+    // TODO
 
     any ret = nil;
     while(true) {
@@ -324,6 +340,15 @@ any FreeSWANSettingsDialog ()
 	    else continue;
 	}
         else if(ret == `next || ret == `back) {
+	    boolean startatboot = (boolean) UI::QueryWidget(`id(`startatboot), `Value);
+	    boolean nattraversal = (boolean) UI::QueryWidget(`id(`nattraversal), `Value);
+	    boolean strictcrlpolicy = (boolean) UI::QueryWidget(`id(`strictcrlpolicy), `Value);
+	    integer crlcheckinterval = (integer) UI::QueryWidget(`id(`crlcheckinterval), `Value);
+
+	    IPsec::setStart(startatboot);
+	    IPsec::setNatTraversal(nattraversal);
+	    IPsec::setstrictcrlpolicy(strictcrlpolicy);
+	    IPsec::setCrlCheckInterval(crlcheckinterval);
             break;
         }
         else {

@@ -74,7 +74,7 @@ any ImportSequence() {
     map aliases = $[
 	"config1"	: ``(CertificateImportDialog1()),
 	"configfiles"	: ``(CertificateImportDialogFiles()),
-	"configpkcs12"	: ``(CertificateImportDialogFiles()),
+	"configpkcs12"	: ``(CertificateImportDialogPKCS12()),
 	"configzip"	: ``(CertificateImportDialogFiles()),
     ];
 
