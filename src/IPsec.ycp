@@ -214,7 +214,7 @@ global string exportdir = "/tmp";
 
 global string start_str = _("Activate During Boot");
 global string strictcrlpolicy_str =  _("Strict CRL Policy");
-global string crlchekinterval_str =  _("CRL Check Interval");
+global string crlcheckinterval_str =  _("CRL Check Interval");
 global string nattraversal_str =  _("NAT Traversal");
 // Translator: Common in the sense of multiple items share the same settings.
 // _not_ in the sense of "typical"
@@ -708,6 +708,9 @@ string CertificateSummary()
  */
 global list Summary()
 {
+    boolean scpchanged = getStrictCRLPolicy() != default_strictcrlpolicy;
+    boolean ntchanged = getNatTraversal() != default_nat_traversal;
+    boolean cichanged = getCrlCheckInterval() != default_crlcheckinterval;
     string summary = "";
 
     summary = summary + ConnectionSummary();
@@ -716,13 +719,21 @@ global list Summary()
 
     summary = summary + sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
     summary = summary + "<ul>";
-    summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(getStrictCRLPolicy()));
-    if(getCrlCheckInterval() != 0)
+    if(scpchanged || ntchanged || cichanged)
     {
-	summary = summary + sformat("<li>%1: %2</li>", crlchekinterval_str,
-	    sformat(_("%1 second", "%1 seconds", getCrlCheckInterval()), getCrlCheckInterval()));
+	summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(getNatTraversal()));
+	summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(getStrictCRLPolicy()));
+	if(cichanged)
+	{
+	    summary = summary + sformat("<li>%1: %2</li>", crlcheckinterval_str,
+		sformat(_("%1 second", "%1 seconds", getCrlCheckInterval()), getCrlCheckInterval()));
+	}
     }
-    summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(getNatTraversal()));
+    else
+    {
+	// Translator: Defaults means default settings are currently beeing used
+	summary = summary + sformat("<li>%1</li>", _("Defaults"));
+    }
     summary = summary + "</ul></p>";
 
     return [ summary, [] ];
