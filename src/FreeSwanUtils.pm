@@ -29,6 +29,10 @@ our %DEFS        = (
     'ipsec_private'  => '/etc/ipsec.d/private',
 );
 
+our @CONN_DEFAULTS = qw(%default);
+our @CONN_IMPLICIT = qw(clear block private packetdefault
+                        clear-or-private private-or-clear OEself);
+
 ## unused at the moment
 our $rx_keyword = qr /[a-zA-Z][a-zA-Z0-9_-]*/o;
 our $rx_kv_line = qr /^[ \t]+(${rx_keyword})[ \t]*=[ \t]*(.*)[ \t]*$/o;
@@ -236,6 +240,65 @@ sub dump_secrets
     my $file = shift;
 }
 
+#
+# --------------------------------------------------------------------
+#
+sub setup { settings(@_); }
+sub settings
+{
+    my $self = shift;
+}
+
+#
+# --------------------------------------------------------------------
+#
+sub conns { connections(@_); }
+sub connections
+{
+    my $self = shift;
+    my %args = @_;
+    my @excl = ();
+    my @incl = ();
+
+    foreach my $arg (keys %args) {
+        if($arg eq 'exclude' and 'ARRAY' eq ref($args{$arg})) {
+            foreach (@{$args{$arg}}) {
+                push(@excl, $_ eq '%implicit' ?
+                            @CONN_IMPLICIT : $_);
+            } next;
+        }
+        if($arg eq 'include' and 'ARRAY' eq ref($args{$arg})) {
+            foreach (@{$args{$arg}}) {
+                push(@incl, $_ eq '%implicit' ?
+                            @CONN_IMPLICIT : $_);
+            } next;
+        }
+    }
+
+    my @list = ();
+    for my $name (keys %{$self->{'conn'} || {}}) {
+        if(grep($name eq $_, @incl)) {
+            push(@list, $name);
+            next;
+        }
+        if(grep($name eq $_, @excl)) {
+            next;
+        }
+        push(@list, $name);
+    }
+    return sort(@list);
+}
+
+#
+# --------------------------------------------------------------------
+#
+sub conn  { connection(@_); }
+sub connection
+{
+    my $self = shift;
+    my $name = shift;
+}
+
 
 #
 # === private functions ==============================================
@@ -385,6 +448,7 @@ sub dump_ipsec_config
     return unless($_out and $conf and $file and
                   exists($conf->{'version'}));
 
+    print $_out "#< $file\n\n";
     if($file eq $conf->{'file'}) {
         $conf->{'version'} = $_ver unless($conf->{'version'});
  
@@ -408,9 +472,41 @@ sub dump_ipsec_config
         print $_out "\n";
     }
 
-    for my $name (qw(block private private-or-clear
-                     clear-or-private clear
-                     packetdefault OEself)) {
+    #
+    # ipsec.conf(5) says "the implicit conns are
+    # defined after all others" -- try to do it.
+    #
+    CONN: for my $name (keys %{$conf->{'conn'}}) {
+        for my $skip (@CONN_DEFAULTS, @CONN_IMPLICIT) {
+            next CONN if($skip eq $name);
+        }
+
+        my $sect = $conf->{'conn'}->{$name}->{'data'} || {};
+        my $curr = $conf->{'conn'}->{$name}->{'file'};
+        unless($curr) {
+            $curr = $file if($file eq $conf->{'file'});
+        }
+
+        if($curr eq $file and scalar(keys %{$sect})) {
+            print $_out "conn $name\n";
+            foreach (_dump_section($sect)) {
+                print $_out "$_\n";
+            }
+            print $_out "\n";
+        }
+    }
+
+    my $count = 0;
+    for my $incl (@{$conf->{'include'} || []}) {
+        if($file eq $incl->{'file'} and
+           $incl->{'incl'} =~ /\S+/) {
+            $count++;
+            print $_out "include ", $incl->{'incl'}, "\n";
+        }
+    }
+    print $_out "\n" if($count);
+
+    for my $name (@CONN_IMPLICIT) {
         next unless(exists($conf->{'conn'}->{$name}));
 
         my $sect = $conf->{'conn'}->{$name}->{'data'} || {};
@@ -427,36 +523,9 @@ sub dump_ipsec_config
             print $_out "\n";
         }
     }
-
-    for my $name (keys %{$conf->{'conn'}}) {
-        for my $skip (qw(%default block private private-or-clear
-                      clear-or-private clear packetdefault OEself)) {
-            next if($skip eq $name);
-        }
-
-        my $sect = $conf->{'conn'}->{$name}->{'data'} || {};
-        my $curr = $conf->{'conn'}->{$name}->{'file'};
-        unless($curr) {
-            $curr = $file if($file eq $conf->{'file'});
-        }
-
-        if($curr eq $file and scalar(keys %{$sect})) {
-            print $_out "conn $name\n";
-            foreach (_dump_section($sect)) {
-                print $_out "$_\n";
-            }
-            print $_out "\n";
-        }
-    }
-
-    if($file eq $conf->{'file'}) {
-        for my $incl (@{$conf->{'include'} || []}) {
-            if($incl->{'incl'} =~ /\S+/) {
-                print $_out "include ", $incl->{'incl'}, "\n";
-            }
-        }
-    }
+    print $_out "#> $file\n";
 }
+
 
 #
 # --------------------------------------------------------------------
