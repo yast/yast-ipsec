@@ -84,7 +84,7 @@ sub Read
                  $fsutil ? "OK" : "ERR", "\n";
     %settings = ();
     %connections = ();
-    if($fsutil and $fsutil->load_config()) {
+    if($fsutil and $fsutil->load()) {
 	# FIXME: access methods
 	#
 	# blessed  $config = {
@@ -119,8 +119,8 @@ sub Read
 	# };
 	#
 	print STDERR "IPsecConfig::Read() ",
-	             "FreeSwanConfig->load_config() => OK\n";
-	%settings = %{$fsutil->{'setup'}};
+	             "FreeSwanUtils->load() => OK\n";
+	%settings = %{$fsutil->{'setup'} || {}};
 
 	print STDERR "HAVE CONNS: ", join(", ", $fsutil->conns()), "\n";
 
