@@ -125,7 +125,7 @@ any LeftRightConnectionConfigDialog(
 	    `VSpacing(2),
 	    `HBox(
 		`ComboBox(`id(`cert), `opt(`editable, `hstretch, `notify), _("Certificate"), certfiles),
-		`PushButton(`id(`certbutton), _("Import..."))
+		`PushButton(`id(`import), _("Import..."))
 	    ),
 	    `ReplacePoint(`id(`idcombo), `Empty())
 	),
@@ -173,7 +173,7 @@ any LeftRightConnectionConfigDialog(
 	    if(ReallyAbort()) break;
 	    else continue;
 	}
-        else if(ret == `next || ret == `back)
+        else if(ret == `next || ret == `back || ret == `import)
 	{
 	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
 	    if(ret == `next && size(addr)==0)

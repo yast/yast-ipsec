@@ -208,6 +208,64 @@ any CertificateImportDialogFiles () {
     return ret;
 }
 
+/** open popup window asking for file and password
+ * @return list. element 0 is filename, 1 is the password. nil if any is empty
+ * */
+list askp12file()
+{
+    string p12file = UI::AskForExistingFile ( IPsec::certimportdir, "*.p12 *.P12", _("Choose PKCS#12 file"));
+
+    if(p12file == nil)
+	return nil;
+
+    string p12pass = PasswordPopup(_("Enter PKCS#12 Password"));
+
+    if(p12pass == nil)
+	return nil;
+
+    UI::ChangeWidget(`id(`file), `Value, p12file );
+
+    return [ p12file, p12pass ];
+}
+
+
+boolean importP12()
+{
+    string cacert = _("none");
+    string cert = _("none");
+    string key = _("none");
+
+    while(true)
+    {
+	list p12 = askp12file();
+
+	if(p12 == nil)
+	    return false;
+
+	map content = IPsec::PrepareImportP12(p12[0]:"", p12[1]:"");
+
+	if(haskey(content,"error"))
+	{
+	    Popup::Error(content["error"]:"Confused");
+	    return false;
+	}
+
+	cacert = content["cacert"]:_("none");
+	cert = content["cert"]:_("none");
+	key = content["key"]:_("none");
+
+	break;
+    }
+
+    UI::ChangeWidget(`id(`cacert), `Value, cacert );
+    UI::ChangeWidget(`id(`cert), `Value, cert );
+    UI::ChangeWidget(`id(`key), `Value, key );
+
+    UI::RecalcLayout();
+
+    return true;
+}
+
 /**
  * Configure1 dialog
  * @return dialog result
@@ -225,6 +283,10 @@ any CertificateImportDialogPKCS12 () {
 		`Label(_("PKCS#12 file to import")),
 		`HStretch(),
 		`Label(`id(`file), `opt(`outputField), "")
+	    ),
+	    `HBox(
+		`HStretch(),
+		`PushButton(`id(`browse), _("Browse..."))
 	    ),
 	    `VSpacing(2.5),
 	    `HBox(
@@ -248,31 +310,11 @@ any CertificateImportDialogPKCS12 () {
 	`HStretch()
     );
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS["p12"]:"",
 	    Label::BackButton(), Label::NextButton());
 
-    string p12file = UI::AskForExistingFile ( IPsec::certimportdir, "*.p12 *.P12", _("Choose PKCS#12 file"));
-
-    if(p12file == nil)
+    if(importP12() == false)
 	return `back;
-
-    string p12pass = PasswordPopup(_("Enter PKCS#12 Password"));
-
-    if(p12pass == nil)
-	return `back;
-
-    UI::ChangeWidget(`id(`file), `Value, p12file );
-
-
-    // TODO
-    string cacert = "TODO";
-    string cert = "TODO";
-    string key = "TODO";
-    UI::ChangeWidget(`id(`cacert), `Value, cacert );
-    UI::ChangeWidget(`id(`cert), `Value, cert );
-    UI::ChangeWidget(`id(`key), `Value, key );
-
-    UI::RecalcLayout();
 
     any ret = nil;
     while(true) {
@@ -286,10 +328,14 @@ any CertificateImportDialogPKCS12 () {
 	}
         else if(ret == `next)
 	{
+	    IPsec::ImportPreparedP12();
 	    break;
 	}
 	else if(ret == `back) {
-            break;
+	}
+	else if(ret == `browse) {
+	    if(importP12() == false)
+		continue;
         }
         else {
             y2error("unexpected retcode: %1", ret);
