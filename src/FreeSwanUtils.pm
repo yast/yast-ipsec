@@ -244,6 +244,9 @@ sub load_ipsec_secrets
     }
 }
 
+#
+# --------------------------------------------------------------------
+#
 sub _load_ipsec_secrets
 {
     my $secr = shift;
@@ -251,7 +254,137 @@ sub _load_ipsec_secrets
     my $dpth = shift;
     my $data = shift;
 
-    return (-1, emsg=>"not implemented");
+    unless($secr and $file and $data) {
+        return (-1, emsg=>"invalid arguments");
+    }
+
+
+    sub _parse_key
+    {
+        my $line = shift;
+        my $keys = shift;
+
+        if($line =~ /^(.*?)\s*:\s+(RSA|PSK)\s+(.*?)\s*$/i) {
+            my $index = $1 || '';
+            my $ktype = $2;
+            my $kdata = $3;
+
+            if($index eq '' or $index eq '0.0.0.0') {
+                $index = '%any';
+            }
+
+            # FIXME: improve duplicate index check ?
+            foreach my $kref (@{$keys}) {
+                if($index eq $kref->{'index'}) {
+                    return (-1, emsg=>"duplicate key index",
+                                line=>substr($line, 0, 20)."...");
+                }
+            }
+
+            print STDERR "ADD KEY: $ktype($index): $kdata\n" if($DEBUG);
+            if(uc($ktype) eq 'RSA') {
+                my $rpass = undef;
+                my $rfile = undef;
+                unless($kdata =~ /^{/) {
+                    if($kdata =~ /^(\S+)\s+(.*)$/) {
+                        $rfile = $1;
+                        $rpass = $2;
+                        $rpass =~ s/^\s*\"//;
+                        $rpass =~ s/\"\s*$//;
+                    } elsif($kdata =~ /^(\S+)$/) {
+                        $rfile = $1;
+                    }
+                    $kdata = undef;
+                } else {
+                    $kdata =~ s/^{\s*//;
+                    $kdata =~ s/\s*}\s*$//;
+                }
+                return (0, (
+                    'type'  => 'RSA',
+                    'file'  => $rfile,
+                    'pass'  => $rpass,
+                    'data'  => $kdata,
+                    'index' => $index,
+                ));
+            } else {
+                $kdata =~ s/^\s*\"//;
+                $kdata =~ s/\"\s*$//;
+                return (0, (
+                    'type'  => 'PSK',
+                    'file'  => undef,
+                    'pass'  => $kdata,
+                    'data'  => undef,
+                    'index' => $index,
+                ));
+            }
+        }
+        return (-1, emsg=>"syntax error",
+                    line=>substr($line, 0, 20)."...");
+    }
+
+    my $lnum = 0;
+    my $prev = undef;
+    foreach my $line (@{$data || []}) {
+        chomp($line);
+        $lnum++;
+
+        print STDERR sprintf("LOAD [%s:%02d]: ", $file, $lnum), " $line\n"
+            if($DEBUG > 2);
+
+        if($line =~ /^\s*$/ or $line =~ /^#/) {
+            if($prev) {
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+                if($ret) {
+                    return ($lnum-1, file=>$file, %res);
+                }
+                push(@{$secr->{'keys'}}, \%res);
+                $prev = undef;
+            }
+            next;
+        }
+
+        if($line =~ /^include/) {
+            if($prev) {
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+                if($ret) {
+                    return ($lnum-1, file=>$file, %res);
+                }
+                push(@{$secr->{'keys'}}, \%res);
+                $prev = undef;
+            }
+            # FIXME!!!
+            next;
+        }
+
+        if($line =~ /^\S+/) {
+            # line with new key
+            if($prev) {
+                my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+                if($ret) {
+                    return ($lnum-1, file=>$file, %res);
+                }
+                push(@{$secr->{'keys'}}, \%res);
+                $prev = undef;
+            }
+            $prev = $line;
+        } else {
+            # continuation line
+            if($prev) {
+                $line =~ s/#.*$//;
+                if($line !~ /^\s*$/) {
+                    $prev .= $line;
+                }
+            }
+        }
+    }
+    if($prev) {
+        my ($ret, %res) = _parse_key($prev, $secr->{'keys'});
+        if($ret) {
+            return ($lnum-1, file=>$file, %res);
+        }
+        push(@{$secr->{'keys'}}, \%res);
+    }
+    return (0);
 }
 
 
@@ -284,6 +417,7 @@ sub _init_secrets
     my %args = @_;
     my %secr = (
         'include' => [],
+        'keys'    => [],
         'file'    => undef,
     );
     foreach (keys %secr) {
