@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Tue Sep 14 09:34:57 CEST 2004 - jsrain@suse.cz
+
+- adapted testsuite to changes in yast2-firewall
+
+-------------------------------------------------------------------
 Fri Sep  3 14:27:01 CEST 2004 - lnussel@suse.de
 
 - fix a text to be translatable, add notes for translators
