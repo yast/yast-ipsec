@@ -53,6 +53,10 @@ global boolean edit_start = false;
 /** set to true to preselect a dialup interface */
 global boolean dynamic_start_suggest_dialup = nil;
 
+/** whether to silently change left to %dynamic if dynamic start is selected.
+ * Used for easy client configuration */
+global boolean silently_use_left_dynamic = false;
+
 /**
  * Write only, used during autoinstallation.
  * Don't run services and SuSEconfig, it's all done at one place.
@@ -947,6 +951,7 @@ global void setNoConnection()
     current_connection_name = "";
     current_connection_oldname = "";
     dynamic_start_suggest_dialup = nil;
+    silently_use_left_dynamic = false;
 }
 
 /**
@@ -958,6 +963,7 @@ global void newConnection()
     current_connection_name = "";
     current_connection_oldname = "";
     dynamic_start_suggest_dialup = nil;
+    silently_use_left_dynamic = false;
 }
 
 global void newServerConnection()
@@ -966,6 +972,7 @@ global void newServerConnection()
     current_connection_name = "roadwarrior";
     current_connection_oldname = "";
     dynamic_start_suggest_dialup = nil;
+    silently_use_left_dynamic = false;
 
     integer i = 0;
     foreach(string name, map conn, connections, ``{
@@ -987,6 +994,7 @@ global void newClientConnection()
     current_connection_name = "clientserver";
     current_connection_oldname = "";
     dynamic_start_suggest_dialup = nil;
+    silently_use_left_dynamic = true;
 
     integer i = 0;
     foreach(string name, map conn, connections, ``{
