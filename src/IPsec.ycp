@@ -821,5 +821,25 @@ global list getIdsOfCert(string name)
     return ids;
 }
 
+/**
+ * Look at PKCS#12 file and extract it's components
+ * @param file path to p12 file
+ * @param pw password for the file
+ * @return map with keys cacerts, certs, key or key error with error string
+ * */
+global map PrepareImportP12(string file, string pw)
+{
+    //return $[ "error":"haha" ];
+    return $[ "cacert":"FIXME", "cert":"FIXME", "key":"FIXME" ];
+}
+
+/**
+ * really import the file that was prepared via PrepareImportP12()
+ * */
+global void ImportPreparedP12()
+{
+    return;
+}
+
 /* EOF */
 }

@@ -18,6 +18,9 @@ include "ipsec/complex.ycp";
 include "ipsec/dialogs.ycp";
 include "ipsec/certdialogs.ycp";
 
+
+any ImportSequence();
+
 /**
  * Add a configuration of ipsec
  * @return sequence result
@@ -27,31 +30,35 @@ any AddSequence() {
     map aliases = $[
 	"config1"	: ``(ConnectionConfigDialog1()),
 	"configE"	: ``(ConnectionExpertDialog()),
-	"config2"	: ``(LeftConnectionConfigDialog()),
-	"config3"	: ``(RightConnectionConfigDialog()),
+	"configl"	: ``(LeftConnectionConfigDialog()),
+	"configr"	: ``(RightConnectionConfigDialog()),
 	"config4"	: ``(ConnectionConfigEncryptionDialog()),
 	"config5"	: ``(ConnectionStartModeDialog()),
 	"done"		: ``(ConnectionDoneDialog()),
+	"importl"	: [ ``( ImportSequence() ), true ],
+	"importr"	: [ ``( ImportSequence() ), true ],
     ];
 
     map sequence = $[
 	"ws_start" : "config1",
 	"config1" : $[
 	    `abort	: `abort,
-	    `next	: "config2",
+	    `next	: "configl",
 	    `expert	: "configE"
 	],
 	"configE" : $[
 	    `abort	: `abort,
 	    `next	: "done",
 	],
-	"config2" : $[
+	"configl" : $[
 	    `abort	: `abort,
-	    `next	: "config3"
+	    `next	: "configr",
+	    `import	: "importl"
 	],
-	"config3" : $[
+	"configr" : $[
 	    `abort	: `abort,
-	    `next	: "config5"
+	    `next	: "config5",
+	    `import	: "importr"
 	],
 	"config4" : $[
 	    `abort	: `abort,
@@ -61,11 +68,18 @@ any AddSequence() {
 	    `abort	: `abort,
 	    `next	: "done"
 	],
+	"importl" : $[
+	    `abort	: `abort,
+	    `next	: "configl"
+	],
+	"importr" : $[
+	    `abort	: `abort,
+	    `next	: "configr"
+	],
 	"done" : $[
 	    `abort	: `abort,
 	    `next	: `next
-	]
-
+	],
     ];
 
     return Sequencer::Run(aliases, sequence);
