@@ -1,4 +1,13 @@
 -------------------------------------------------------------------
+Fri Mar  5 17:47:38 CET 2004 - lnussel@suse.de
+
+- certificate import
+- write ipsec.conf/secrets
+- fix build
+- add simplified workflow for client connections
+- 2.9.1
+
+-------------------------------------------------------------------
 Thu Mar  4 11:21:27 CET 2004 - lnussel@suse.de
 
 - initial version
