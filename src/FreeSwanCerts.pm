@@ -14,7 +14,7 @@ use strict;
 use warnings;
 use OPENSSL;
 use Archive::Zip;
-use Fcntl;
+use Fcntl qw(:DEFAULT :mode :flock);
 use File::Temp qw/ tempfile tempdir /;
 use Locale::gettext;
 require Exporter;
@@ -25,7 +25,7 @@ our @ISA         = qw (Exporter);
 #
 our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
                        extract_ANY write_pem_data parse_pem_data
-                       parse_cert parse_crl parse_key parse_pem_data);
+                       parse_cert parse_crl parse_key);
 
 our $VERSION     = 0.1;
 our $DEBUG       = 0;  # level 0 .. 4
@@ -234,6 +234,7 @@ sub parse_key(%)
     my $ossl = new OPENSSL();
     my $blub = undef;
     if($ossl) {
+       $ossl->{'DEBUG'} = 1 if($DEBUG);
        $blub = $ossl->convert(
             DATATYPE  => 'KEY',
             INPASSWD  => $passwd,
@@ -265,29 +266,39 @@ sub parse_pem_data(%)
     my $info    = $args{'info'};
     my $pwcb    = $args{'pwcb'}; # need it for key...
 
-    return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
+    return undef unless(defined($data) and defined($info));
     my $type    = pem_type_by_string($info);
     if(defined($type)) {
         my $href = undef;
+
         if('KEY'  eq $type) {
-            my $pass = undef;
-            do {
-                if(defined($pass)) {
-                    $pass = &$pwcb(_("Wrong password.")."\n".
-                                   _("RSA key password"));
-                } else {
-                    $pass = &$pwcb(_("RSA key password"));
+            
+            # try with empty pass first
+            $href = parse_key(data => $data, pass => "");
+
+            if(defined($pwcb) and ref($pwcb) eq 'CODE') {
+                my $pass = undef;
+
+                while(not defined($href)) {
+                    if(defined($pass)) {
+                        $pass = &$pwcb(_("Wrong password.")."\n".
+                                       _("RSA key password"));
+                    } else {
+                        $pass = &$pwcb(_("RSA key password"));
+                    }
+                    return undef unless(defined($pass));
+
+                    $href = parse_key(data => $data, pass => $pass);
                 }
-                return undef unless(defined($pass));
-                $href = parse_key(data => $data, pass => $pass);
-            } while(not defined($href));
+            }
         }
-        if('CRL'  eq $type) {
+        elsif('CRL'  eq $type) {
             $href = parse_crl (data => $data);
         }
-        if('CERT' eq $type) {
+        elsif('CERT' eq $type) {
             $href = parse_cert(data => $data)
         }
+
         return { type => $type, hash => $href };
     }
     return undef;
@@ -312,11 +323,31 @@ sub write_pem_data($$$)
 {
     my $file = shift;
     my $data = shift;
-    my $perm = shift;
+    my $perm = shift || 0600;
 
-    if($file and $data and $perm) {
+    if(defined($file) and defined($data) and $perm) {
         if(sysopen(OUT, $file, O_WRONLY|O_CREAT|O_EXCL, $perm)) {
-            print OUT $data;
+            unless(flock(OUT, LOCK_EX | LOCK_NB)) {
+                my $err = $!;
+                close(OUT);
+                unlink($file);
+                return "$err";
+            }
+
+            my $todo = length($data);
+            my $done = 0;
+            while($todo > $done) {
+                my $cnt = syswrite(OUT, $data, $todo, $done);
+                unless(defined($cnt) and $cnt > 0) {
+                    my $err = $!;
+                    flock(OUT, LOCK_UN);
+                    close(OUT);
+                    unlink($file);
+                    return "$err";
+                }
+                $done += $cnt;
+            }
+            flock(OUT, LOCK_UN);
             close(OUT);
             return undef;
         }
@@ -455,7 +486,7 @@ sub extract_P12(%)
     my %args = @_;
     my $file = $args{'file'};
     my $pwcb = $args{'pwcb'};
-    my $name = $args{'name'};
+    my $name = $args{'name'} || '';
 
     print STDERR "extract_P12($file, $pwcb, $name)\n" if($DEBUG);
     return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
