@@ -1,0 +1,4 @@
+find -name Makefile.in -or -name .dep -print0 | xargs -0 --no-run-if-empty rm
+for i in config.* configure configure.in aclocal.m4; do
+	[ -e "$i" ] && /bin/rm "$i"
+done

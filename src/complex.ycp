@@ -1,0 +1,319 @@
+/**
+ * File:	include/ipsec/complex.ycp
+ * Package:	Configuration of ipsec
+ * Summary:	Dialogs definitions
+ * Authors:	Ludwig Nussel <lnussel@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ipsec";
+
+import "Label";
+import "Popup";
+import "Wizard";
+import "Wizard_hw";
+import "IPsec";
+
+include "ipsec/helps.ycp";
+
+/**
+ * Return a modification status
+ * @return true if data was modified
+ */
+boolean Modified() {
+    return IPsec::Modified();
+}
+
+boolean ReallyAbort() {
+    return !IPsec::Modified() || Popup::ReallyAbort(true);
+}
+
+boolean PollAbort() {
+    return UI::PollInput() == `abort;
+}
+
+/**
+ * Read settings dialog
+ * @return `abort if aborted and `next otherwise
+ */
+symbol ReadDialog() {
+    Wizard::RestoreHelp(HELPS["read"]:"");
+    // IPsec::AbortFunction = PollAbort;
+    boolean ret = IPsec::Read();
+    return ret ? `next : `abort;
+}
+
+/**
+ * Write settings dialog
+ * @return `abort if aborted and `next otherwise
+ */
+symbol WriteDialog() {
+    Wizard::RestoreHelp(HELPS["write"]:"");
+    // IPsec::AbortFunction = PollAbort;
+    boolean ret = IPsec::Write();
+    return ret ? `next : `abort;
+}
+
+term SummaryRichText(string summary)
+{
+    return `HBox(
+	`HSpacing(1.5),
+	`VBox(
+	    `VSpacing(0.3),
+	    `RichText(`id(`the_richtext), summary),
+	    `HBox(
+		`Right(`PushButton(`id("settings"), `opt (`key_F2), _("Settings..."))),
+		`Right(`PushButton(`id("certificates"), `opt (`key_F3), _("C&ertificates..."))),
+		`Right(`PushButton(`id("connections"), `opt (`key_F4), _("C&onnections...")))
+	    ),
+	    `VSpacing(0.4)
+	),
+	`HSpacing(1.5)
+    );
+}
+
+/**
+ * Summary dialog
+ * @return dialog result
+ */
+any SummaryDialog() {
+
+    /* IPsec summary dialog caption */
+    string caption = _("IPsec Configuration");
+
+    list summary = IPsec::Summary();
+    list unconfigured = summary[1]:[];
+    string configured = summary[0]:"";
+
+    /* Frame label */
+//    term contents = Wizard_hw::DetectedContent(_("IPsec to Configure"),
+//	    unconfigured, false, configured);
+
+    term contents = SummaryRichText(configured);
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
+	    Label::BackButton(), Label::FinishButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel || ret == `back) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        /* overview dialog */
+        else if(ret == `edit_button) {
+            ret = `overview;
+            break;
+        }
+        /* configure the selected device */
+        else if(ret == `configure_button) {
+	    // TODO FIXME: check for change of the configuration
+            any selected = UI::QueryWidget(`id(`detected_selbox), `CurrentItem);
+            if(selected == `other) {
+                ret = `other;
+            }
+            else {
+                ret = `configure;
+            }
+            break;
+        }
+        else if(ret == `next) {
+            break;
+        }
+        else if(ret == "settings") {
+	    ret = `settings;
+            break;
+        }
+        else if(ret == "connections") {
+	    ret = `overview;
+            break;
+        }
+        else if(ret == "certificates") {
+	    ret = `certificates;
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Overview dialog
+ * @return dialog result
+ */
+any OverviewDialog() {
+
+    /* IPsec overview dialog caption */
+    string caption = _("IPsec Connection Overview");
+
+    list overview = IPsec::Overview();
+
+    /* FIXME table header */
+    term contents = Wizard_hw::ConfiguredContent(
+	/* Table header */
+	`header(_("Connection"), _("Local"), _("Remote")),
+	overview, nil, nil, nil, nil );
+
+    contents = Wizard_hw::SpacingAround(contents, 1.5, 1.5, 1.0, 1.0);
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["overview"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        /* add */
+        else if(ret == `add_button) {
+            ret = `add;
+	    string name = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    IPsec::setNoConnection();
+            break;
+        }
+        /* edit */
+        else if(ret == `edit_button) {
+            ret = `edit;
+
+	    string name = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(!IPsec::setCurrentConnection(name))
+		continue;
+
+            break;
+        }
+        /* delete */
+        else if(ret == `delete_button) {
+	    /* FIXME */
+            continue;
+        }
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+term CertificateOverviewContents(term header, list content)
+{
+    string caption = _("Certificate Overview");
+
+    term contents = `VBox(
+	`RadioButtonGroup(`id(`rbg),
+	    `HBox(
+		`RadioButton(`id(`cacerts), `opt(`notify), _("CA Certificates")),
+		`RadioButton(`id(`certs), `opt(`notify), _("Certificates")),
+		`RadioButton(`id(`crls), `opt(`notify), _("CRLs")),
+		`RadioButton(`id(`keys), `opt(`notify), _("Keys"))
+	    )
+	),
+	`HBox(
+	    `Table(`id(`table), `opt(`notify), header, content),
+	    `VBox(
+		`PushButton(`id(`imp), _("&Import")),
+		`PushButton(`id(`del), _("&Delete"))
+	    )
+	)
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+}
+
+void setCertContents()
+{
+    // DN is a X509 property called "Distinguised Name". Probably not
+    // translatable
+    CertificateOverviewContents(`header(_("File"), _("DN")), IPsec::CertOverview());
+    UI::ChangeWidget(`id(`certs), `Value, true);
+
+}
+void setCACertContents()
+{
+    // DN is a X509 property called "Distinguised Name". Probably not
+    // translatable
+    CertificateOverviewContents(`header(_("File"), _("DN")), IPsec::CACertOverview());
+    UI::ChangeWidget(`id(`cacerts), `Value, true);
+}
+void setCRLContents()
+{
+    CertificateOverviewContents(`header(_("File"), _("Next Update"), _("Issuer")), IPsec::CRLOverview());
+    UI::ChangeWidget(`id(`crls), `Value, true);
+}
+void setKeyContents()
+{
+    CertificateOverviewContents(`header(_("File")), IPsec::KeyOverview());
+    UI::ChangeWidget(`id(`keys), `Value, true);
+}
+
+any CertificateOverviewDialog () {
+
+    /* IPsec configure1 dialog caption */
+
+    setCACertContents();
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+	else if(ret == `certs)
+	{
+	    setCertContents();
+	}
+	else if(ret == `cacerts)
+	{
+	    setCACertContents();
+	}
+	else if(ret == `keys)
+	{
+	    setKeyContents();
+	}
+	else if(ret == `crls)
+	{
+	    setCRLContents();
+	}
+	else if(ret == `imp)
+	{
+	    break;
+	}
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+
+/* EOF */
+}

@@ -1,0 +1,382 @@
+/**
+ * File:	include/ipsec/dialogs.ycp
+ * Package:	Configuration of ipsec
+ * Summary:	Dialogs definitions
+ * Authors:	Ludwig Nussel <lnussel@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ipsec";
+
+import "Label";
+import "Wizard";
+import "IPsec";
+
+include "ipsec/helps.ycp";
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any ConnectionConfigDialog1 () {
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("IPsec Connection Configuration");
+
+    /* IPsec configure1 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
+	`HStretch()
+    );
+
+    UI::ChangeWidget(`id(`name), `ValidChars, "-_0123456789abcdefghijklmnopqrstuvwxyz");
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    string name = (string) UI::QueryWidget(`id(`name), `Value);
+	    //TODO ensure name is valid
+	    if(size(name)==0)
+	    {
+		Popup::Message(_("Please fill in a name"));
+		continue;
+	    }
+
+	    if(size(IPsec::current_connection_name) != 0 && IPsec::current_connection_name != name)
+	    {
+		IPsec::current_connection_oldname = IPsec::current_connection_name;
+	    }
+	    IPsec::current_connection_name = name;
+	    break;
+	}
+	else if(ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+
+list getCertificates()
+{
+    return [];
+}
+
+list getIdentifications()
+{
+    return [];
+}
+
+/**
+ * Configure2 dialog
+ * @param side "left" or "right"
+ * @return dialog result
+ */
+any LeftRightConnectionConfigDialog(
+    string iptext,
+    string subnettext,
+    string side,
+    list ips,
+    list networks)
+{
+    /* IPsec configure2 dialog caption */
+    string caption = _("IPsec Configuration");
+
+    /* IPsec configure2 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`VBox(
+	    `ComboBox(`id(`addr), `opt(`editable, `hstretch), iptext, ips),
+	    `VSpacing(1.5),
+	    `VBox(
+		`Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Act as Gateway"))),
+		`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable, `hstretch), subnettext, networks))
+	    ),
+	    `VSpacing(2),
+	    `HBox(
+		`ComboBox(`id(`cert), `opt(`editable, `hstretch), _("Certificate"), getCertificates()),
+		`PushButton(`id(`certbutton), _("Import..."))
+	    ),
+	    `ComboBox(`id(`ident), `opt(`editable, `hstretch), _("Identification"), getIdentifications())
+	),
+	`HStretch()
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c2"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    UI::ChangeWidget(`id(`addr), `Value, IPsec::current_connection[side]:"" );
+    UI::ChangeWidget(`id(`addr), `ValidChars, ".0123456789:" );
+    UI::ChangeWidget(`id(`subnet), `Value, IPsec::current_connection[side+"subnet"]:"" );
+    UI::ChangeWidget(`id(`subnet), `ValidChars, ".0123456789:/" );
+
+    UI::ChangeWidget(`id(`cert), `Value, IPsec::current_connection[side+"cert"]:"" );
+    UI::ChangeWidget(`id(`ident), `Value, IPsec::current_connection[side+"id"]:"" );
+
+    if(IPsec::current_connection[side+"subnet"]:"" == "")
+    {
+	UI::ChangeWidget(`id(`isgateway), `Value, false );
+	UI::ChangeWidget(`id(`subnet), `Enabled, false );
+    }
+    else
+	UI::ChangeWidget(`id(`isgateway), `Value, true );
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next || ret == `back)
+	{
+	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
+	    if(ret == `next && size(addr)==0)
+	    {
+		Popup::Message(_("You must set an Address"));
+		continue;
+	    }
+
+	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
+	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
+	    if(ret == `next && gw == true && size(subnet)==0)
+	    {
+		Popup::Message(_("You must set a subnet address if you configure a gateway"));
+		continue;
+	    }
+
+	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
+	    string ident = (string) UI::QueryWidget(`id(`ident), `Value);
+
+	    if(ret == `next && size(cert)==0)
+	    {
+		Popup::Message(_("You must select a certificate"));
+		continue;
+	    }
+
+	    IPsec::current_connection[side] = addr;
+	    IPsec::current_connection[side+"subnet"] = subnet;
+	    IPsec::current_connection[side+"cert"] = cert;
+	    IPsec::current_connection[side+"id"] = ident;
+
+            break;
+        }
+	else if(ret == `isgateway)
+	{
+	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
+	    UI::ChangeWidget(`id(`subnet), `Enabled, gw );
+	}
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+any LeftConnectionConfigDialog ()
+{
+    list ips = IPsec::getIPaddresses();
+    ips = add(ips, "%defaultroute");
+
+    list networks = IPsec::getNetworks();
+
+    networks = add(networks, [ "0.0.0.0/0" ]);
+
+    return LeftRightConnectionConfigDialog(
+	_("Local IP Address"),
+	_("Local Subnet"),
+	"left",
+	ips, networks);
+}
+
+any RightConnectionConfigDialog ()
+{
+    list ips = [ "%any" ];
+
+    list networks = [ "0.0.0.0/0" ];
+
+    return LeftRightConnectionConfigDialog(
+	_("Remote IP Address"),
+	_("Remote Subnet"),
+	"right",
+	ips, networks);
+}
+
+any ConnectionStartModeDialog () {
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("IPsec Connection Configuration");
+    list bootmode =
+	[
+	    `item(`id("auto"), _("Initiate Connection")),
+	    `item(`id("add"), _("Prepare Connection")),
+	    `item(`id("ignore"), _("Do nothing"))
+	];
+
+    /* IPsec configure1 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`VBox(
+	    `ComboBox(`id(`addr), `opt(`hstretch), _("During Boot ..."), bootmode ),
+	    `Frame(_("Dynamic start"), `RadioButtonGroup(`id(`rbg), `VBox(
+		`Left(`RadioButton(`id(`nodyn), _("No dynamic start"))),
+		`Left(`RadioButton(`id(`netif), _("Start after Network interface"))),
+		`Left(`RadioButton(`id(`internet), _("Start at Internet dial-up")))
+	    )))
+	),
+	`HStretch()
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+
+/**
+ * Dialog for global FreeS/WAN settings
+ * @return dialog result
+ */
+any FreeSWANSettingsDialog ()
+{
+    string caption = _("FreeS/WAN settings");
+
+    term contents = `HBox (
+	`VBox(`Frame(IPsec::settings_str, `VBox(
+	    `Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::start)),
+	    `Left(`CheckBox(`id(`strictcrlchecking), IPsec::strictcrlchecking_str, IPsec::strictcrlchecking)),
+	    `Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::nattraversal))
+	)))
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["freeswansettings"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+any ConnectionConfigEncryptionDialog () {
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("IPsec Connection Configuration");
+
+    /* IPsec configure1 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`VBox(
+	    `HBox(
+		`Label(_("Encryption Algorithms")),
+		`Label(`id(`encalgos), `opt(`outputField, `hstretch), "aes,blowfish,3des"),
+		`PushButton(`id(`encalgobutton), _("Choose..."))
+	    ),
+	    `HBox(
+		`Label(_("Authentication Algorithms")),
+		`Label(`id(`authalgo), `opt(`outputField, `hstretch), ""),
+		`PushButton(`id(`authalgobutton), _("Choose..."))
+	    ),
+	    /** Translator: you probably don't want to translate this, at least not PFS ;-) */
+	    `CheckBox(_("Perfect Forward Secrecy (PFS)"))
+	),
+	`HStretch()
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next || ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+
+any ConnectionDoneDialog ()
+{
+    IPsec::commitChangedConnection();
+    return `next;
+}
+
+
+/* EOF */
+}

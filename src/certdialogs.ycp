@@ -1,0 +1,138 @@
+/**
+ * File:	include/ipsec/certdialogs.ycp
+ * Package:	Configuration of ipsec
+ * Summary:	Dialogs definitions
+ * Authors:	Ludwig Nussel <lnussel@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ipsec";
+
+import "Label";
+import "Wizard";
+import "IPsec";
+
+include "ipsec/helps.ycp";
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any CertificateImportDialog1 ()
+{
+
+    return `files;
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("Certificate Import");
+
+    /* IPsec configure1 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`Frame(_("Choose Fileformat"),
+	    `RadioButtonGroup(`id(`rbg),
+		`VBox(
+		    `Left(`RadioButton(`id(`files), _("Separate files"), true)),
+		    `Left(`RadioButton(`id(`pkcs12), _("File in PKCS#12 format"))),
+		    `Left(`RadioButton(`id(`zip), _("ZIP file containing certificates and Keys")))
+		)
+	    )
+	),
+	`HStretch()
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    ret = (symbol) UI::QueryWidget(`id(`rbg), `CurrentButton);
+	    break;
+	}
+	else if(ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any CertificateImportDialogFiles () {
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("Certificate Import");
+
+    /* IPsec configure1 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`VBox(
+	    `Frame(_("Import all at once"),
+		`HBox(
+		    `PushButton(`id(`zip), _("Zip file...")),
+		    `PushButton(`id(`pkcs12), _("PKCS12 file..."))
+		)
+	    ),
+	    `VSpacing(2),
+	    `HBox(`TextEntry(`id(`cert), _("Certificate file to import")),
+		`PushButton(`id(`bcert),_("Browse..."))),
+	    `HBox(`TextEntry(`id(`cacert), _("CA Certificate file to import")),
+		`PushButton(`id(`bcacert),_("Browse..."))),
+	    `HBox(`TextEntry(`id(`key), _("Key file to import")),
+		`PushButton(`id(`bkey),_("Browse..."))),
+	    `HBox(`TextEntry(`id(`crl), _("CRL file to import")),
+		`PushButton(`id(`bcrl),_("Browse...")))
+	),
+	`HStretch()
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    break;
+	}
+	else if(ret == `back) {
+            break;
+        }
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+}

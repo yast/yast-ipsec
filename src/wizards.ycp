@@ -1,0 +1,232 @@
+/**
+ * File:	include/ipsec/wizards.ycp
+ * Package:	Configuration of ipsec
+ * Summary:	Wizards definitions
+ * Authors:	Ludwig Nussel <lnussel@suse.de>
+ *
+ * $Id$
+ */
+
+{
+
+textdomain "ipsec";
+
+import "Sequencer";
+import "Wizard";
+
+include "ipsec/complex.ycp";
+include "ipsec/dialogs.ycp";
+include "ipsec/certdialogs.ycp";
+
+/**
+ * Add a configuration of ipsec
+ * @return sequence result
+ */
+any AddSequence() {
+
+    map aliases = $[
+	"config1"	: ``(ConnectionConfigDialog1()),
+	"config2"	: ``(LeftConnectionConfigDialog()),
+	"config3"	: ``(RightConnectionConfigDialog()),
+	"config4"	: ``(ConnectionConfigEncryptionDialog()),
+	"config5"	: ``(ConnectionStartModeDialog()),
+	"done"		: ``(ConnectionDoneDialog()),
+    ];
+
+    map sequence = $[
+	"ws_start" : "config1",
+	"config1" : $[
+	    `abort	: `abort,
+	    `next	: "config2"
+	],
+	"config2" : $[
+	    `abort	: `abort,
+	    `next	: "config3"
+	],
+	"config3" : $[
+	    `abort	: `abort,
+	    `next	: "config4"
+	],
+	"config4" : $[
+	    `abort	: `abort,
+	    `next	: "config5"
+	],
+	"config5" : $[
+	    `abort	: `abort,
+	    `next	: "done"
+	],
+	"done" : $[
+	    `abort	: `abort,
+	    `next	: `next
+	]
+
+    ];
+
+    return Sequencer::Run(aliases, sequence);
+}
+
+/**
+ * Import Certificate Sequence
+ * @return sequence result
+ */
+any ImportSequence() {
+
+    map aliases = $[
+	"config1"	: ``(CertificateImportDialog1()),
+	"configfiles"	: ``(CertificateImportDialogFiles()),
+	"configpkcs12"	: ``(CertificateImportDialogFiles()),
+	"configzip"	: ``(CertificateImportDialogFiles()),
+    ];
+
+    map sequence = $[
+	"ws_start" : "config1",
+	"config1" : $[
+	    `abort	: `abort,
+	    `next	: `next,
+	    `files	: "configfiles",
+	    `pkcs12	: "configpkcs12",
+	    `zip	: "configzip",
+	],
+	"configfiles" : $[
+	    `abort	: `abort,
+	    `next	: `next,
+	],
+	"configpkcs12" : $[
+	    `abort	: `abort,
+	    `next	: `next,
+	],
+	"configzip" : $[
+	    `abort	: `abort,
+	    `next	: `next,
+	],
+    ];
+
+    return Sequencer::Run(aliases, sequence);
+}
+
+/**
+ * Main workflow of the ipsec configuration
+ * @return sequence result
+ */
+any MainSequence() {
+
+    map aliases = $[
+	"summary"	:   ``( SummaryDialog() ),
+	"overview"	:   ``( OverviewDialog() ),
+	"certificates"	:   ``( CertificateOverviewDialog()),
+	"configure"	: [ ``( AddSequence() ), true ],
+	"add"		: [ ``( AddSequence() ), true ],
+	"edit"		: [ ``( AddSequence() ), true ],
+	"settings"	: [ ``(FreeSWANSettingsDialog()), true ],
+	"import"	: [ ``( ImportSequence() ), true ],
+    ];
+
+    map sequence = $[
+	"ws_start" : "summary",
+	"summary" : $[
+	    `abort	: `abort,
+	    `next	: `next,
+	    `overview	: "overview",
+	    `configure	: "configure",
+	    `other	: "configure",
+	    `settings	: "settings",
+	    `certificates	: "certificates",
+	],
+	"overview" : $[
+	    `abort	: `abort,
+	    `next	: "summary",
+	    `add	: "add",
+	    `edit	: "edit",
+	],
+	"certificates" : $[
+	    `abort	: `abort,
+	    `next	: "summary",
+	    `imp	: "import",
+	],
+	"configure" : $[
+	    `abort	: `abort,
+	    `next	: "summary",
+	],
+	"add" : $[
+	    `abort	: `abort,
+	    `next	: "overview",
+	],
+	"edit" : $[
+	    `abort	: `abort,
+	    `next	: "overview",
+	],
+	"settings" : $[
+	    `abort	: `abort,
+	    `next	: "summary",
+	],
+	"import" : $[
+	    `abort	: `abort,
+	    `next	: "certificates",
+	],
+    ];
+
+    any ret = Sequencer::Run(aliases, sequence);
+
+    return ret;
+}
+
+/**
+ * Whole configuration of ipsec
+ * @return sequence result
+ */
+any IPsecSequence() {
+
+    map aliases = $[
+	"read"	: [ ``( ReadDialog() ), true ],
+	"main"	:   ``( MainSequence() ),
+	"write"	: [ ``( WriteDialog() ), true ]
+    ];
+
+    map sequence = $[
+	"ws_start" : "read",
+	"read" : $[
+	    `abort	: `abort,
+	    `next	: "main"
+	],
+	"main" : $[
+	    `abort	: `abort,
+	    `next	: "write"
+	],
+	"write" : $[
+	    `abort	: `abort,
+	    `next	: `next
+	]
+    ];
+
+    Wizard::CreateDialog();
+
+    any ret = Sequencer::Run(aliases, sequence);
+
+    UI::CloseDialog();
+    return ret;
+}
+
+/**
+ * Whole configuration of ipsec but without reading and writing.
+ * For use with autoinstallation.
+ * @return sequence result
+ */
+any IPsecAutoSequence() {
+
+    /* Initialization dialog caption */
+    string caption = _("IPsec Configuration");
+    /* Initialization dialog contents */
+    term contents = `Label(_("Initializing..."));
+
+    Wizard::CreateDialog();
+    Wizard::SetContentsButtons(caption, contents, "",
+	    Label::BackButton(), Label::NextButton());
+
+    any ret = MainSequence();
+
+    UI::CloseDialog();
+    return ret;
+}
+
+/* EOF */
+}

@@ -1,0 +1,621 @@
+/**
+ * File:	modules/IPsec.ycp
+ * Package:	Configuration of ipsec
+ * Summary:	IPsec settings, input and output functions
+ * Authors:	Ludwig Nussel <lnussel@suse.de>
+ *
+ * $Id$
+ *
+ * Representation of the configuration of ipsec.
+ * Input and output routines.
+ */
+
+{
+
+module "IPsec";
+textdomain "ipsec";
+
+import "Progress";
+import "Runlevel";
+import "Report";
+import "Summary";
+import "Mode";
+
+/**
+ * Prototypes
+ */
+global boolean Modified();
+
+/**
+ * Data was modified?
+ */
+global boolean modified = false;
+
+/**
+ */
+global boolean proposal_valid = false;
+
+/**
+ * Write only, used during autoinstallation.
+ * Don't run services and SuSEconfig, it's all done at one place.
+ */
+global boolean write_only = false;
+
+/**
+ * Abort function
+ * return boolean return true if abort
+ */
+global boolean() AbortFunction = Modified;
+
+/**
+ * Abort function
+ * @return blah blah lahjk
+ */
+global define boolean Abort() ``{
+    if(AbortFunction != nil)
+	return eval(AbortFunction) == true;
+    return false;
+}
+
+/**
+ * Data was modified?
+ * @return true if modified
+ */
+global boolean Modified() {
+    y2debug("modified=%1",modified);
+    return modified;
+}
+
+// Settings: Define all variables needed for configuration of ipsec
+// TODO FIXME: Define all the variables necessary to hold
+// TODO FIXME: the configuration here (with the appropriate
+// TODO FIXME: description)
+// TODO FIXME: For example:
+//   /**
+//    * List of the configured cards.
+//    */
+//   list cards = [];
+//
+//   /**
+//    * Some additional parameter needed for the configuration.
+//    */
+//   boolean additional_parameter = true;
+
+global boolean strictcrlchecking = false;
+global integer crlcheckinterval = 10;
+global boolean nattraversal = false;
+global boolean start = false;
+
+/**
+ * map of maps of strings
+ * connections
+ *  +-> "roadwarrior"
+ *  |    +-> "left" = "10.10.0.1"
+ *  |    +-> "right" = "%any"
+ *  |    \-> "auto" = "start"
+ *  |
+ *  \-> "conn2"
+ *       +-> "left" = "10.10.0.1"
+ *       \-> "right" = "10.10.5.5"
+ */
+map connections = $[];
+
+/** one connection, used during add or edit */
+global map current_connection = $[];
+global string current_connection_name = "";
+// old name if connection was renamed
+global string current_connection_oldname = "";
+
+
+/** map of certificates
+ * certificates
+ * +-> "cert.pem"
+ *      +-> "DN" = "/foo/bar/baz"
+ *      \-> "subjectAltName" = "foo@bar"
+ * */
+map certificates = $[];
+map cacertificates = $[];
+map crls = $[];
+map keys = $[];
+
+global string start_str = _("Activate during boot");
+global string strictcrlchecking_str =  _("strict CRL checking");
+global string crlchekinterval_str =  _("CRL check interval");
+global string nattraversal_str =  _("NAT traversal");
+global string settings_str = _("FreeS/WAN settings");
+
+/** return "Yes" or "No" */
+string b2yn(boolean val)
+{
+    if (val == true)
+	return _("Yes");
+    return _("No");
+}
+
+/**
+ */
+map FakeConnections()
+{
+    return $[
+	"roadwarrior" :
+	    $[
+		"left" : "%defaultroute",
+		"right": "%any",
+		"keyingtries": "3",
+		"leftcert": "cert.pem",
+		"leftrsasigkey": "%cert",
+		"rightrsasigkey": "%cert",
+		"pfs": "yes",
+		"auto": "auto",
+	    ],
+	"ipv6" :
+	    $[
+		"left" : "2001:780:101:a00:2e0:4cff:fe9f:619a",
+		"right": "2001:780:101:a00:200:1cff:fee5:a796",
+		"keyingtries": "3",
+		"leftcert": "cert.pem",
+		"leftrsasigkey": "%cert",
+		"rightrsasigkey": "%cert",
+		"leftid": "root@hewitt.suse.de",
+		"rightid": "root@laptop",
+		"pfs": "yes",
+		"auto": "ignore",
+	    ]
+    ];
+}
+
+map FakeCertificates()
+{
+    return $[
+	"cert.pem" :
+	    $[
+		"DN" : "/C=DE/ST=Franken/L=Nuernberg/O=SUSE/OU=Entwicklung/CN=hewitt.suse.de/emailAddress=root@hewitt.suse.de",
+		"subjectAltName" : "root@hewitt.suse.de"
+	    ]
+    ];
+}
+
+map FakeCACertificates()
+{
+    return $[
+	"cacert.pem" :
+	    $[
+		"DN" : "/C=DE/ST=Franken/L=Nuernberg/O=SUSE/OU=Entwicklung/CN=ca26test/emailAddress=root@hewitt.suse.de",
+		"subjectAltName" : "root@hewitt.suse.de"
+	    ]
+    ];
+}
+
+map FakeCRLs()
+{
+    return $[
+    ];
+}
+
+map FakeKeys()
+{
+    return $[
+    ];
+}
+
+/**
+ * Read all ipsec settings
+ * @return true on success
+ */
+global boolean Read() {
+
+    /* IPsec read dialog caption */
+    string caption = _("Initializing ipsec Configuration");
+
+    // TODO FIXME Set the right number of stages
+    integer steps = 4;
+
+    integer sl = 50;
+
+    // TODO FIXME Names of real stages
+    // We do not set help text here, because it was set outside
+    Progress::New( caption, " ", steps, [
+	    /* Progress stage 1/3 */
+	    _("Read /etc/ipsec.conf"),
+	    /* Progress stage 2/3 */
+	    _("Read the previous settings"),
+	    /* Progress stage 3/3 */
+	    _("Detect the devices")
+	], [
+	    /* Progress step 1/3 */
+	    _("Reading the database..."),
+	    /* Progress step 2/3 */
+	    _("Reading the previous settings..."),
+	    /* Progress step 3/3 */
+	    _("Detecting the devices..."),
+	    /* Progress finished */
+	    _("Finished")
+	],
+	""
+    );
+
+    // read database
+    if(Abort()) return false;
+    Progress::NextStage();
+
+    start = Runlevel::ServiceEnabled("ipsec");
+
+    // TODO
+    if(Mode::test == true)
+    {
+	connections = FakeConnections();
+	certificates = FakeCertificates();
+	cacertificates = FakeCACertificates();
+	crls = FakeCRLs();
+	keys = FakeKeys();
+    }
+    else
+    {
+	certificates = (map)SCR::Read(.etc.ipsec.d.certs);
+	cacertificates = (map)SCR::Read(.etc.ipsec.d.cacerts);
+	crls = (map)SCR::Read(.etc.ipsec.d.crls);
+	keys = (map)SCR::Read(.etc.ipsec.d.private);
+
+	if(certificates == nil) certificates = $[];
+	if(cacertificates == nil) cacertificates = $[];
+	if(crls == nil) crls = $[];
+	if(keys == nil) keys = $[];
+    }
+
+    /* Error message */
+    if(false) Report::Error(_("Cannot read the database1."));
+    sleep(sl);
+
+    // read another database
+    if(Abort()) return false;
+    Progress::NextStep();
+    /* Error message */
+    if(false) Report::Error(_("Cannot read the database2."));
+    sleep(sl);
+
+    // read current settings
+    if(Abort()) return false;
+    Progress::NextStage();
+    /* Error message */
+    if(false) Report::Error(_("Cannot read current settings."));
+    sleep(sl);
+
+    // detect devices
+    if(Abort()) return false;
+    Progress::NextStage();
+    /* Error message */
+    if(false) Report::Warning(_("Cannot detect devices."));
+    sleep(sl);
+
+    if(Abort()) return false;
+    /* Progress finished */
+    Progress::NextStage();
+    sleep(sl);
+
+    if(Abort()) return false;
+    modified = false;
+    return true;
+}
+
+/**
+ * Write all ipsec settings
+ * @return true on success
+ */
+global boolean Write() {
+
+    /* IPsec read dialog caption */
+    string caption = _("Saving ipsec Configuration");
+
+    // TODO FIXME And set the right number of stages
+    integer steps = 2;
+
+    integer sl = 500;
+    sleep(sl);
+
+    // TODO FIXME Names of real stages
+    // We do not set help text here, because it was set outside
+    Progress::New(caption, " ", steps, [
+	    /* Progress stage 1/2 */
+	    _("Write the settings"),
+	    /* Progress stage 2/2 */
+	    _("Run SuSEconfig")
+	], [
+	    /* Progress step 1/2 */
+	    _("Writing the settings..."),
+	    /* Progress step 2/2 */
+	    _("Running SuSEconfig..."),
+	    /* Progress finished */
+	    _("Finished")
+	],
+	""
+    );
+
+    // write settings
+    if(Abort()) return false;
+    Progress::NextStage();
+    /* Error message */
+    if(false) Report::Error (_("Cannot write settings."));
+    sleep(sl);
+
+    // run SuSEconfig
+    if(Abort()) return false;
+    Progress::NextStage ();
+    /* Error message */
+    if(false) Report::Error (_("SuSEconfig script failed."));
+    sleep(sl);
+
+    if(Abort()) return false;
+    /* Progress finished */
+    Progress::NextStage();
+    sleep(sl);
+
+    if(Abort()) return false;
+    return true;
+}
+
+/**
+ * Get all ipsec settings from the first parameter
+ * (For use by autoinstallation.)
+ * @param settings The YCP structure to be imported.
+ * @return boolean True on success
+ */
+global boolean Import (map settings) {
+    // TODO FIXME: your code here (fill the above mentioned variables)...
+    return true;
+}
+
+/**
+ * Dump the ipsec settings to a single map
+ * (For use by autoinstallation.)
+ * @return map Dumped settings (later acceptable by Import ())
+ */
+global map Export () {
+    // TODO FIXME: your code here (return the above mentioned variables)...
+    return $[];
+}
+
+/**
+ * @param conn a connection map
+ * @param name localized name for summary
+ * @param key key name in connection map
+ * */
+string addConnectionValueIfDefined(map conn, string name, string key)
+{
+    if(haskey(conn, key))
+	return sformat("<li>%1: %2</li>", name, conn[key]:"");
+    return "";
+}
+
+/** create summary of connections */
+string ConnectionSummary()
+{
+    string summary = sformat ("<p><a href=\"connections\">%1</a><br>", "Connections");
+    summary = summary + "<ul>";
+
+    if(size(connections) == 0)
+    {
+	summary = summary + sformat("<li><font color=\"red\">%1</font></li>", _("No Connections defined"));
+    }
+    else
+    {
+	foreach(string name, map conn, connections, ``{
+	    summary = summary + sformat("<li>%1</li>", name);
+	    summary = summary + "<ul type=\"square\">";
+//	    summary = summary + addConnectionValueIfDefined(conn, _("Local"), "left");
+//	    summary = summary + addConnectionValueIfDefined(conn, _("Remote"), "right");
+//	    summary = summary + addConnectionValueIfDefined(conn, _("Local Subnet"), "leftsubnet");
+//	    summary = summary + addConnectionValueIfDefined(conn, _("Remote Subnet"), "rightsubnet");
+	    summary = summary + addConnectionValueIfDefined(conn, _("Startmode"), "auto");
+	    summary = summary + "</ul>";
+	});
+    }
+
+    summary = summary + "</ul></p>";
+
+    return summary;
+}
+
+/** create summary of connections */
+string CertificateSummary()
+{
+    string summary = sformat ("<p><a href=\"certificates\">%1</a><br>", "Certificates");
+    summary = summary + "<ul>";
+
+    if(size(certificates) == 0)
+    {
+	summary = summary + _("<li>No Certificates installed</li>");
+    }
+    else
+    {
+	foreach(string name, map cert, certificates, ``{
+	    summary = summary + sformat("<li>%1: %2</li>", _("Certificate"), name);
+	    summary = summary + "<ul type=\"square\">";
+	    summary = summary + sformat("<li>Subject: %1</li>", cert["subjectAltName"]:"?");
+	    summary = summary + sformat("<li>DN: %1</li>", cert["DN"]:"?");
+	    summary = summary + "</ul>";
+	});
+    }
+
+    if(size(cacertificates) == 0)
+    {
+	summary = summary + sformat("<li><font color=\"red\">%1</font></li>", _("No CA Certificates installed"));
+    }
+    else
+    {
+	foreach(string name, map cert, cacertificates, ``{
+	    summary = summary + sformat("<li>%1: %2</li>", _("CA Certificate"), name);
+	    summary = summary + "<ul type=\"square\">";
+	    summary = summary + sformat("<li>Subject: %1</li>", cert["subjectAltName"]:"?");
+	    summary = summary + sformat("<li>DN: %1</li>", cert["DN"]:"?");
+	    summary = summary + "</ul>";
+	});
+    }
+
+
+    summary = summary + "</ul></p>";
+
+    return summary;
+}
+
+/**
+ * Create a textual summary and a list of unconfigured cards
+ * @return summary of the current configuration
+ */
+global list Summary() {
+    /* Configuration summary text for autoyast */
+    string summary = sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
+    summary = summary + "<ul>";
+    summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(start));
+    summary = summary + sformat("<li>%1: %2</li>", strictcrlchecking_str, b2yn(strictcrlchecking));
+    summary = summary + sformat("<li>%1: %2</li>", crlchekinterval_str, crlcheckinterval);
+    summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(nattraversal));
+    summary = summary + "</ul></p>";
+
+    summary = summary + CertificateSummary();
+
+    summary = summary + ConnectionSummary();
+
+    return [ summary, [] ];
+}
+
+/**
+ * Create an overview table with all configured connections
+ * @return table items
+ */
+global list Overview() {
+    list overview = [];
+
+    foreach(string name, map conn, connections, ``{
+	overview = add(overview, `item(`id(name), name, conn["left"]:"?", conn["right"]:"?"));
+    });
+
+    return overview;
+}
+
+global list CertOverview()
+{
+    list overview = [];
+
+    foreach(string name, map cert, certificates, ``{
+	overview = add(overview, `item(`id(name), name, cert["DN"]:"?"));
+    });
+
+    return overview;
+}
+
+global list CACertOverview()
+{
+    list overview = [];
+
+    foreach(string name, map cert, cacertificates, ``{
+	overview = add(overview, `item(`id(name), name, cert["DN"]:"?"));
+    });
+
+    return overview;
+}
+
+global list CRLOverview()
+{
+    list overview = [];
+
+    foreach(string name, map cert, crls, ``{
+	overview = add(overview, `item(`id(name), name, cert["NEXT_UPDATE"]:"?", cert["ISSUER"]:"?"));
+    });
+
+    return overview;
+}
+
+global list KeyOverview()
+{
+    list overview = [];
+
+    foreach(string name, map cert, keys, ``{
+	overview = add(overview, `item(`id(name), name));
+    });
+
+    return overview;
+}
+
+/**
+ * Return packages needed to be installed and removed during
+ * Autoinstallation to insure module has all needed software
+ * installed.
+ * @return map with 2 lists.
+ */
+global map AutoPackages() {
+    return $[ "install":[ "freeswan" ], "remove":[] ];
+}
+
+/**
+ * empty any information about editing an existing connection
+ * */
+global void setNoConnection()
+{
+    current_connection = $[];
+    current_connection_name = "";
+    current_connection_oldname = "";
+}
+
+/** prepare a connection for editing
+ * @param name name of the connection
+ * @returns false if connection doesn't exist
+ * */
+global boolean setCurrentConnection(string name)
+{
+    current_connection_oldname = "";
+
+    if(!haskey(connections, name))
+    {
+	setNoConnection();
+	y2error("%1 not found in connections", name);
+	return false;
+    }
+
+    current_connection = connections[name]:$[];
+    current_connection_name = name;
+
+    return true;
+}
+
+/**
+ * commit changes made to the current connection
+ * */
+global void commitChangedConnection()
+{
+    if(size(current_connection_oldname) != 0)
+	connections = remove(connections, current_connection_oldname);
+
+    connections = add(connections, current_connection_name, current_connection);
+}
+
+/** return list of IP addresses of all configured interfaces */
+global list getIPaddresses()
+{
+    list ips = [];
+/* FIXME find out how this must be done
+    NetworkDevices::ReadDevices(nil);
+    list devices = NetworkDevices::GetDevices("all");
+
+    devices = filter(`d,AllDevices,``(d!="lo"));
+
+    foreach(string dev, devices, ``{
+	if(!Lan::Select(dev)) continue;
+	ips = add(ips, Lan::ipaddr);
+    });
+*/
+    ips = [ "10.10.1.1", "192.168.1.1" ];
+    return ips;
+}
+
+
+/** return list of possible networks */
+global list getNetworks()
+{
+    //TODO
+    list ips = [ "10.10.0.0/16", "192.168.1.0/24" ];
+
+    return ips;
+}
+
+/* EOF */
+}

@@ -1,0 +1,30 @@
+@HEADER-COMMENT@
+# neededforbuild yast2-devel-packages
+
+@HEADER@
+Requires:	yast2
+
+BuildArchitectures:	noarch
+
+Summary:	Configuration of ipsec
+
+%description
+-
+
+@PREP@
+
+@BUILD@
+
+@INSTALL@
+
+@CLEAN@
+
+%files
+%defattr(-,root,root)
+%dir @yncludedir@/ipsec
+@yncludedir@/ipsec/*
+@clientdir@/ipsec.ycp
+@clientdir@/ipsec_*.ycp
+@moduledir@/IPsec.*
+@desktopdir@/ipsec.desktop
+%doc @docdir@
