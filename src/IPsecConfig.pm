@@ -46,6 +46,7 @@ my %cacertificates;
 my %certificates;
 my %crls;
 my %keys;
+my %deleted;
 
 #
 # NOTE: debug for developement only!
@@ -119,10 +120,14 @@ sub Read
     }
 
     if($openssl) {
-	%crls           = FreeSwanCerts::list_CRLs($openssl);
-	%certificates   = FreeSwanCerts::list_CERTs($openssl);
 	%cacertificates = FreeSwanCerts::list_CAs($openssl);
-	y2milestone(%certificates);
+	%certificates   = FreeSwanCerts::list_CERTs($openssl);
+	%crls           = FreeSwanCerts::list_CRLs($openssl);
+	%keys           = FreeSwanCerts::list_KEYs($openssl);
+	#
+	# FIXME: Lookup passwd's for keys in /etc/ipsec.secrets ??
+	#
+	#y2milestone(%certificates);
     } else {
 	debug "HUH? No openssl-shell instance?";
     }
@@ -137,29 +142,47 @@ sub Read
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write
 {
-#    my @errors = FreeSwanCerts::commit_scheduled_file_operations();
+    my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
+    for my $name (@conns) {
+	unless(exists($connections{$name})) {
+	    $fsutil->conn_delete($name);
+	}
+    }
+    for my $name (keys %connections) {
+	$fsutil->conn($name, %{$connections{$name}});
+    }
+
     if($fsutil and !$fsutil->save())
     {
-	Popup::Error(_("Error saving IPsec config:") . "\n" . $fsutil->errstr());
+	Popup::Error(_("Error saving IPsec config:")."\n"
+	             . $fsutil->errstr());
 	return Boolean(0);
+    }
+
+    for my $file (keys %deleted) {
+	if(length($file) and -f $file) {
+	    debug "deleting file $file";
+	    unlink($file);
+	}
     }
 
     for my $file (keys %cacertificates) {
 	my $href = $cacertificates{$file};
 	my $_new = $href->{'NEW'} || 0;
 
-	print STDERR "cacertificates($file): NEW=$_new\n";
+	debug "cacertificates($file): NEW=$_new";
 	next unless($_new and $_new == 2); # approved
 
 	$file =~ s/.*\///;
 	$file = $FreeSwanCerts::DEFS{'ipsec_cacerts'}."/$file";
 
-	my $err = write_file($file, $href->{'data'}, 0600);
+	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error($err . "\n");
+	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
-	    print STDERR "write_file($file) SUCCESS\n";
+	    debug "write_pem_data($file) SUCCESS";
 	}
     }
 
@@ -167,18 +190,19 @@ sub Write
     	my $href = $certificates{$file};
 	my $_new = $href->{'NEW'} || 0;
 
-	print STDERR "certificates($file): NEW=$_new\n";
+	debug "certificates($file): NEW=$_new";
 	next unless($_new and $_new == 2); # approved
 
 	$file =~ s/.*\///;
 	$file = $FreeSwanCerts::DEFS{'ipsec_certs'}."/$file";
 
-	my $err = write_file($file, $href->{'data'}, 0600);
+	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error($err . "\n");
+	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
-	    print STDERR "write_file($file) SUCCESS\n";
+	    debug "write_pem_data($file) SUCCESS";
 	}
     }
 
@@ -186,18 +210,19 @@ sub Write
     	my $href = $crls{$file};
 	my $_new = $href->{'NEW'} || 0;
 
-	print STDERR "crls($file): NEW=$_new\n";
+	debug "crls($file): NEW=$_new";
 	next unless($_new and $_new == 2); # approved
 
 	$file =~ s/.*\///;
 	$file = $FreeSwanCerts::DEFS{'ipsec_crls'}."/$file";
 
-	my $err = write_file($file, $href->{'data'}, 0600);
+	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error($err . "\n");
+	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
-	    print STDERR "write_file($file) SUCCESS\n";
+	    debug "write_pem_data($file) SUCCESS";
 	}
     }
 
@@ -205,18 +230,19 @@ sub Write
     	my $href = $keys{$file};
 	my $_new = $href->{'NEW'} || 0;
 
-	print STDERR "keys($file): NEW=$_new\n";
+	debug "keys($file): NEW=$_new";
 	next unless($_new and $_new == 2); # approved
 
 	$file =~ s/.*\///;
 	$file = $FreeSwanCerts::DEFS{'ipsec_private'}."/$file";
 
-	my $err = write_file($file, $href->{'data'}, 0600);
+	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
-	    Popup::Error($err . "\n");
+	    Popup::Error(sprintf(_("Can't write file %s: %s"),
+	                           $file, $err)."\n");
 	    return Boolean(0);
 	} else {
-	    print STDERR "write_file($file) SUCCESS\n";
+	    debug "write_pem_data($file) SUCCESS";
 	}
     }
 
@@ -299,16 +325,18 @@ sub validConnectionName($)
 {
     my $name = shift;
 
-    return _("A connection name may not contain spaces") if $name =~ / /;
-
-    # TODO: more checks
-    
+    my $err = $fsutil->is_valid_conn_name($name);
+    if($err) {
+	return sprintf(_("Connection name '%s' is a reserved / implicit name"),
+	               $name) if(2 == $err);
+	return _("A connection name can contain only a-z, 0-9, _ and - characters");
+    }
     return undef;
 }
 
 ##
- # add a connection to connection hash. The connection might already exist in
- # which case it means to update the connection with new values
+ # add a connection to connection hash. The connection might already exist
+ # in which case it means to update the connection with new values
  # @param name of connection
  # @param connection hash
 BEGIN { $TYPEINFO{addConnection} = ["function", "void", "string", [ "map", "string", "string" ]]; }
@@ -375,6 +403,18 @@ sub newClientConnection()
 ## certificate handling
 ###################
 
+sub mark4delete($\%)
+{
+    my $name = shift;
+    my $hash = shift;
+    if($hash and $name and exists($hash->{$name})) {
+	my $_new = $hash->{$name}->{'NEW'} || 0;
+	# is absolute file name if not new
+	$deleted{$name} = 1 unless($_new);
+	delete($hash->{$name});
+    }
+}
+
 ##
  # get map of certificates
  # @returns connection map
@@ -391,9 +431,8 @@ sub Certificates()
 BEGIN { $TYPEINFO{deleteCertificate} = ["function", "void" , "string" ]; }
 sub deleteCertificate($)
 {
-    # TODO
     my $name = shift;
-    delete $certificates{$name};
+    mark4delete($name, %certificates);
 }
 
 ##
@@ -403,7 +442,6 @@ sub deleteCertificate($)
 BEGIN { $TYPEINFO{CACertificates} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub CACertificates()
 {
-    # TODO
     return \%cacertificates;
 }
 
@@ -413,9 +451,8 @@ sub CACertificates()
 BEGIN { $TYPEINFO{deleteCACertificate} = ["function", "void" , "string" ]; }
 sub deleteCACertificate($)
 {
-    # TODO
     my $name = shift;
-    delete $cacertificates{$name};
+    mark4delete($name, %cacertificates);
 }
 
 ##
@@ -425,7 +462,6 @@ sub deleteCACertificate($)
 BEGIN { $TYPEINFO{CRLs} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub CRLs()
 {
-    # TODO
     return \%crls;
 }
 
@@ -435,9 +471,8 @@ sub CRLs()
 BEGIN { $TYPEINFO{deleteCRL} = ["function", "void" , "string" ]; }
 sub deleteCRL($)
 {
-    # TODO
     my $name = shift;
-    delete $crls{$name};
+    mark4delete($name, %crls);
 }
 
 ##
@@ -447,7 +482,6 @@ sub deleteCRL($)
 BEGIN { $TYPEINFO{Keys} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Keys()
 {
-    # TODO
     return \%keys;
 }
 
@@ -457,9 +491,8 @@ sub Keys()
 BEGIN { $TYPEINFO{deleteKey} = ["function", "void" , "string" ]; }
 sub deleteKey($)
 {
-    # TODO
     my $name = shift;
-    delete $keys{$name};
+    mark4delete($name, %keys);
 }
 
 ##
@@ -535,11 +568,10 @@ sub prepareImportFile($)
 BEGIN { $TYPEINFO{finishImport} = ["function", "string" ]; }
 sub finishImport()
 {
-    print STDERR "finishImport() called\n";
     for my $file (keys %cacertificates) {
 	my $_new = $cacertificates{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "finish cacertificates($file)\n";
+	    debug "finish cacertificates($file)";
 	    $cacertificates{$file}->{'NEW'} = 2;
 	}
     }
@@ -547,7 +579,7 @@ sub finishImport()
     for my $file (keys %certificates) {
 	my $_new = $certificates{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "finish certificates($file)\n";
+	    debug "finish certificates($file)";
 	    $certificates{$file}->{'NEW'} = 2;
 	}
     }
@@ -555,7 +587,7 @@ sub finishImport()
     for my $file (keys %crls) {
     	my $_new = $crls{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "finish crls($file)\n";
+	    debug "finish crls($file)";
 	    $crls{$file}->{'NEW'} = 2;
 	}
     }
@@ -563,7 +595,7 @@ sub finishImport()
     for my $file (keys %keys) {
 	my $_new = $keys{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "finish keys($file)\n";
+	    debug "finish keys($file)";
 	    $keys{$file}->{'NEW'} = 2;
 	}
     }
@@ -576,11 +608,10 @@ sub finishImport()
 BEGIN { $TYPEINFO{cleanupImport} = ["function", "void" ]; }
 sub cleanupImport()
 {
-    print STDERR "cleanupImport() called\n";
     for my $file (keys %cacertificates) {
 	my $_new = $cacertificates{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "delete cacertificates($file)\n";
+	    debug "delete cacertificates($file)";
 	    delete($cacertificates{$file});
 	}
     }
@@ -588,7 +619,7 @@ sub cleanupImport()
     for my $file (keys %certificates) {
 	my $_new = $certificates{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "delete certificates($file)\n";
+	    debug "delete certificates($file)";
 	    delete($certificates{$file});
 	}
     }
@@ -596,7 +627,7 @@ sub cleanupImport()
     for my $file (keys %crls) {
     	my $_new = $crls{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "delete crls($file)\n";
+	    debug "delete crls($file)";
 	    delete($crls{$file});
 	}
     }
@@ -604,7 +635,7 @@ sub cleanupImport()
     for my $file (keys %keys) {
 	my $_new = $keys{$file}->{'NEW'} || 0;
 	if(1 == $_new) {
-	    print STDERR "delete keys($file)\n";
+	    debug "delete keys($file)";
 	    delete($keys{$file});
 	}
     }
