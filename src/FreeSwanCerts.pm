@@ -468,9 +468,9 @@ sub extract_P12(%)
     do {
         if(defined($pass)) {
             $pass = &$pwcb(_("Wrong password.")."\n".
-                           _("PKCS12 export password for ").$name);
+                           _("PKCS12 import password for ").$name);
         } else {
-            $pass = &$pwcb(_("PKCS12 export password for ").$name);
+            $pass = &$pwcb(_("PKCS12 import password for ").$name);
         }
         return undef unless(defined($pass));
 
