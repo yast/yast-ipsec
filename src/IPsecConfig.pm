@@ -26,8 +26,8 @@ BEGIN {
     if(exists($ENV{'Y2DEBUG'}) or exists($ENV{'Y2DEBUG_IPSEC'})) {
 	$DEBUG = 1;
     }
-    open(STDERR, ">", "/dev/null") unless($DEBUG);
-    $SIG{'PIPE'} = 'IGNORE';
+#    open(STDERR, ">", "/dev/null") unless($DEBUG);
+#    $SIG{'PIPE'} = 'IGNORE';
 }
 
 use strict;
@@ -54,12 +54,6 @@ my $fsutil;
 my %connections;
 my %settings;
 
-# map of certificates
-# certificates
-#  +-> "cert.pem"
-#    +-> "DN" = "/foo/bar/baz"
-#    \-> "subjectAltName" = "foo@bar"
-
 my %cacertificates;
 my %certificates;
 my %crls;
@@ -85,8 +79,6 @@ our %TYPEINFO;
 
 BEGIN
 {
-    $DEBUG = 1 if(exists($ENV{'Y2DEBUG_IPSEC'}));
-
     $fsutil = new FreeSwanUtils();
 }
 
@@ -106,37 +98,53 @@ sub enableTestMode()
 BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read
 {
-    debug "FreeSwanUtils => ",  $fsutil ? "OK" : "ERR";
     %settings = ();
     %connections = ();
-    if($fsutil and $fsutil->load()) {
+
+    if($fsutil->load_config()) {
 	%settings = %{$fsutil->{'setup'} || {}};
 
-	debug "HAVE CONNS: ", join(", ", $fsutil->conns());
-
 	my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
-
-	debug "WANT CONNS: ", join(", ", @conns);
-
-        for my $name (@conns) {
-            debug "copy connections += $name";
-            $connections{$name} = {$fsutil->conn($name)};
+	for my $name (@conns) {
+	    debug "copy connections += $name";
+	    $connections{$name} = {$fsutil->conn($name)};
 	}
     } else {
-	debug "ipsec.conf parsing error: ", $fsutil->errstr();
+	debug $fsutil->errstr();
+	return Boolean(0);
     }
 
-    # FIXME: skip duplicates:
-    %cacertificates = FreeSwanCerts::list_CAs();
-    if(-d "/etc/ipsec.d/certs") {
-    %certificates   = FreeSwanCerts::list_CERTs();
+    unless($fsutil->load_secrets()) {
+	debug $fsutil->errstr();
+	return Boolean(0);
     }
-    %crls           = FreeSwanCerts::list_CRLs();
-    %keys           = FreeSwanCerts::list_KEYs();
-    #
-    # FIXME: Lookup passwd's for keys in /etc/ipsec.secrets ??
-    #
-    #y2milestone(%certificates);
+
+    # parse all CAs
+    for my $file (FreeSwanCerts::list_CAs()) {
+	my $cert = parse_cert(file => $file);
+	next unless(defined($cert));
+	$cacertificates{$file} = $cert;
+    }
+
+    # parse all CRLs
+    for my $file (FreeSwanCerts::list_CRLs()) {
+	my $crl = parse_crl(file => $file);
+	next unless(defined($crl));
+	$crls{$file} = $crl;
+    }
+
+    # parse all Certs
+    for my $file (FreeSwanCerts::list_CERTs()) {
+	my $cert = parse_cert(file => $file);
+	next unless(defined($cert));
+	$certificates{$file} = $cert;
+    }
+
+    # get all x509 keys from ipsec.secres
+    for my $kref ($fsutil->secrets(type => 'RSA')) {
+	next unless(defined($kref->{'x509'}));
+	$keys{$kref->{'x509'}} = {'PASSWORD' => $kref->{'pass'}};
+    }
 
     return Boolean(1);
 }
@@ -155,6 +163,16 @@ sub Write
     }
 
     #
+    # Delete scheduled files
+    #
+    for my $file (keys %deleted) {
+	if(length($file) and -f $file) {
+	    debug "deleting file $file";
+	    unlink($file);
+	}
+    }
+
+    #
     # Save FreeS/WAN config
     #
     my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
@@ -166,10 +184,8 @@ sub Write
     for my $name (keys %connections) {
 	$fsutil->conn($name, %{$connections{$name}});
     }
-
-    if($fsutil and !$fsutil->save())
-    {
-	Popup::Error(_("Error saving IPsec config:")."\n"
+    if($fsutil and not($fsutil->save_config())) {
+	Popup::Error(_("Failed to save ipsec.conf:")."\n"
 	             . $fsutil->errstr());
 	return Boolean(0);
     }
@@ -177,17 +193,22 @@ sub Write
     #
     # Save FreeS/WAN secrets
     #
-    #TODO:
-
-
-    #
-    # Delete scheduled files
-    #
-    for my $file (keys %deleted) {
-	if(length($file) and -f $file) {
-	    debug "deleting file $file";
-	    unlink($file);
+    for my $kref ($fsutil->secrets(type => 'RSA')) {
+	next unless(defined($kref->{'x509'}));
+	unless(exists($keys{$kref->{'x509'}})) {
+	    $fsutil->secret_del($kref->{'x509'});
 	}
+    }
+    for my $file (keys %keys) {
+	my $pass = $keys{$file}->{'PASSWORD'};
+	$fsutil->secret_set(type => 'RSA',
+	                    x509 => $file,
+	                    pass => $pass);
+    }
+    if($fsutil and not($fsutil->save_secrets())) {
+	Popup::Error(_("Failed to save ipsec.secrets:")."\n"
+	             . $fsutil->errstr());
+	return Boolean(0);
     }
 
     #
@@ -279,6 +300,7 @@ sub Write
 BEGIN { $TYPEINFO{LastError} = ["function", "string"]; }
 sub LastError()
 {
+    # FIXME:
     return $fsutil->errstr();
 }
 
@@ -475,14 +497,15 @@ sub check_new_cert(\%\%)
     my $cert = shift;
     my $href = shift;
 
+    return undef unless(defined($cert->{'DN'}) and $cert->{'DN'} ne "");
     for my $idx (keys %{$href}) {
-	if(($cert->{'DN'} || '') eq ($href->{$idx}->{'DN'} || '')) {
+	if($cert->{'DN'} eq $href->{$idx}->{'DN'}) {
 	    debug "cert dn already exists: ", $cert->{'DN'} || '';
-	    return 0;
+	    return $idx;
 	}
     }
     debug "cert dn is new: ", $cert->{'DN'} || '';
-    return 1;
+    return "";
 }
 
 ##
@@ -496,7 +519,7 @@ sub check_new_key(\%\%)
     my $href = shift;
 
     debug "key is always new :-)";
-    return 1; # currently not implemented
+    return "";
 }
 
 ##
@@ -657,7 +680,6 @@ sub prepareImportFile($)
 	                          data => $dref->{'data'},
 				  pwcb => \&passwordPrompt);
 	if(defined($iref) and defined($iref->{'hash'})) {
-	    my $pem;
 
 	    # mark it imported / new
 	    $iref->{'hash'}->{'NEW'}  = 1;
@@ -665,7 +687,8 @@ sub prepareImportFile($)
 	    $iref->{'hash'}->{'data'} = $dref->{'data'};
 
 	    if($iref->{'type'} eq 'KEY') {
-		unless(check_new_key(%{$iref->{'hash'}}, %keys)) {
+		my $pem = check_new_key(%{$iref->{'hash'}}, %keys);
+		if(defined($pem) and $pem eq "") {
 		    $pem = get_free_idx("key_", ".pem", %keys);
 		    $keys{$pem} = $iref->{'hash'};
 		}
@@ -675,8 +698,11 @@ sub prepareImportFile($)
 	    if($iref->{'type'} eq 'CRL') {
 		my $pem = check_new_crl(%{$iref->{'hash'}}, %crls);
 		if(defined($pem)) {
+		    # add or update
 		    if($pem eq "") {
 			$pem = get_free_idx("crl_", ".pem", %crls);
+		    } else {
+			delete($crls{$pem});
 		    }
 		    $crls{$pem} = $iref->{'hash'};
 		}
@@ -685,15 +711,17 @@ sub prepareImportFile($)
 
 	    if($iref->{'type'} eq 'CERT') {
 		if($iref->{'hash'}->{"IS_CA"}) {
-		    if(check_new_cert(%{$iref->{'hash'}},
-		                      %cacertificates)) {
+		    my $pem = check_new_cert(%{$iref->{'hash'}},
+		                             %cacertificates);
+		    if(defined($pem) and $pem eq "") {
 			$pem = get_free_idx("cacert_", ".pem",
 			                    %cacertificates);
 			$cacertificates{$pem} = $iref->{'hash'};
 		    }
 		} else {
-		    if(check_new_cert(%{$iref->{'hash'}},
-		                      %certificates)) {
+		    my $pem = check_new_cert(%{$iref->{'hash'}},
+					     %certificates);
+		    if(defined($pem) and $pem eq "") {
 			$pem = get_free_idx("cert_", ".pem",
 		                            %certificates);
 		        $certificates{$pem} = $iref->{'hash'};
@@ -859,22 +887,6 @@ sub exportConnection($$)
 BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
 sub importCACertificate($)
 {
-#    my $filename = shift;
-#    my $href = parse_cert(file => $filename);
-#
-#    if(!defined $href)
-#    {
-#	return _("importing CA certificate failed"); # FIXME
-#    }
-#
-#    my $idx = 0;
-#    while (exists $cacertificates{"cacert".$idx.".pem"})
-#    {
-#	$idx++;
-#    }
-#    $cacertificates{"cacert".$idx.".pem"} = $href;
-#
-#    return undef;
     debug "importCACertificate is obsolete!";
     return _("obsolete function - use prepareImportFile!");
 }
@@ -887,22 +899,6 @@ sub importCACertificate($)
 BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
 sub importCRL($)
 {
-#    my $filename = shift;
-#    my $href = parse_crl(file => $filename);
-#
-#    if(!defined $href)
-#    {
-#	return _("importing CRL failed"); # FIXME
-#    }
-#
-#    my $idx = 0;
-#    while (exists $crls{"crl".$idx.".pem"})
-#    {
-#	$idx++;
-#    }
-#    $crls{"crl".$idx.".pem"} = $href;
-#
-#    return undef;
     debug "importCRL is obsolete!";
     return _("obsolete function - use prepareImportFile!");
 }
@@ -915,18 +911,6 @@ sub importCRL($)
 BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
 sub importCertificate($)
 {
-#    my $filename = shift;
-#    my $href = parse_cert(file => $filename);
-#
-#    return _("importing certificate failed") unless (defined $href);
-#
-#    my $saveas = get_free_key_for_hash("cert", ".pem", \%certificates);
-#    return _("importing certificate failed") unless (defined $saveas);
-#
-#    FreeSwanCerts::save_certificate_as($filename, $saveas);
-#    $certificates{$saveas} = $href;
-#
-#    return undef;
     debug "importCertificate is obsolete!";
     return _("obsolete function - use prepareImportFile!");
 }
@@ -939,23 +923,6 @@ sub importCertificate($)
 BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
 sub importKey($)
 {
-#    my $filename = shift;
-#    my $password = shift;
-#    my $href = parse_key(file => $filename, pass => $password);
-#
-#    if(!defined $href)
-#    {
-#	return _("importing key failed"); # FIXME
-#    }
-#
-#    my $idx = 0;
-#    while (exists $keys{"key".$idx.".pem"})
-#    {
-#	$idx++;
-#    }
-#    $keys{"key".$idx.".pem"} = $href;
-#
-#    return undef;
     debug "importKEY is obsolete!";
     return _("obsolete function - use prepareImportFile!");
 }
