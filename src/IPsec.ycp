@@ -884,12 +884,12 @@ global void commitChangedConnection()
 }
 
 /** return list of interface configuration */
-global list getDevices()
+global list<string> getDevices()
 {
     if(Mode::test == true)
 	return [ "eth0", "dsl0" ];
 
-    list devices = NetworkDevices::List("");
+    list<string> devices = (list<string>)NetworkDevices::List("");
 
     devices = filter(string d, devices,``(d!="lo"));
 
@@ -904,7 +904,7 @@ global list getIPaddresses()
     if(Mode::test == true)
 	return [ "10.10.1.1", "192.168.1.1" ];
 
-    list devices = getDevices();
+    list<string> devices = getDevices();
 
     foreach(string dev, devices, ``{
 	if(!NetworkDevices::Select(dev)) continue;
@@ -922,7 +922,7 @@ global list getNetworks()
     if(Mode::test == true)
 	return [ "10.10.0.0/16", "192.168.1.0/24" ];
 
-    list devices = getDevices();
+    list<string> devices = getDevices();
 
     list nets = [];
     foreach(string dev, devices, ``{
@@ -985,7 +985,7 @@ global list<string> getNetworkDevicesUP()
     else
 	conn = current_connection_name;
 
-    list devices = getDevices();
+    list<string> devices = getDevices();
 
     list<string> devs = [];
     foreach(string dev, devices,
@@ -1011,7 +1011,7 @@ global list<string> getNetworkDevicesUP()
  * */
 global boolean setNetworkDevicesUP(list devices)
 {
-    list alldevices = getDevices();
+    list<string> alldevices = getDevices();
 
     y2milestone("devices=%1", devices);
 
@@ -1074,7 +1074,7 @@ global boolean setNetworkDevicesUP(list devices)
  * */
 global list<string> getDialupInterfaces()
 {
-    list alldevices = getDevices();
+    list<string> alldevices = getDevices();
     list<string> ret = [];
 
     foreach(string dev, alldevices,
