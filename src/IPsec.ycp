@@ -19,6 +19,7 @@ import "IPsecConfig";
 import "Progress";
 import "Runlevel";
 import "Report";
+import "Popup";
 import "Summary";
 import "Mode";
 import "NetworkDevices";
@@ -399,7 +400,9 @@ global boolean Read() {
     }
     else
     {
-	IPsecConfig::Read();
+	if(!IPsecConfig::Read())
+	    Popup::Error(_("Unable to read IPsec settings. Error message was:")
+		+ "\n" + IPsecConfig::LastError());
 
 	connections = IPsecConfig::Connections();
 	if(connections == nil)

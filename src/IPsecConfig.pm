@@ -141,6 +141,12 @@ sub Read
     return Boolean(0);
 }
 
+BEGIN { $TYPEINFO{LastError} = ["function", "string"]; }
+sub LastError()
+{
+    return $fsutil->errstr();
+}
+
 BEGIN { $TYPEINFO{Connections} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Connections()
 {
