@@ -68,25 +68,54 @@ global boolean Modified() {
     return modified;
 }
 
-// Settings: Define all variables needed for configuration of ipsec
-// TODO FIXME: Define all the variables necessary to hold
-// TODO FIXME: the configuration here (with the appropriate
-// TODO FIXME: description)
-// TODO FIXME: For example:
-//   /**
-//    * List of the configured cards.
-//    */
-//   list cards = [];
-//
-//   /**
-//    * Some additional parameter needed for the configuration.
-//    */
-//   boolean additional_parameter = true;
 
-global boolean strictcrlchecking = false;
+/** do not set, use setstrictcrlpolicy */
+global boolean strictcrlpolicy = false;
+
+/** do not set, use setCrlCheckInterval */
 global integer crlcheckinterval = 10;
+
+/** do not set, use setNatTraversal */
 global boolean nattraversal = false;
+
+/** do not set, use setStart */
 global boolean start = false;
+
+global void setstrictcrlpolicy(boolean val)
+{
+    if(val != strictcrlpolicy)
+    {
+	modified = true;
+	strictcrlpolicy = val;
+    }
+}
+
+global void setStart(boolean val)
+{
+    if(val != start)
+    {
+	modified = true;
+	start = val;
+    }
+}
+
+global void setNatTraversal(boolean val)
+{
+    if(val != nattraversal)
+    {
+	modified = true;
+	nattraversal = val;
+    }
+}
+
+global void setCrlCheckInterval(integer val)
+{
+    if(val != crlcheckinterval)
+    {
+	modified = true;
+	crlcheckinterval = val;
+    }
+}
 
 /**
  * map of maps of strings
@@ -108,6 +137,8 @@ global string current_connection_name = "";
 // old name if connection was renamed
 global string current_connection_oldname = "";
 
+/** start directory for fileselection dialogs */
+global string certimportdir = "/etc/ipsec.d"; //TODO change to /media
 
 /** map of certificates
  * certificates
@@ -120,8 +151,13 @@ map cacertificates = $[];
 map crls = $[];
 map keys = $[];
 
+list deletedcacerts = [];
+list deletedcerts = [];
+list deletedkeys = [];
+list deletedcrls = [];
+
 global string start_str = _("Activate during boot");
-global string strictcrlchecking_str =  _("strict CRL checking");
+global string strictcrlpolicy_str =  _("strict CRL policy");
 global string crlchekinterval_str =  _("CRL check interval");
 global string nattraversal_str =  _("NAT traversal");
 global string settings_str = _("FreeS/WAN settings");
@@ -148,7 +184,7 @@ map FakeConnections()
 		"leftrsasigkey": "%cert",
 		"rightrsasigkey": "%cert",
 		"pfs": "yes",
-		"auto": "auto",
+		"auto": "add",
 	    ],
 	"ipv6" :
 	    $[
@@ -200,6 +236,21 @@ map FakeKeys()
     ];
 }
 
+/** remember directory
+ * @param file the file from which the directory name is stored
+ * @return
+ */
+global boolean updateImportDir(string file)
+{
+    if(file == nil) return false;
+    integer lastslash = findlastof(file,"/");
+    if(lastslash != nil)
+    {
+	certimportdir = substring(file,0,lastslash);
+    }
+    return true;
+}
+
 /**
  * Read all ipsec settings
  * @return true on success
@@ -218,7 +269,7 @@ global boolean Read() {
 	    /* Progress stage 1/3 */
 	    _("Read /etc/ipsec.conf"),
 	    /* Progress stage 2/3 */
-	    _("Read the previous settings"),
+	    _("Read certificates"),
 	    /* Progress stage 3/3 */
 	    _("Read network settings")
 	], [
@@ -234,16 +285,27 @@ global boolean Read() {
 	""
     );
 
-    // read database
+    if(Abort()) return false;
+    Progress::NextStep();
+
+    if(Mode::test == true)
+    {
+	connections = FakeConnections();
+    }
+    else
+    {
+	connections = (map)SCR::Read(.etc.ipsec.conf);
+	if(connections == nil)
+	    connections = $[];
+    }
+
     if(Abort()) return false;
     Progress::NextStage();
 
     start = Runlevel::ServiceEnabled("ipsec");
 
-    // TODO
     if(Mode::test == true)
     {
-	connections = FakeConnections();
 	certificates = FakeCertificates();
 	cacertificates = FakeCACertificates();
 	crls = FakeCRLs();
@@ -261,15 +323,6 @@ global boolean Read() {
 	if(crls == nil) crls = $[];
 	if(keys == nil) keys = $[];
     }
-
-    /* Error message */
-    if(false) Report::Error(_("Cannot read the database1."));
-
-    // read another database
-    if(Abort()) return false;
-    Progress::NextStep();
-    /* Error message */
-    if(false) Report::Error(_("Cannot read the database2."));
 
     // read current settings
     if(Abort()) return false;
@@ -300,7 +353,9 @@ global boolean Read() {
  * Write all ipsec settings
  * @return true on success
  */
-global boolean Write() {
+global boolean Write()
+{
+    if(!modified) return true;
 
     /* IPsec read dialog caption */
     string caption = _("Saving IPsec Configuration");
@@ -335,6 +390,20 @@ global boolean Write() {
     /* Error message */
     if(false) Report::Error (_("Cannot write settings."));
     sleep(sl);
+
+    // TODO
+    SCR::Execute(.etc.ipsec.d, [ "deletecacerts", deletedcacerts ]);
+    y2milestone("delete cacerts %1", deletedcacerts);
+    SCR::Execute(.etc.ipsec.d, [ "deletecerts", deletedcerts ]);
+    y2milestone("delete certs %1", deletedcerts);
+    SCR::Execute(.etc.ipsec.d, [ "deletekeys", deletedkeys ]);
+    y2milestone("delete keys %1", deletedkeys);
+    SCR::Execute(.etc.ipsec.d, [ "deletecrls", deletedcrls ]);
+    y2milestone("delete crls %1", deletedcrls);
+
+
+    SCR::Write(.etc.ipsec.conf, connections);
+    SCR::Write(.etc.ipsec.conf, nil);
 
     // run SuSEconfig
     if(Abort()) return false;
@@ -400,10 +469,6 @@ string ConnectionSummary()
 	foreach(string name, map conn, connections, ``{
 	    summary = summary + sformat("<li>%1</li>", name);
 	    summary = summary + "<ul type=\"square\">";
-//	    summary = summary + addConnectionValueIfDefined(conn, _("Local"), "left");
-//	    summary = summary + addConnectionValueIfDefined(conn, _("Remote"), "right");
-//	    summary = summary + addConnectionValueIfDefined(conn, _("Local Subnet"), "leftsubnet");
-//	    summary = summary + addConnectionValueIfDefined(conn, _("Remote Subnet"), "rightsubnet");
 	    summary = summary + addConnectionValueIfDefined(conn, _("Startmode"), "auto");
 	    summary = summary + "</ul>";
 	});
@@ -422,7 +487,7 @@ string CertificateSummary()
 
     if(size(certificates) == 0)
     {
-	summary = summary + _("<li>No Certificates installed</li>");
+	summary = summary + sformat("<li><font color=\"red\">%1</font></li>", _("No Certificates installed"));
     }
     else
     {
@@ -465,7 +530,7 @@ global list Summary() {
     string summary = sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
     summary = summary + "<ul>";
     summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(start));
-    summary = summary + sformat("<li>%1: %2</li>", strictcrlchecking_str, b2yn(strictcrlchecking));
+    summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(strictcrlpolicy));
     summary = summary + sformat("<li>%1: %2</li>", crlchekinterval_str, crlcheckinterval);
     summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(nattraversal));
     summary = summary + "</ul></p>";
@@ -535,6 +600,30 @@ global list KeyOverview()
     return overview;
 }
 
+global void deleteCACert(string name)
+{
+    cacertificates = remove(cacertificates, name);
+    deletedcacerts = add(deletedcacerts, name);
+}
+
+global void deleteCert(string name)
+{
+    certificates = remove(certificates, name);
+    deletedcerts = add(deletedcerts, name);
+}
+
+global void deleteKey(string name)
+{
+    keys = remove(keys, name);
+    deletedkeys = add(deletedkeys, name);
+}
+
+global void deleteCRL(string name)
+{
+    crls = remove(crls, name);
+    deletedcrls = add(deletedcrls, name);
+}
+
 /**
  * Return packages needed to be installed and removed during
  * Autoinstallation to insure module has all needed software
@@ -570,7 +659,7 @@ global boolean setCurrentConnection(string name)
 {
     current_connection_oldname = "";
 
-    if(!haskey(connections, name))
+    if(name == nil || !haskey(connections, name))
     {
 	setNoConnection();
 	y2error("%1 not found in connections", name);
@@ -657,7 +746,6 @@ global list getCertificateFiles()
 /** return list of subjectAltNames (currently only one possible) */
 global list getIdsOfCert(string name)
 {
-    y2error("%1", name);
     if(size(name) == 0 || !haskey(certificates, name))
 	return [];
 
@@ -666,8 +754,6 @@ global list getIdsOfCert(string name)
     list ids = [];
     if(haskey(cert, "subjectAltName"))
 	    ids = add(ids, cert["subjectAltName"]:"");
-
-    y2error("%1 %2", name, ids);
 
     return ids;
 }

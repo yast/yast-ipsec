@@ -257,6 +257,7 @@ void setCertContents()
     // translatable
     CertificateOverviewContents(`header(_("File"), _("DN")), IPsec::CertOverview());
     UI::ChangeWidget(`id(`certs), `Value, true);
+    UI::SetFocus(`id(`imp));
 
 }
 void setCACertContents()
@@ -265,24 +266,25 @@ void setCACertContents()
     // translatable
     CertificateOverviewContents(`header(_("File"), _("DN")), IPsec::CACertOverview());
     UI::ChangeWidget(`id(`cacerts), `Value, true);
+    UI::SetFocus(`id(`imp));
 }
 void setCRLContents()
 {
     CertificateOverviewContents(`header(_("File"), _("Next Update"), _("Issuer")), IPsec::CRLOverview());
     UI::ChangeWidget(`id(`crls), `Value, true);
+    UI::SetFocus(`id(`imp));
 }
 void setKeyContents()
 {
     CertificateOverviewContents(`header(_("File")), IPsec::KeyOverview());
     UI::ChangeWidget(`id(`keys), `Value, true);
+    UI::SetFocus(`id(`imp));
 }
 
-any CertificateOverviewDialog () {
-
-    /* IPsec configure1 dialog caption */
-
+any CertificateOverviewDialog ()
+{
+    symbol mode = `cacerts;
     setCACertContents();
-    UI::SetFocus(`id(`imp));
 
     any ret = nil;
     while(true) {
@@ -297,22 +299,58 @@ any CertificateOverviewDialog () {
 	else if(ret == `certs)
 	{
 	    setCertContents();
+	    mode = (symbol) ret;
 	}
 	else if(ret == `cacerts)
 	{
 	    setCACertContents();
+	    mode = (symbol) ret;
 	}
 	else if(ret == `keys)
 	{
 	    setKeyContents();
+	    mode = (symbol) ret;
 	}
 	else if(ret == `crls)
 	{
 	    setCRLContents();
+	    mode = (symbol) ret;
 	}
 	else if(ret == `imp)
 	{
+	    // handled by wizard sequencer
 	    break;
+	}
+	else if(ret == `del)
+	{
+	    string val = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(val == nil)
+		continue;
+
+	    // %1 = filename
+	    if(Popup::YesNo(sformat(_("Delete %1?"), val)) == false)
+		continue;
+
+	    if(mode == `cacerts)
+	    {
+		IPsec::deleteCACert(val);
+		setCACertContents();
+	    }
+	    else if(mode == `certs)
+	    {
+		IPsec::deleteCert(val);
+		setCertContents();
+	    }
+	    else if(mode == `keys)
+	    {
+		IPsec::deleteKey(val);
+		setKeyContents();
+	    }
+	    else if(mode == `crls)
+	    {
+		IPsec::deleteCRL(val);
+		setCRLContents();
+	    }
 	}
         else if(ret == `next || ret == `back) {
             break;

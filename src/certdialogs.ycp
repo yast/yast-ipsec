@@ -14,6 +14,7 @@ textdomain "ipsec";
 import "Label";
 import "Wizard";
 import "IPsec";
+import "Label";
 
 include "ipsec/helps.ycp";
 
@@ -23,9 +24,6 @@ include "ipsec/helps.ycp";
  */
 any CertificateImportDialog1 ()
 {
-
-    return `files;
-
     /* IPsec configure1 dialog caption */
     string caption = _("Certificate Import");
 
@@ -74,6 +72,33 @@ any CertificateImportDialog1 ()
     return ret;
 }
 
+string PasswordPopup(string headline)
+{
+    UI::OpenDialog(
+	`VBox(
+	    `Heading(headline),
+	    `Password(`id(`pass), "Password:"),
+	    `VSpacing(0.5),
+	    `HBox(
+		`PushButton(`id(`ok), Label::OKButton()),
+		`PushButton(`id(`cancel), Label::CancelButton())
+	    )
+	)
+    );
+
+    if( UI::UserInput() != `ok)
+    {
+	UI::CloseDialog();
+	return nil;
+    }
+
+    string pw = (string) UI::QueryWidget(`id(`pass), `Value);
+
+    UI::CloseDialog();
+
+    return pw;
+}
+
 /**
  * Configure1 dialog
  * @return dialog result
@@ -87,17 +112,19 @@ any CertificateImportDialogFiles () {
     term contents = `HBox(
 	`HStretch(),
 	`VBox(
+	/*
 	    `Frame(_("Import all at once"),
 		`HBox(
 		    `PushButton(`id(`zip), _("Zip file...")),
 		    `PushButton(`id(`pkcs12), _("PKCS12 file..."))
 		)
 	    ),
+	    */
 	    `VSpacing(2),
-	    `HBox(`TextEntry(`id(`cert), _("Certificate file to import")),
-		`PushButton(`id(`bcert),_("Browse..."))),
 	    `HBox(`TextEntry(`id(`cacert), _("CA Certificate file to import")),
 		`PushButton(`id(`bcacert),_("Browse..."))),
+	    `HBox(`TextEntry(`id(`cert), _("Certificate file to import")),
+		`PushButton(`id(`bcert),_("Browse..."))),
 	    `HBox(`TextEntry(`id(`key), _("Key file to import")),
 		`PushButton(`id(`bkey),_("Browse..."))),
 	    `HBox(`TextEntry(`id(`crl), _("CRL file to import")),
@@ -108,6 +135,144 @@ any CertificateImportDialogFiles () {
 
     Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
 	    Label::BackButton(), Label::NextButton());
+
+    UI::SetFocus(`id(`bcacert));
+
+    string cacertfile = nil;
+    string certfile = nil;
+    string keyfile = nil;
+    string password = nil;
+    string crlfile = nil;
+
+    any ret = nil;
+    while(true) {
+
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    //TODO
+	    //SCR::Execute(.etc.ipsec.d, [ "importcert", certfile ]);
+	    //SCR::Execute(.etc.ipsec.d, [ "importkey", password, keyfile ]);
+	    break;
+	}
+	else if(ret == `back) {
+            break;
+        }
+	else if(ret == `bcacert)
+	{
+	    string file = UI::AskForExistingFile ( IPsec::certimportdir, "*.pem *.PEM", _("Choose CA Certificate File"));
+	    if(!IPsec::updateImportDir(file)) continue;
+	    UI::ChangeWidget(`id(`cacert), `Value, file );
+	    cacertfile = file;
+	    UI::SetFocus(`id(`bcert));
+	}
+	else if(ret == `bcert)
+	{
+	    string file = UI::AskForExistingFile ( IPsec::certimportdir, "*.pem *.PEM", _("Choose Certificate File"));
+	    if(!IPsec::updateImportDir(file)) continue;
+	    UI::ChangeWidget(`id(`cert), `Value, file );
+	    certfile = file;
+	    UI::SetFocus(`id(`bkey));
+	}
+	else if(ret == `bkey)
+	{
+	    string file = UI::AskForExistingFile ( IPsec::certimportdir, "*.pem *.PEM", _("Choose Key File"));
+	    if(!IPsec::updateImportDir(file)) continue;
+	    string pw = PasswordPopup(_("Enter Key Password"));
+	    if(pw == nil) continue;
+	    UI::ChangeWidget(`id(`key), `Value, file );
+	    keyfile = file;
+	    password = pw;
+	    UI::SetFocus(`id(`next));
+	}
+	else if(ret == `bcrl)
+	{
+	    string file = UI::AskForExistingFile ( IPsec::certimportdir, "*.pem *.PEM", _("Choose CRL File"));
+	    if(!IPsec::updateImportDir(file)) continue;
+	    UI::ChangeWidget(`id(`crl), `Value, file );
+	    crlfile = file;
+	    UI::SetFocus(`id(`next));
+	}
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any CertificateImportDialogPKCS12 () {
+
+    /* IPsec configure1 dialog caption */
+    string caption = _("Certificate Import");
+
+    /* IPsec configure1 dialog contents */
+    term contents = `HBox(
+	`HStretch(),
+	`VBox(
+	    `HBox(
+		`Label(_("PKCS#12 file to import")),
+		`HStretch(),
+		`Label(`id(`file), `opt(`outputField), "")
+	    ),
+	    `VSpacing(2.5),
+	    `HBox(
+		`Label(_("CA Certificate")),
+		`HStretch(),
+		`Label(`id(`cacert), `opt(`outputField), "")
+	    ),
+	    `VSpacing(0.5),
+	    `HBox(
+		`Label(_("Certificate")),
+		`HStretch(),
+		`Label(`id(`cert), `opt(`outputField), "")
+	    ),
+	    `VSpacing(0.5),
+	    `HBox(
+		`Label(_("Key")),
+		`HStretch(),
+		`Label(`id(`key), `opt(`outputField), "")
+	    )
+	),
+	`HStretch()
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    string p12file = UI::AskForExistingFile ( IPsec::certimportdir, "*.p12 *.P12", _("Choose PKCS#12 file"));
+
+    if(p12file == nil)
+	return `back;
+
+    string p12pass = PasswordPopup(_("Enter PKCS#12 Password"));
+
+    if(p12pass == nil)
+	return `back;
+
+    UI::ChangeWidget(`id(`file), `Value, p12file );
+
+
+    // TODO
+    string cacert = "TODO";
+    string cert = "TODO";
+    string key = "TODO";
+    UI::ChangeWidget(`id(`cacert), `Value, cacert );
+    UI::ChangeWidget(`id(`cert), `Value, cert );
+    UI::ChangeWidget(`id(`key), `Value, key );
+
+    UI::RecalcLayout();
 
     any ret = nil;
     while(true) {
@@ -134,5 +299,6 @@ any CertificateImportDialogFiles () {
 
     return ret;
 }
+
 
 }
