@@ -315,7 +315,7 @@ integer settingtointeger(string key, integer deflt)
     integer val = tointeger(settings[key]:"");
     if(val == nil)
     {
-	y2warning("key %s has no integer value", key);
+	y2warning("key %1 has no integer value", key);
 	return deflt;
     }
 
@@ -339,7 +339,7 @@ boolean settingtoboolean(string key, boolean deflt)
     }
     else if(val == nil)
     {
-	y2warning("key %s has no boolean value", key);
+	y2warning("key %1 has no boolean value", key);
 	return deflt;
     }
 }
