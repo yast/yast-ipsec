@@ -8,7 +8,7 @@ X-KDE-HasReadOnlyMode=true
 X-KDE-Library=yast2
 X-SuSE-YaST-Call=ipsec
 
-X-SuSE-YaST-Group=Misc
+X-SuSE-YaST-Group=Security
 X-SuSE-YaST-Argument=
 X-SuSE-YaST-RootOnly=true
 X-SuSE-YaST-AutoInst=
@@ -19,5 +19,5 @@ X-SuSE-YaST-AutoInstResource= ipsec
 Icon=ipsec
 Exec=/sbin/yast2 ipsec 
 
-Name=IPsec
-GenericName=Configure ipsec
+Name=VPN
+GenericName=Configure IPsec Virtual Private Networks (VPNs)
