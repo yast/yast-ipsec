@@ -581,11 +581,12 @@ sub cancelPreparedP12()
 ##
  # adds file contents into current %imports repository
  # @param	file to import content from
- # @return	error message on error or \%imports
+ # @return	error message on error or undef
  #
-BEGIN { $TYPEINFO{prepareImportFile} = ["function", [ "map", "string", [ "list", [ "map", "string", "string" ] ] ] ]; }
+BEGIN { $TYPEINFO{prepareImportFile} = ["function", "string", "string" ]; }
 sub prepareImportFile($)
 {
+    return undef;
 }
 
 ##
@@ -595,6 +596,7 @@ sub prepareImportFile($)
 BEGIN { $TYPEINFO{finishImport} = ["function", "string" ]; }
 sub finishImport()
 {
+    return undef
 }
 
 ##
