@@ -111,38 +111,6 @@ sub errstr
 #
 # --------------------------------------------------------------------
 #
-sub load
-{
-    my $self = shift;
-    my $conf_file = shift;
-    my $secr_file = shift;
-
-    if($self->load_config($conf_file) and
-       $self->load_secrets($secr_file)) {
-       return 1; # true
-    }
-    return 0; # false
-}
-
-
-#
-# --------------------------------------------------------------------
-#
-sub save
-{
-    my $self = shift;
-
-    if($self->save_config() and
-       $self->save_secrets()) {
-       return 1; # true
-    }
-    return 0; # false
-}
-
-
-#
-# --------------------------------------------------------------------
-#
 sub load_config
 {
     my $self = shift;
@@ -452,6 +420,7 @@ sub is_valid_conn_name
     }
     return 1;
 }
+
 
 #
 # === private functions ==============================================
@@ -773,7 +742,7 @@ sub dump_ipsec_secrets
 
     push(@data, "#< $file", "");
     $eol = 0;
-    for my $kref (@{$secr->{'keys'} || {}}) {
+    for my $kref (@{$secr->{'keys'} || []}) {
         if(($kref->{'file'} || $secr->{'file'}) ne $file) {
             next;
         }
