@@ -161,7 +161,8 @@ any MainSequence() {
 	"edit"		: [ ``( AddSequence() ), true ],
 	"settings"	: [ ``( FreeSWANSettingsDialog() ), true ],
 	"configE"	: [ ``( ConnectionExpertDialog() ), true ],
-	"export"	: [ ``( ExportDialog() ), true ],
+	"export"	: [ ``( ExportConnectionDialog() ), true ],
+	"import"	: [ ``( ImportConnectionDialog() ), true ],
     ];
 
     map sequence = $[
@@ -182,6 +183,7 @@ any MainSequence() {
 	    `edit	: "edit",
 	    `expert	: "configE",
 	    `export     : "export",
+	    `import     : "import",
 	],
 	"certificates" : $[
 	    `abort	: `abort,
@@ -208,6 +210,10 @@ any MainSequence() {
 	    `next	: "overview",
 	],
 	"export" : $[
+	    `abort	: `abort,
+	    `next	: "overview",
+	],
+	"import" : $[
 	    `abort	: `abort,
 	    `next	: "overview",
 	],

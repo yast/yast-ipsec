@@ -63,17 +63,74 @@ term SummaryRichText(string summary)
     return `HBox(
 	`HSpacing(1.5),
 	`VBox(
+	    `Left(`RadioButtonGroup(`VBox(
+		`RadioButton(`id(`ipsecoff), `opt(`notify), _("Disable IPsec")),
+		`RadioButton(`id(`ipsecon), `opt(`notify), _("Enable IPsec"))
+	    ))),
 	    `VSpacing(0.3),
 	    `RichText(`id(`the_richtext), summary),
+	    /*
 	    `HBox(
 		`Right(`PushButton(`id("settings"), `opt (`key_F2), _("Settings..."))),
 		`Right(`PushButton(`id("certificates"), `opt (`key_F3), _("C&ertificates..."))),
 		`Right(`PushButton(`id("connections"), `opt (`key_F4), _("C&onnections...")))
 	    ),
-	    `VSpacing(0.4)
+	    */
+	    `MenuButton(`id (`menubutton),
+		// menu button
+		_("Change..."), [
+		    // menubutton item
+		    `item(`id("settings"), IPsec::settings_str),
+		    // menubutton item
+		    `item(`id("certificates"), _("C&ertificates")),
+		    // menubutton item
+		    `item(`id("connections"), _("C&onnections"))
+	    ]),
+	    `VSpacing(1)
 	),
 	`HSpacing(1.5)
     );
+}
+
+/**
+ * Enable or Disable widget depending whether IPsec is started at boot or not
+ * @return nil `import if certificates need to be imported, `configure if
+ * connections should be configured or nil to do nothing;
+ * */
+symbol SummaryEnableDisable()
+{
+    if(IPsec::getStart() != true)
+    {
+	UI::ChangeWidget(`id(`ipsecoff), `Value, true);
+	UI::ChangeWidget(`id(`the_richtext), `Enabled, false);
+	UI::ChangeWidget(`id(`menubutton), `Enabled, false);
+	return nil;
+    }
+
+    UI::ChangeWidget(`id(`ipsecon), `Value, true);
+    UI::ChangeWidget(`id(`the_richtext), `Enabled, true);
+    UI::ChangeWidget(`id(`menubutton), `Enabled, true);
+    UI::SetFocus(`id(`the_richtext));
+
+    if(!IPsec::didaskaboutemptycertificates && !IPsec::haveCertificates())
+    {
+	IPsec::didaskaboutemptycertificates = true;
+	if(Popup::YesNo(
+	    _("There are no certificates imported yet.\nDo you want to import certificates now?")) == true)
+	{
+	    return `import;
+	}
+    }
+
+    if(!IPsec::didaskaboutemptyconnections && !IPsec::haveConnections())
+    {
+	IPsec::didaskaboutemptyconnections = true;
+	if(Popup::YesNo(
+	    _("There are no connections defined yet.\nDo you want to define connections now?")) == true)
+	{
+	    return `configure;
+	}
+    }
 }
 
 /**
@@ -98,29 +155,12 @@ any SummaryDialog() {
     Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
 	    Label::BackButton(), Label::FinishButton());
 
-    UI::SetFocus(`id(`the_richtext));
-
-    if(!IPsec::didaskaboutemptycertificates && !IPsec::haveCertificates())
-    {
-	IPsec::didaskaboutemptycertificates = true;
-	if(Popup::YesNo(
-	    _("There are no certificates imported yet.\nDo you want to import certificates now?")) == true)
-	{
-	    return `import;
-	}
-    }
-
-    if(!IPsec::didaskaboutemptyconnections && !IPsec::haveConnections())
-    {
-	IPsec::didaskaboutemptyconnections = true;
-	if(Popup::YesNo(
-	    _("There are no connections defined yet.\nDo you want to define connections now?")) == true)
-	{
-	    return `configure;
-	}
-    }
-
     any ret = nil;
+
+    ret = SummaryEnableDisable();
+    if(ret != nil)
+	return ret;
+
     while(true) {
 
 	ret = UI::UserInput();
@@ -148,6 +188,7 @@ any SummaryDialog() {
             break;
         }
         else if(ret == `next) {
+	    /* not possible with current layout
 	    if(!IPsec::getStart() && IPsec::haveConnections())
 	    {
 		if(Popup::YesNo(_("You did configure connections but didn't
@@ -157,6 +198,7 @@ Do you want to start IPsec during boot?")))
 		    IPsec::setStart(true);
 		}
 	    }
+	    */
             break;
         }
         else if(ret == "settings") {
@@ -170,6 +212,18 @@ Do you want to start IPsec during boot?")))
         else if(ret == "certificates") {
 	    ret = `certificates;
             break;
+        }
+        else if(ret == `ipsecon) {
+	    IPsec::setStart(true);
+	    ret = SummaryEnableDisable();
+	    if(ret != nil)
+		return ret;
+        }
+        else if(ret == `ipsecoff) {
+	    IPsec::setStart(false);
+	    ret = SummaryEnableDisable();
+	    if(ret != nil)
+		return ret;
         }
         else {
             y2error("unexpected retcode: %1", ret);
@@ -186,21 +240,31 @@ void OverviewDialogCreate()
     string caption = _("IPsec Connection Overview");
 
     list overview = IPsec::Overview();
-    term buttons = `HBox(
-	`PushButton(`id(`export_button), _("Export")),
-	`PushButton(`id(`expert_button), _("Expert ..."))
-	);
+    term buttons = `Right(
+	`MenuButton(`id (`menubutton),
+	    // menu button
+	    _("E&xpert..."), [
+		// menubutton item
+		`item (`id (`export_button), _("&Export")),
+		// menubutton item
+		`item (`id (`import_button), _("&Import")),
+		// menubutton item
+		`item (`id (`expert_button), _("Details")),
+	])
+    );
+
+    // menu button Expert -> export, import, details
 
     term contents = Wizard_hw::ConfiguredContent(
 	/* Table header */
 	`header(_("Connection"), _("Local"), _("Remote")),
 	overview, nil, nil,
-	    buttons, nil );
+	    nil, buttons );
 
     contents = Wizard_hw::SpacingAround(contents, 1.5, 1.5, 1.0, 1.0);
 
     Wizard::SetContentsButtons(caption, contents, HELPS["overview"]:"",
-	    Label::BackButton(), Label::NextButton());
+	    Label::BackButton(), Label::OKButton());
 }
 
 /**
@@ -260,8 +324,16 @@ any OverviewDialog()
 
             break;
         }
-        else if(ret == `export_button) {
+        else if(ret == `export_button)
+	{
+	    string name = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(!IPsec::setCurrentConnection(name))
+		continue;
             ret = `export;
+	    break;
+	}
+        else if(ret == `import_button) {
+            ret = `import;
 	    break;
 	}
         else if(ret == `next || ret == `back) {
@@ -281,6 +353,7 @@ term CertificateOverviewContents(term header, list content)
     string caption = _("Certificate Overview");
 
     term contents = `VBox(
+    /*
 	`RadioButtonGroup(`id(`rbg),
 	    `HBox(
 		`RadioButton(`id(`cacerts), `opt(`notify), _("CA Certificates")),
@@ -289,13 +362,26 @@ term CertificateOverviewContents(term header, list content)
 		`RadioButton(`id(`keys), `opt(`notify), _("Keys"))
 	    )
 	),
-	`HBox(
-	    `Table(`id(`table), `opt(`notify), header, content),
-	    `VBox(
-		`PushButton(`id(`imp), _("&Import")),
-		`PushButton(`id(`del), _("&Delete"))
-	    )
-	)
+	*/
+	`ComboBox(`id (`cbox), `opt(`notify),
+	    // combo box
+	    _("Current view"), [
+		// combobox item
+		`item(`id(`cacerts), _("CA Certificates")),
+		// combobox item
+		`item(`id(`certs), _("Certificates")),
+		// combobox item
+		`item(`id(`crls), _("CRLs")),
+		// combobox item
+		`item(`id(`keys), _("Keys"))
+	]),
+
+	`Table(`id(`table), `opt(`notify), header, content),
+	`Left(`HBox(
+	    `PushButton(`id(`imp), _("&Import")),
+	    `PushButton(`id(`del), _("&Delete"))
+	)),
+	`VSpacing(1)
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["certificates"]:"",
@@ -307,7 +393,8 @@ void setCertContents()
     // DN is a X509 property called "Distinguised Name". Probably not
     // translatable. 'N' stands for new.
     CertificateOverviewContents(`header(_("N"), _("File"), _("DN")), IPsec::CertOverview());
-    UI::ChangeWidget(`id(`certs), `Value, true);
+//    UI::ChangeWidget(`id(`certs), `Value, true);
+    UI::ChangeWidget(`id(`cbox), `Value, `certs);
     UI::SetFocus(`id(`imp));
 
 }
@@ -316,28 +403,31 @@ void setCACertContents()
     // DN is a X509 property called "Distinguised Name". Probably not
     // translatable. 'N' stands for new.
     CertificateOverviewContents(`header(_("N"), _("File"), _("DN")), IPsec::CACertOverview());
-    UI::ChangeWidget(`id(`cacerts), `Value, true);
+//    UI::ChangeWidget(`id(`cacerts), `Value, true);
+    UI::ChangeWidget(`id(`cbox), `Value, `cacerts);
     UI::SetFocus(`id(`imp));
 }
 void setCRLContents()
 {
     // 'N' stands for new.
     CertificateOverviewContents(`header(_("N"), _("File"), _("Next Update"), _("Issuer")), IPsec::CRLOverview());
-    UI::ChangeWidget(`id(`crls), `Value, true);
+//    UI::ChangeWidget(`id(`crls), `Value, true);
+    UI::ChangeWidget(`id(`cbox), `Value, `crls);
     UI::SetFocus(`id(`imp));
 }
 void setKeyContents()
 {
     // 'N' stands for new.
     CertificateOverviewContents(`header(_("N"), _("File")), IPsec::KeyOverview());
-    UI::ChangeWidget(`id(`keys), `Value, true);
+//    UI::ChangeWidget(`id(`keys), `Value, true);
+    UI::ChangeWidget(`id(`cbox), `Value, `keys);
     UI::SetFocus(`id(`imp));
 }
 
 any CertificateOverviewDialog ()
 {
-    symbol mode = `cacerts;
-    setCACertContents();
+    symbol mode = `certs;
+    setCertContents();
 
     any ret = nil;
     while(true) {
@@ -369,6 +459,27 @@ any CertificateOverviewDialog ()
 	    setCRLContents();
 	    mode = (symbol) ret;
 	}
+	else if (ret == `cbox)
+	{
+	    symbol mode = (symbol) UI::QueryWidget(`id(`cbox), `Value);
+	    if(mode == `certs)
+	    {
+		setCertContents();
+	    }
+	    else if(mode == `keys)
+	    {
+		setKeyContents();
+	    }
+	    else if(mode == `crls)
+	    {
+		setCRLContents();
+	    }
+	    else
+	    {
+		mode = `cacerts;
+		setCACertContents();
+	    }
+	}
 	else if(ret == `imp)
 	{
 	    string file = UI::AskForExistingFile( IPsec::certimportdir,
@@ -384,11 +495,7 @@ any CertificateOverviewDialog ()
 		continue;
 	    }
 
-	    if(mode == `cacerts)
-	    {
-		setCACertContents();
-	    }
-	    else if(mode == `certs)
+	    if(mode == `certs)
 	    {
 		setCertContents();
 	    }
@@ -399,6 +506,11 @@ any CertificateOverviewDialog ()
 	    else if(mode == `crls)
 	    {
 		setCRLContents();
+	    }
+	    else
+	    {
+		mode = `cacerts;
+		setCACertContents();
 	    }
 
 	    continue;
@@ -468,18 +580,16 @@ term ExpertConnectionContents()
     string caption = _("Configuration Options");
 
     term contents = `VBox(
+	`Table(`id(`table), `opt(`notify), header, content),
 	`HBox(
-	    `Table(`id(`table), `opt(`notify), header, content),
-	    `VBox(
-		`PushButton(`id(`add), _("&Add")),
-		`PushButton(`id(`edit), _("&Edit")),
-		`PushButton(`id(`delete), _("&Delete"))
-	    )
+	    `PushButton(`id(`add), _("&Add")),
+	    `PushButton(`id(`edit), _("&Edit")),
+	    `PushButton(`id(`delete), _("&Delete"))
 	)
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["advanced"]:"",
-	    Label::BackButton(), Label::NextButton());
+	    Label::BackButton(), Label::OKButton());
 }
 
 list KeyValuePopup(string headline)

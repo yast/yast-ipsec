@@ -205,8 +205,11 @@ global string current_connection_name = "";
 // old name if connection was renamed
 global string current_connection_oldname = "";
 
-/** start directory for fileselection dialogs */
+/** start directory for import fileselection dialogs */
 global string certimportdir = "/etc/ipsec.d"; //TODO change to /media
+
+/** start directory for export fileselection dialogs */
+global string exportdir = "/tmp";
 
 global string start_str = _("Activate During Boot");
 global string strictcrlpolicy_str =  _("Strict CRL Policy");
@@ -267,7 +270,7 @@ global string getBootModeText(string mode)
     return mode;
 }
 
-/** remember directory
+/** remember directory for import
  * @param file the file from which the directory name is stored
  * @return
  */
@@ -278,6 +281,21 @@ global boolean updateImportDir(string file)
     if(lastslash != nil)
     {
 	certimportdir = substring(file,0,lastslash);
+    }
+    return true;
+}
+
+/** remember directory for export
+ * @param file the file from which the directory name is stored
+ * @return
+ */
+global boolean updateExportDir(string file)
+{
+    if(file == nil) return false;
+    integer lastslash = findlastof(file,"/");
+    if(lastslash != nil)
+    {
+	exportdir = substring(file,0,lastslash);
     }
     return true;
 }
@@ -843,7 +861,7 @@ global void newClientConnection()
 
     integer i = 0;
     foreach(string name, map conn, connections, ``{
-	if(substring(name, 0, 11) == "clientserver")
+	if(substring(name, 0, 12) == "clientserver")
 	{
 	    i = i + 1;
 	}
