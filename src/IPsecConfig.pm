@@ -175,5 +175,36 @@ sub Write
     return Boolean(1);
 }
 
+BEGIN { $TYPEINFO{newDefaultConnection} = ["function", [ "map", "string", "string" ]]; }
+sub newDefaultConnection()
+{
+    my %conn = (
+	"left" => "%defaultroute",
+	"leftrsasigkey" => "%cert",
+	"rightrsasigkey" => "%cert",
+	"keyingtries" => "3",
+	"auto" => "ignore",
+	"esp" => "aes,3des",
+	"pfs" => "yes",
+    );
+    
+    return \%conn;
+}
+
+##
+ # Create new Roadwarrior default connection
+ # @return connection map
+BEGIN { $TYPEINFO{newRoadWarriorConnection} = ["function", [ "map", "string", "string" ]]; }
+sub newRoadWarriorConnection()
+{
+    my $conn = newDefaultConnection();
+
+    $conn->{"left"} = "%defaultroute";
+    $conn->{"right"} = "%any";
+    $conn->{"auto"} = "add";
+
+    return $conn;
+}
+
 # EOF
 # vim: sw=4
