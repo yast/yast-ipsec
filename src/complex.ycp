@@ -142,15 +142,13 @@ any SummaryDialog() {
     /* IPsec summary dialog caption */
     string caption = _("VPN Configuration");
 
-    list summary = IPsec::Summary();
-    list unconfigured = summary[1]:[];
-    string configured = summary[0]:"";
+    string summary = IPsec::MainSummary();
 
     /* Frame label */
 //    term contents = Wizard_hw::DetectedContent(_("IPsec to Configure"),
 //	    unconfigured, false, configured);
 
-    term contents = SummaryRichText(configured);
+    term contents = SummaryRichText(summary);
 
     Wizard::SetContentsButtons(caption, contents, HELPS["summary"]:"",
 	    Label::BackButton(), Label::FinishButton());
