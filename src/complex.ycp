@@ -80,11 +80,11 @@ term SummaryRichText(string summary)
 		// menu button
 		_("Change..."), [
 		    // menubutton item
-		    `item(`id("settings"), IPsec::settings_str),
+		    `item(`id("connections"), _("C&onnections")),
 		    // menubutton item
 		    `item(`id("certificates"), _("C&ertificates")),
 		    // menubutton item
-		    `item(`id("connections"), _("C&onnections"))
+		    `item(`id("settings"), IPsec::settings_str)
 	    ]),
 	    `VSpacing(1)
 	),
@@ -202,14 +202,17 @@ Do you want to start IPsec during boot?")))
             break;
         }
         else if(ret == "settings") {
+	    if(IPsec::getStart() != true) continue;
 	    ret = `settings;
             break;
         }
         else if(ret == "connections") {
+	    if(IPsec::getStart() != true) continue;
 	    ret = `overview;
             break;
         }
         else if(ret == "certificates") {
+	    if(IPsec::getStart() != true) continue;
 	    ret = `certificates;
             break;
         }

@@ -215,7 +215,9 @@ global string start_str = _("Activate During Boot");
 global string strictcrlpolicy_str =  _("Strict CRL Policy");
 global string crlchekinterval_str =  _("CRL Check Interval");
 global string nattraversal_str =  _("NAT Traversal");
-global string settings_str = _("Global settings");
+// Translator: Common in the sense of multiple items share the same settings.
+// _not_ in the sense of "typical"
+global string settings_str = _("Common Settings");
 
 /** return "Yes" or "No" */
 string b2yn(boolean val)
@@ -601,8 +603,23 @@ string ConnectionSummary()
     else
     {
 	foreach(string name, map conn, connections, ``{
-	    summary = summary + sformat("<li>%1</li>", name);
+
+	    string text = "";
+	    if(conn["right"]:"" == "%any")
+	    {
+		text = _("Accept client connections");
+	    }
+	    else
+	    {
+		// %1 = IP Adress or hostname
+		text = sformat(_("Establish connection with %1"), conn["right"]:_("Unknown"));
+	    }
+	    summary = summary + sformat("<li>%1: %2</li>", name, text);
+
+/*
+	    summary = summary + sformat("<li>%1:</li>", name);
 	    summary = summary + "<ul type=\"square\">";
+
 	    summary = summary + addConnectionValueIfDefined(conn, _("Start Mode"), "auto");
 
 	    setCurrentConnection(name);
@@ -614,6 +631,7 @@ string ConnectionSummary()
 	    }
 
 	    summary = summary + "</ul>";
+*/
 	});
     }
 
@@ -637,11 +655,15 @@ string CertificateSummary()
     else
     {
 	foreach(string name, map cert, certificates, ``{
+	    summary = summary + sformat("<li>%1: %2</li>", _("Certificate"), cert["subjectAltName"]:"?");
+
+	    /*
 	    summary = summary + sformat("<li>%1: %2</li>", _("Certificate"), name);
 	    summary = summary + "<ul type=\"square\">";
 	    summary = summary + sformat("<li>Subject: %1</li>", cert["subjectAltName"]:"?");
 	    summary = summary + sformat("<li>DN: %1</li>", cert["DN"]:"?");
 	    summary = summary + "</ul>";
+	    */
 	});
     }
 
@@ -654,11 +676,14 @@ string CertificateSummary()
     else
     {
 	foreach(string name, map cert, cacertificates, ``{
+	    summary = summary + sformat("<li>%1: %2</li>", _("CA Certificate"), cert["subjectAltName"]:"?");
+	    /*
 	    summary = summary + sformat("<li>%1: %2</li>", _("CA Certificate"), name);
 	    summary = summary + "<ul type=\"square\">";
 	    summary = summary + sformat("<li>Subject: %1</li>", cert["subjectAltName"]:"?");
 	    summary = summary + sformat("<li>DN: %1</li>", cert["DN"]:"?");
 	    summary = summary + "</ul>";
+	    */
 	});
     }
 
@@ -672,11 +697,16 @@ string CertificateSummary()
  * Create a textual summary and a list of unconfigured cards
  * @return summary of the current configuration
  */
-global list Summary() {
-    /* Configuration summary text for autoyast */
-    string summary = sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
+global list Summary()
+{
+    string summary = "";
+
+    summary = summary + ConnectionSummary();
+
+    summary = summary + CertificateSummary();
+
+    summary = summary + sformat ("<p><a href=\"settings\">%1</a><br>", settings_str);
     summary = summary + "<ul>";
-//    summary = summary + sformat("<li>%1: %2</li>", start_str, b2yn(getStart()));
     summary = summary + sformat("<li>%1: %2</li>", strictcrlpolicy_str, b2yn(getStrictCRLPolicy()));
     if(getCrlCheckInterval() != 0)
     {
@@ -685,10 +715,6 @@ global list Summary() {
     }
     summary = summary + sformat("<li>%1: %2</li>", nattraversal_str, b2yn(getNatTraversal()));
     summary = summary + "</ul></p>";
-
-    summary = summary + CertificateSummary();
-
-    summary = summary + ConnectionSummary();
 
     return [ summary, [] ];
 }
@@ -719,6 +745,32 @@ global list Overview() {
     return overview;
 }
 
+/** remove /etc/ipsec.d/{certs,cacerts,private,crls}
+ * @param absolute path name
+ * @return simple filename if absolute is one of the above four directories
+ * */
+string CertFileNameToDisplayName(string name)
+{
+    if(substring(name, 0, 1) != "/")
+	return name;
+
+    list token = splitstring(name,"/");
+
+    if(size(token) != 5)
+	return name;
+
+    string subdir = token[3]:"";
+    if(token[1]:"" == "etc" && token[2]:"2" == "ipsec.d"
+	&& (subdir == "certs" || subdir == "private" || subdir == "cacerts" || subdir == "crls"))
+    {
+	return token[4]:name;
+    }
+    else
+    {
+	return name;
+    }
+}
+
 global list CertOverview()
 {
     list overview = [];
@@ -728,7 +780,8 @@ global list CertOverview()
     foreach(string name, map cert, certificates, ``{
 	string new = " ";
 	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
-	overview = add(overview, `item(`id(name), new, name, cert["DN"]:"?"));
+	string displayname = CertFileNameToDisplayName(name);
+	overview = add(overview, `item(`id(name), new, displayname, cert["DN"]:"?"));
     });
 
     return overview;
@@ -743,7 +796,8 @@ global list CACertOverview()
     foreach(string name, map cert, cacertificates, ``{
 	string new = " ";
 	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
-	overview = add(overview, `item(`id(name), new, name, cert["DN"]:"?"));
+	string displayname = CertFileNameToDisplayName(name);
+	overview = add(overview, `item(`id(name), new, displayname, cert["DN"]:"?"));
     });
 
     return overview;
@@ -758,7 +812,8 @@ global list CRLOverview()
     foreach(string name, map cert, crls, ``{
 	string new = " ";
 	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
-	overview = add(overview, `item(`id(name), new, name, cert["NEXT_UPDATE"]:"?", cert["ISSUER"]:"?"));
+	string displayname = CertFileNameToDisplayName(name);
+	overview = add(overview, `item(`id(name), new, displayname, cert["NEXT_UPDATE"]:"?", cert["ISSUER"]:"?"));
     });
 
     return overview;
@@ -773,7 +828,8 @@ global list KeyOverview()
     foreach(string name, map cert, keys, ``{
 	string new = " ";
 	if(haskey(cert,"NEW")) new = UI::Glyph(`BulletArrowRight);
-	overview = add(overview, `item(`id(name), new, name));
+	string displayname = CertFileNameToDisplayName(name);
+	overview = add(overview, `item(`id(name), new, displayname));
     });
 
     return overview;
