@@ -212,7 +212,7 @@ any LeftRightConnectionConfigDialog(
     list certfiles = IPsec::getCertificateFiles();
 
     /* IPsec configure2 dialog caption */
-    string caption = _("IPsec Configuration");
+    string caption = _("IPsec Connection Configuration");
 
     /* IPsec configure2 dialog contents */
     term contents = `HBox(
@@ -234,7 +234,7 @@ any LeftRightConnectionConfigDialog(
 	`HStretch()
     );
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c2"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS[side+"configdialog"]:"",
 	    Label::BackButton(), Label::NextButton());
 
     string tmp = IPsec::current_connection[side]:"";
@@ -588,11 +588,16 @@ any EasyRoadWarriorServerDialog () {
 
     list networks = IPsec::getNetworks();
 
+    list ips = IPsec::getIPaddresses();
+    ips = add(ips, "%defaultroute");
+
     term contents = `VBox(
 	`HBox(
 	    `HStretch(),
 	    `Frame(_("Server Connection Settings"),
 		`VBox(
+		    `ComboBox(`id(`addr), `opt(`editable, `hstretch), _("Local IP Address"), ips),
+		    `Left(`VSpacing(1.5)),
 		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Act as Gateway"), true)),
 		    `Left(`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable), _("Network"), networks))),
 		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles))
@@ -649,6 +654,14 @@ any EasyRoadWarriorServerDialog () {
 	}
         else if(ret == `next)
 	{
+	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
+	    if(size(addr) == 0)
+	    {
+		Popup::Message(_("You must specify the local address."));
+		UI::SetFocus(`id(`addr));
+		continue;
+	    }
+
 	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
 	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
 	    if(gw == true && size(subnet)==0)
@@ -664,6 +677,7 @@ any EasyRoadWarriorServerDialog () {
 	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
 	    list ids = IPsec::getIdsOfCert(cert);
 
+	    IPsec::current_connection["left"] = addr;
 	    IPsec::current_connection["leftcert"] = cert;
 	    // well, just use first one. should be DN
 	    IPsec::current_connection["leftid"] = ids[0]:"";
@@ -709,7 +723,7 @@ any EasyRoadWarriorClientDialog () {
 	    `HStretch(),
 	    `Frame(_("Connection Settings"),
 		`VBox(
-		    `Left(`ComboBox(`id(`addr), `opt(`editable, `hstretch), _("Server Address"))),
+		    `Left(`TextEntry(`id(`addr), `opt(`hstretch), _("Server Address"))),
 		    `Left(`VSpacing(1.5)),
 		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Server acts as Gateway"), true)),
 		    `Left(`HBox(`HSpacing(3), `TextEntry(`id(`subnet), _("Network")))),

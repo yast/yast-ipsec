@@ -148,31 +148,127 @@ certificate.</p>") +
 _("<p><b><big>Certificate:</big></b> Choose the certificate to use for this
 connection.</p>"),
 
-    /* Start Mode dialog help 1/4 */
+    /* Start Mode dialog help 1/6 */
     "startmode" : _("<p><b><big>IPsec Connection Configuration</big></b></p>") +
 
-    /* Start Mode dialog help 1/4 */
+    /* Start Mode dialog help 2/6 */
 _("<p><b><big>During Boot...:</big></b> Choose what should be done with this
 connection when booting the system.</p>") +
 
 "<ul>" +
+    /* Start Mode dialog help 3/6 */
 _("<li><i>Initiate Connection:</i> The system will try to immediately
 establish a connection with the remote server. This may fail if you use dynamic
 IP addresses or the server is only reachable when beeing dialed into the
 internet.</li>") +
 
+    /* Start Mode dialog help 4/6 */
 _("<li><i>Prepare Connection:</i> The connection will be prepared for use,
 listening for incoming packets. Choose this option if you configure a server
 connection.</li>") +
 
+    /* Start Mode dialog help 5/6 */
 _("<li><i>Ignore Connection:</i> The connection will not be handled at boot time.</li>") +
 
 "</ul>" +
 
+    /* Start Mode dialog help 6/6 */
 _("<p><b><big>Start Dynamically:</big></b> Check this item if you want to start the
 IPsec connection when some network interface is brought online, e.g. when
 dialing into the internet. Also choose an interface from the list in this
 case.</p>"),
+
+    /* Local connection config dialog help 1/5 */
+    "leftconfigdialog" : _("<p><b><big>IPsec Connection Configuration</big></b></p>") +
+
+    /* Local connection config dialog help 2/5 */
+_("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
+should use for this connection. You may enter <i>%defaultroute</i> to indicate
+that the IP address of the device where the default route points at should be
+used. If you plan to start this connection dynamically (configurable later in
+this workflow), this value will be overridden. Just leave %defaultroute in his
+case.</p>") +
+
+    /* Local connection config dialog help 3/5 */
+_("<p><b><big>Act as Gateway:</big></b> Check this item if you want to allow
+access to some subnet connected to this host. Also fill in the <b>Local
+Subnet</b> field in this case</p>") +
+
+    /* Local connection config dialog help 4/5 */
+_("<p><b><big>Certificate:</big></b> Choose the certificate to use for this
+connection.</p>") +
+
+    /* Local connection config dialog help 5/5 */
+_("<p><b><big>Identification:</big></b> Enter the identification that should be
+used for this connection. The identification typically is the Distinguished
+name of the certificate or an IP-address, host name or email-address
+specified in the 'Subject Alternative Name' of the certificate.</p>"),
+
+    /* Remote connection config dialog help 1/5 */
+    "rightconfigdialog" : _("<p><b><big>IPsec Connection Configuration</big></b></p>") +
+
+    /* Remote connection config dialog help 2/5 */
+_("<p><b><big>Remote IP Address:</big></b> Enter the IP address of the remote
+system. You may enter <i>%any</i> if you want to accept connections from any
+system with a valid certificate.</p>") +
+
+    /* Remote connection config dialog help 3/5 */
+_("<p><b><big>Act as Gateway:</big></b> Check this item if the remote system
+allows access to a subnet. Also fill in the <b>Remote Subnet</b> field in this
+case</p>") +
+
+    /* Remote connection config dialog help 4/5 */
+_("<p><b><big>Certificate:</big></b> Choose the certificate that the remote
+system uses. Leave empty to use the certificate the remote system transmits
+over the network when establishing the connection. It's recommended to leave
+this field empty.</p>") +
+
+    /* Remote connection config dialog help 5/5 */
+_("<p><b><big>Identification:</big></b> Enter the identification of the remote
+system. The identification typically is the Distinguished name of the
+remote's certificate or an IP-address, host name or email-address specified in the
+'Subject Alternative Name' of the remote's certificate. You may leave this
+field empty to accept any remote system that presents a valid
+certifiate.</p>"),
+
+    /* New Connection dialog help 1/5 */
+    "newconnection": _("<p><b><big>IPsec Connection Configuration:</big></b><br>") +
+
+    /* New Connection dialog help 2/5 */
+_("Choose a pre defined connection type with a simplified configuration workflow or <b>Custom</b>") +
+
+    /* New Connection dialog help 3/5 */
+_("<p><b><big>Server for Road Warriors:</big></b> Check this item to configure
+a server that accepts connections from any client that presents a valid
+certificate</p>") +
+
+    /* New Connection dialog help 4/5 */
+_("<p><b><big>Road Warrior Client:</big></b> Check this item to configure
+a client that establishes a connection to a server over the internet</p>") +
+
+    /* New Connection dialog help 5/5 */
+_("<p><b><big>Custom:</big></b> Check this item to configure
+a custom client or server connection</p>"),
+
+    /* Server connection dialog help 1/4 */
+    "easyroadwarriorserver": _("<p><b><big>Create Server Connection:</big></b><br>") +
+
+    /* Server connection dialog help 2/4 */
+_("<p><b><big>Local IP Address:</big></b> Enter the IP address that the system
+should use for this connection. You may enter <i>%defaultroute</i> to indicate
+that the IP address of the device where the default route points at should be
+used. If you plan to start this connection dynamically (configurable later in
+this workflow), this value will be overridden. Just leave %defaultroute in his
+case.</p>") +
+
+    /* Server connection dialog help 3/4 */
+_("<p><b><big>Act as Gateway:</big></b> Check this item if you want to allow
+access to some subnet connected to this host. Also fill in the <b>Local
+Subnet</b> field in this case</p>") +
+
+    /* Server connection dialog help 4/4 */
+_("<p><b><big>Certificate:</big></b> Choose the certificate to use for this
+connection.</p>"),
 
 ];
 

@@ -504,6 +504,8 @@ global boolean Write()
     if(Abort()) return false;
     Progress::NextStage();
 
+    y2milestone("save ipsec.conf");
+
     settings["nat_traversal"] = boolean2yesorno(nat_traversal);
     settings["strictcrlpolicy"] = boolean2yesorno(strictcrlpolicy);
     settings["crlcheckinterval"] = sformat("%1", crlcheckinterval);
@@ -515,11 +517,17 @@ global boolean Write()
     // Write Network settings
     if(Abort()) return false;
     Progress::NextStage ();
+
+    y2milestone("write network settings");
+
     if(!NetworkDevices::Write(""))
 	Report::Error (_("Writing network settings failed."));
 
     if(Abort()) return false;
     Progress::NextStage ();
+
+
+    y2milestone("adjust runlevel links");
 
     if(start == true)
     {
