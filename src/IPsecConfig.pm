@@ -84,7 +84,8 @@ BEGIN
         mkdir("/etc/ipsec.d/certs", 0755);
     }
 
-    cleanupImport();
+    # XXX need prototype!
+    # cleanupImport();
 
     # FIXME: cleanup it!!
     $temp_tree = tempdir("/tmp/yast2-ipsec-XXXXXX", CLEANUP => 1);

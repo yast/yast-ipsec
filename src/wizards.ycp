@@ -16,10 +16,8 @@ import "Wizard";
 
 include "ipsec/complex.ycp";
 include "ipsec/dialogs.ycp";
-include "ipsec/certdialogs.ycp";
+//include "ipsec/certdialogs.ycp";
 
-
-any ImportSequence();
 
 /**
  * Add a configuration of ipsec
@@ -35,9 +33,9 @@ any AddSequence() {
 	"config4"	: ``(ConnectionConfigEncryptionDialog()),
 	"startmode"	: ``(ConnectionStartModeDialog()),
 	"done"		: ``(ConnectionDoneDialog()),
-	"importl"	: [ ``( ImportSequence() ), true ],
-	"importr"	: [ ``( ImportSequence() ), true ],
-	"importrw"	: [ ``( ImportSequence() ), true ],
+	"importl"	: [ ``( CertificateOverviewDialog() ), true ],
+	"importr"	: [ ``( CertificateOverviewDialog() ), true ],
+	"importrw"	: [ ``( CertificateOverviewDialog() ), true ],
 	"roadwarrior"	: ``( EasyRoadWarriorDialog() ),
     ];
 
@@ -97,44 +95,44 @@ any AddSequence() {
     return Sequencer::Run(aliases, sequence);
 }
 
-/**
- * Import Certificate Sequence
- * @return sequence result
- */
-any ImportSequence() {
-
-    map aliases = $[
-	"certstart"	: ``(CertificateImportDialog1()),
-	"certfiles"	: ``(CertificateImportDialogFiles()),
-	"certpkcs12"	: ``(CertificateImportDialogPKCS12()),
-	"certzip"	: ``(CertificateImportDialogFiles()),
-    ];
-
-    map sequence = $[
-	"ws_start" : "certstart",
-	"certstart" : $[
-	    `abort	: `abort,
-	    `next	: `next,
-	    `files	: "certfiles",
-	    `pkcs12	: "certpkcs12",
-	    `zip	: "certzip",
-	],
-	"certfiles" : $[
-	    `abort	: `abort,
-	    `next	: `next,
-	],
-	"certpkcs12" : $[
-	    `abort	: `abort,
-	    `next	: `next,
-	],
-	"certzip" : $[
-	    `abort	: `abort,
-	    `next	: `next,
-	],
-    ];
-
-    return Sequencer::Run(aliases, sequence);
-}
+///**
+// * Import Certificate Sequence
+// * @return sequence result
+// */
+//any ImportSequence() {
+//
+//    map aliases = $[
+//	"certstart"	: ``(CertificateImportDialog1()),
+//	"certfiles"	: ``(CertificateImportDialogFiles()),
+//	"certpkcs12"	: ``(CertificateImportDialogPKCS12()),
+//	"certzip"	: ``(CertificateImportDialogFiles()),
+//    ];
+//
+//    map sequence = $[
+//	"ws_start" : "certstart",
+//	"certstart" : $[
+//	    `abort	: `abort,
+//	    `next	: `next,
+//	    `files	: "certfiles",
+//	    `pkcs12	: "certpkcs12",
+//	    `zip	: "certzip",
+//	],
+//	"certfiles" : $[
+//	    `abort	: `abort,
+//	    `next	: `next,
+//	],
+//	"certpkcs12" : $[
+//	    `abort	: `abort,
+//	    `next	: `next,
+//	],
+//	"certzip" : $[
+//	    `abort	: `abort,
+//	    `next	: `next,
+//	],
+//    ];
+//
+//    return Sequencer::Run(aliases, sequence);
+//}
 
 /**
  * Main workflow of the ipsec configuration
@@ -150,7 +148,6 @@ any MainSequence() {
 	"add"		: [ ``( AddSequence() ), true ],
 	"edit"		: [ ``( AddSequence() ), true ],
 	"settings"	: [ ``( FreeSWANSettingsDialog() ), true ],
-	"import"	: [ ``( ImportSequence() )        , true ],
 	"configE"	: [ ``( ConnectionExpertDialog() ), true ],
 	"export"	: [ ``( ExportDialog() ), true ],
     ];
@@ -165,7 +162,6 @@ any MainSequence() {
 	    `other	: "configure",
 	    `settings	: "settings",
 	    `certificates	: "certificates",
-	    `import	: "import",
 	],
 	"overview" : $[
 	    `abort	: `abort,
@@ -178,7 +174,6 @@ any MainSequence() {
 	"certificates" : $[
 	    `abort	: `abort,
 	    `next	: "summary",
-	    `imp	: "import",
 	],
 	"configure" : $[
 	    `abort	: `abort,
@@ -195,10 +190,6 @@ any MainSequence() {
 	"settings" : $[
 	    `abort	: `abort,
 	    `next	: "summary",
-	],
-	"import" : $[
-	    `abort	: `abort,
-	    `next	: "certificates",
 	],
 	"configE" : $[
 	    `abort	: `abort,

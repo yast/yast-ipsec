@@ -11,8 +11,7 @@ ynclude_DATA =			\
 	helps.ycp		\
 	wizards.ycp		\
 	dialogs.ycp		\
-	complex.ycp		\
-	certdialogs.ycp
+	complex.ycp
 
 desktop_DATA =			\
 	ipsec.desktop

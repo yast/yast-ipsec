@@ -16,6 +16,7 @@ import "Popup";
 import "Wizard";
 import "Wizard_hw";
 import "IPsec";
+import "IPsecConfig";
 
 include "ipsec/helps.ycp";
 
@@ -357,8 +358,20 @@ any CertificateOverviewDialog ()
 	}
 	else if(ret == `imp)
 	{
-	    // handled by wizard sequencer
-	    break;
+	    string file = UI::AskForExistingFile( IPsec::certimportdir,
+		"*.pem *.PEM *.p12 *.P12 *.zip *.ZIP",
+		_("Choose file to import"));
+
+	    if(!IPsec::updateImportDir(file)) continue;
+
+	    string msg = IPsecConfig::prepareImportFile(file);
+	    if(msg != nil)
+	    {
+		Popup::Error(msg);
+		continue;
+	    }
+
+	    continue;
 	}
 	else if(ret == `del)
 	{
@@ -391,7 +404,18 @@ any CertificateOverviewDialog ()
 		setCRLContents();
 	    }
 	}
-        else if(ret == `next || ret == `back) {
+        else if(ret == `next) {
+	    string msg = IPsecConfig::finishImport();
+	    if(msg != nil)
+	    {
+		if(!Popup::ContinueCancel(msg))
+		    continue;
+	    }
+
+            break;
+        }
+        else if(ret == `back) {
+	    IPsecConfig::cleanupImport();
             break;
         }
         else {
