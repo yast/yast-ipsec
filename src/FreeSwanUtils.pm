@@ -124,14 +124,26 @@ sub load_config
             # fake empty default config
             # if it does not exists
             #
+	    my $defaultconfig = {
+		'%default' => {
+		    'file' => $file,
+		    'data' => {}
+		}
+	    };
+
+	    # disable opportunistic connections
+	    foreach my $sect (@CONN_IMPLICIT) {
+		$defaultconfig->{$sect} = {
+		    'file' => $file,
+		    'data' => {
+			'auto' => 'ignore'
+		    }
+		};
+	    }
+
             $self->_init_config(file   => $file,
                                 setup  => {},
-                                conn   => {
-                                    '%default' => {
-                                        'file' => $file,
-                                        'data' => {}
-                                    }
-                                },
+                                conn   => $defaultconfig,
                                 version=> $self->{'ipsec_version'});
             return 1; # true
         }
