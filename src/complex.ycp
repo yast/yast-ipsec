@@ -536,7 +536,7 @@ any ConnectionExpertDialog ()
 	    if(key == nil)
 		continue;
 
-	    string val = TextEntryPopup(_("Enter new Value"), _("Value"), IPsec::current_connection[key]:"");
+	    string val = TextEntryPopup(_("Enter New Value"), _("Value"), IPsec::current_connection[key]:"");
 
 	    if(val == nil)
 		continue;

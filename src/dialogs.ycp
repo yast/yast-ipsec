@@ -238,7 +238,7 @@ any LeftRightConnectionConfigDialog(
 	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
 	    if(ret == `next && size(addr)==0)
 	    {
-		Popup::Message(_("You must set an Address"));
+		Popup::Message(_("You must set an address."));
 		UI::SetFocus(`id(`addr));
 		continue;
 	    }
@@ -247,7 +247,7 @@ any LeftRightConnectionConfigDialog(
 	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
 	    if(ret == `next && gw == true && size(subnet)==0)
 	    {
-		Popup::Message(_("You must set a subnet address if you configure a gateway"));
+		Popup::Message(_("You must set a subnet address if you configure a gateway."));
 		UI::SetFocus(`id(`subnet));
 		continue;
 	    }
@@ -257,7 +257,7 @@ any LeftRightConnectionConfigDialog(
 
 	    if(ret == `next && size(cert)==0 && side == "left")
 	    {
-		Popup::Message(_("You must select a certificate"));
+		Popup::Message(_("You must select a certificate."));
 		UI::SetFocus(`id(`cert));
 		continue;
 	    }
@@ -328,10 +328,10 @@ any ConnectionStartModeDialog () {
     term contents = `HBox(
 	`HStretch(),
 	`VBox(
-	    `ComboBox(`id(`bootmode), `opt(`hstretch), _("During Boot ..."), bootmodes ),
-	    `Frame(_("Dynamic start"), `RadioButtonGroup(`id(`rbg), `opt(`notify),
+	    `ComboBox(`id(`bootmode), `opt(`hstretch), _("During Boot..."), bootmodes ),
+	    `Frame(_("Dynamic Start"), `RadioButtonGroup(`id(`rbg), `opt(`notify),
 		`VBox(
-		    `Left(`CheckBox(`id(`nodyncbx), `opt(`notify), _("Start dynamically"))),
+		    `Left(`CheckBox(`id(`nodyncbx), `opt(`notify), _("Start Dynamically"))),
 		    `ComboBox(`id(`netif), `opt(`editable), _("Interface"), IPsec::getDevices())
 		    )
 		)
@@ -409,7 +409,7 @@ any ConnectionStartModeDialog () {
  */
 any FreeSWANSettingsDialog ()
 {
-    string caption = _("FreeS/WAN settings");
+    string caption = _("FreeS/WAN Settings");
 
     term contents = `HBox (`HStretch(),
 	`Frame(IPsec::settings_str,
@@ -578,7 +578,7 @@ any EasyRoadWarriorDialog () {
 	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
 	    if(gw == true && size(subnet)==0)
 	    {
-		Popup::Message(_("You must set a subnet address if you configure a gateway"));
+		Popup::Message(_("You must set a subnet address if you configure a gateway."));
 		UI::SetFocus(`id(`subnet));
 		continue;
 	    }
