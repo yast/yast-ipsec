@@ -166,6 +166,29 @@ sub setConnections()
 }
 
 ##
+ # delete connection from connection hash
+ # @param name of connection
+BEGIN { $TYPEINFO{deleteConnection} = ["function", "void", "string" ]; }
+sub deleteConnection()
+{
+    my $name = shift;
+    delete $connections{$name};
+}
+
+##
+ # add a connection to connection hash. The connection might already exist in
+ # which case it means to update the connection with new values
+ # @param name of connection
+ # @param connection hash
+BEGIN { $TYPEINFO{addConnection} = ["function", "void", "string", [ "map", "string", "string" ]]; }
+sub addConnection()
+{
+    my $name = shift;
+    my $ref = shift;
+    $connections{$name} = $ref;
+}
+
+##
  # Write all ipsec settings
  # @return true on success
  #
