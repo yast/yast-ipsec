@@ -49,6 +49,7 @@ if(func == "Summary") {
 /* Reset configuration */
 else if (func == "Reset") {
     IPsec::Import($[]);
+    IPsec::modified = false;
     ret = $[];
 }
 /* Change configuration (run AutoSequence) */
@@ -66,6 +67,21 @@ else if (func == "Export") {
 /* Return needed packages */
 else if (func == "Packages") {
     ret = IPsec::AutoPackages();
+}
+/**
+ * Return if configuration  was changed
+ * return boolean
+ */
+else if (func == "GetModified") {
+    ret = IPsec::modified;
+}
+/**
+ * Set modified flag
+ * return boolean
+ */
+else if (func == "SetModified") {
+    IPsec::modified = true;
+    ret = true;
 }
 /* Read current state */
 else if (func == "Read") {
