@@ -365,48 +365,6 @@ sub deleteCertificate($)
 }
 
 ##
- # get a name for certificate, ccacertificate, crl or key
- # @param prefix, e.g. "cert"
- # @param suffix, e.g. ".pem"
- # @param hash reference, e.g. \%certificates
- # @return $prefix$somenumber.$suffix
-sub get_free_key_for_hash($$$)
-{
-    my $prefix = shift;
-    my $suffix = shift;
-    my $href = shift;
-    my $idx = 0;
-    my $saveas = $prefix.$suffix;
-    while (exists $href->{$saveas})
-    {
-	$idx++;
-	$saveas = $prefix.$idx.$suffix
-    }
-    return $saveas;
-}
-
-##
- # import a certificate from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
-sub importCertificate($)
-{
-    my $filename = shift;
-    my $href = parse_cert($openssl, file => $filename);
-
-    return _("importing certificate failed") unless (defined $href);
-
-    my $saveas = get_free_key_for_hash("cert", ".pem", \%certificates);
-    return _("importing certificate failed") unless (defined $saveas);
-
-    FreeSwanCerts::save_certificate_as($filename, $saveas);
-    $certificates{$saveas} = $href;
-
-    return undef;
-}
-
-##
  # get map of CA certificates
  # @returns connection map
  #
@@ -427,32 +385,6 @@ sub deleteCACertificate($)
     my $name = shift;
     delete $cacertificates{$name};
 }
-
-##
- # import a CA certificate from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
-sub importCACertificate($)
-{
-    my $filename = shift;
-    my $href = parse_cert($openssl, file => $filename);
-
-    if(!defined $href)
-    {
-	return _("importing CA certificate failed"); # FIXME
-    }
-
-    my $idx = 0;
-    while (exists $cacertificates{"cacert".$idx.".pem"})
-    {
-	$idx++;
-    }
-    $cacertificates{"cacert".$idx.".pem"} = $href;
-
-    return undef;
-}
-
 
 ##
  # get map of CRLs
@@ -477,31 +409,6 @@ sub deleteCRL($)
 }
 
 ##
- # import a CRL from file
- # @param filename to import
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
-sub importCRL($)
-{
-    my $filename = shift;
-    my $href = parse_crl($openssl, file => $filename);
-
-    if(!defined $href)
-    {
-	return _("importing CRL failed"); # FIXME
-    }
-
-    my $idx = 0;
-    while (exists $crls{"crl".$idx.".pem"})
-    {
-	$idx++;
-    }
-    $crls{"crl".$idx.".pem"} = $href;
-
-    return undef;
-}
-
-##
  # get map of keys
  # @returns connection map
  #
@@ -521,69 +428,6 @@ sub deleteKey($)
     # TODO
     my $name = shift;
     delete $keys{$name};
-}
-
-##
- # import a Key from file
- # @param filename to import
- # @param passwort (maybe empty, means no password)
- # @return error message on error or undef on success
-BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
-sub importKey($)
-{
-    my $filename = shift;
-    my $password = shift;
-    my $href = parse_key($openssl, file => $filename, pass => $password);
-
-    if(!defined $href)
-    {
-	return _("importing key failed"); # FIXME
-    }
-
-    my $idx = 0;
-    while (exists $keys{"key".$idx.".pem"})
-    {
-	$idx++;
-    }
-    $keys{"key".$idx.".pem"} = $href;
-
-    return undef;
-}
-
-##
- # Look at PKCS#12 file and extract it's components
- # @param path to p12 file
- # @param password for the file
- # @return hash with keys cacerts, certs, key or key error with error string
-BEGIN { $TYPEINFO{prepareImportP12} = ["function", [ "map", "string", "string" ], "string", "string" ]; }
-sub prepareImportP12($$;$)
-{
-    # TODO
-    my $file = shift;
-    my $password = shift;
-    #
-    # return ( "error" => "not yet implemented" );
-    #
-    return { "cacert" => "FIXME", "cert" => "FIXME", "key" => "FIXME" };
-}
-
-##
- # really import the file that was prepared via PrepareImportP12()
- # @return undef or error string
-BEGIN { $TYPEINFO{importPreparedP12} = ["function", "void" ]; }
-sub importPreparedP12()
-{
-    # TODO
-    return "importing PKCS#12 not yet implemented";
-}
-
-##
- # cancel an import that was started with prepareImportP12. Delete any
- # temporary files.
- #
-BEGIN { $TYPEINFO{cancelPreparedP12} = ["function", "void" ]; }
-sub cancelPreparedP12()
-{
 }
 
 ##
@@ -693,6 +537,171 @@ sub passwordPrompt($)
 {
     return IPsecPopups::Password(shift);
 }
+
+
+
+######################################################################
+##### CRAP, REMOVE ME IF UNUSED ######################################
+######################################################################
+
+##
+ # get a name for certificate, ccacertificate, crl or key
+ # @param prefix, e.g. "cert"
+ # @param suffix, e.g. ".pem"
+ # @param hash reference, e.g. \%certificates
+ # @return $prefix$somenumber.$suffix
+sub get_free_key_for_hash($$$)
+{
+    my $prefix = shift;
+    my $suffix = shift;
+    my $href = shift;
+    my $idx = 0;
+    my $saveas = $prefix.$suffix;
+    while (exists $href->{$saveas})
+    {
+	$idx++;
+	$saveas = $prefix.$idx.$suffix
+    }
+    return $saveas;
+}
+
+
+##
+ # import a CA certificate from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCACertificate} = ["function", "string", "string" ]; }
+sub importCACertificate($)
+{
+    my $filename = shift;
+    my $href = parse_cert($openssl, file => $filename);
+
+    if(!defined $href)
+    {
+	return _("importing CA certificate failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $cacertificates{"cacert".$idx.".pem"})
+    {
+	$idx++;
+    }
+    $cacertificates{"cacert".$idx.".pem"} = $href;
+
+    return undef;
+}
+
+
+##
+ # import a CRL from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCRL} = ["function", "string", "string" ]; }
+sub importCRL($)
+{
+    my $filename = shift;
+    my $href = parse_crl($openssl, file => $filename);
+
+    if(!defined $href)
+    {
+	return _("importing CRL failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $crls{"crl".$idx.".pem"})
+    {
+	$idx++;
+    }
+    $crls{"crl".$idx.".pem"} = $href;
+
+    return undef;
+}
+
+
+##
+ # import a certificate from file
+ # @param filename to import
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importCertificate} = ["function", "string", "string" ]; }
+sub importCertificate($)
+{
+    my $filename = shift;
+    my $href = parse_cert($openssl, file => $filename);
+
+    return _("importing certificate failed") unless (defined $href);
+
+    my $saveas = get_free_key_for_hash("cert", ".pem", \%certificates);
+    return _("importing certificate failed") unless (defined $saveas);
+
+    FreeSwanCerts::save_certificate_as($filename, $saveas);
+    $certificates{$saveas} = $href;
+
+    return undef;
+}
+
+##
+ # import a Key from file
+ # @param filename to import
+ # @param passwort (maybe empty, means no password)
+ # @return error message on error or undef on success
+BEGIN { $TYPEINFO{importKey} = ["function", "string", "string", "string" ]; }
+sub importKey($)
+{
+    my $filename = shift;
+    my $password = shift;
+    my $href = parse_key($openssl, file => $filename, pass => $password);
+
+    if(!defined $href)
+    {
+	return _("importing key failed"); # FIXME
+    }
+
+    my $idx = 0;
+    while (exists $keys{"key".$idx.".pem"})
+    {
+	$idx++;
+    }
+    $keys{"key".$idx.".pem"} = $href;
+
+    return undef;
+}
+
+##
+ # Look at PKCS#12 file and extract it's components
+ # @param path to p12 file
+ # @param password for the file
+ # @return hash with keys cacerts, certs, key or key error with error string
+BEGIN { $TYPEINFO{prepareImportP12} = ["function", [ "map", "string", "string" ], "string", "string" ]; }
+sub prepareImportP12($$;$)
+{
+    # TODO
+    my $file = shift;
+    my $password = shift;
+    #
+    # return ( "error" => "not yet implemented" );
+    #
+    return { "cacert" => "FIXME", "cert" => "FIXME", "key" => "FIXME" };
+}
+
+##
+ # really import the file that was prepared via PrepareImportP12()
+ # @return undef or error string
+BEGIN { $TYPEINFO{importPreparedP12} = ["function", "void" ]; }
+sub importPreparedP12()
+{
+    # TODO
+    return "importing PKCS#12 not yet implemented";
+}
+
+##
+ # cancel an import that was started with prepareImportP12. Delete any
+ # temporary files.
+ #
+BEGIN { $TYPEINFO{cancelPreparedP12} = ["function", "void" ]; }
+sub cancelPreparedP12()
+{
+}
+
 
 # EOF
 # vim: sw=4
