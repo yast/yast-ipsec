@@ -11,6 +11,14 @@
 
 
 package IPsecConfig;
+#
+# NOTE: debug for developement only!
+#       we use own y2logger helper
+#
+my $DEBUG = 0;
+BEGIN {
+    open(STDERR, ">", "/dev/null") unless($DEBUG);
+}
 
 use strict;
 use warnings;
@@ -48,11 +56,6 @@ my %crls;
 my %keys;
 my %deleted;
 
-#
-# NOTE: debug for developement only!
-#       we use own y2logger helper
-#
-my $DEBUG = 1;
 sub debug {
     if($DEBUG) {
 	my ($package, $filename, $line) = caller;
