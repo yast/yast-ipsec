@@ -34,7 +34,9 @@ any NewConnectionDialog () {
 	    `Frame(_("Choose connection type"),
 		`RadioButtonGroup(`id(`rbg),
 		    `VBox(
-			`Left(`RadioButton(`id(`roadwarrior), _("Road Warrior Server"), true)),
+			`Left(`RadioButton(`id(`rws), _("Server for Road Warriors"), true)),
+			`Left(`RadioButton(`id(`rwc), _("Road Warrior Client"), true)),
+			`VSpacing(0.3),
 			`Left(`RadioButton(`id(`custom), _("Custom")))
 		    )
 		)
@@ -46,13 +48,18 @@ any NewConnectionDialog () {
     // edit mode. skip this dialog
     if(IPsec::current_connection_name != "")
     {
-	string msg = IPsec::mayEditCurrentConnection();
-	if(msg != nil)
+	if(IPsec::edit_start == true)
 	{
-	    Popup::Error(msg);
-	    return `back;
+	    string msg = IPsec::mayEditCurrentConnection();
+	    if(msg != nil)
+	    {
+		Popup::Error(msg);
+		return `back;
+	    }
+	    IPsec::edit_start = false;
+	    return `edit;
 	}
-	return `edit;
+	return `back;
     }
 
     Wizard::SetContentsButtons(caption, contents, HELPS["newconnection"]:"",
@@ -71,6 +78,13 @@ any NewConnectionDialog () {
         else if(ret == `next)
 	{
 	    symbol type = (symbol) UI::QueryWidget(`id(`rbg), `CurrentButton);
+
+	    if(type == `custom)
+		IPsec::newConnection();
+	    else if(type == `rws)
+		IPsec::newServerConnection();
+	    else if (type == `rwc)
+		IPsec::newClientConnection();
 
 	    ret = type;
 
@@ -241,13 +255,17 @@ any LeftRightConnectionConfigDialog(
 
     ReplaceLeftRightConnectionConfigDialogIdCombo(tmp, IPsec::current_connection[side+"id"]:"");
 
-    if(IPsec::current_connection[side+"subnet"]:"" == "")
+    tmp = IPsec::current_connection[side+"subnet"]:"";
+    if(tmp == "")
     {
 	UI::ChangeWidget(`id(`isgateway), `Value, false );
 	UI::ChangeWidget(`id(`subnet), `Enabled, false );
     }
     else
+    {
 	UI::ChangeWidget(`id(`isgateway), `Value, true );
+	UI::ChangeWidget(`id(`subnet), `Value, tmp );
+    }
 
     UI::SetFocus(`id(`addr));
 
@@ -266,7 +284,7 @@ any LeftRightConnectionConfigDialog(
 	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
 	    if(ret == `next && size(addr)==0)
 	    {
-		Popup::Message(_("You must set an address."));
+		Popup::Message(_("You must specify an address."));
 		UI::SetFocus(`id(`addr));
 		continue;
 	    }
@@ -340,7 +358,7 @@ any RightConnectionConfigDialog ()
     list networks = [ "0.0.0.0/0" ];
 
     return LeftRightConnectionConfigDialog(
-	_("Remote IP Address"),
+	_("Remote Address"),
 	_("Remote Subnet"),
 	"right",
 	ips, networks);
@@ -379,8 +397,13 @@ any ConnectionStartModeDialog () {
 
     {
 	list<string> devs = IPsec::getNetworkDevicesUP();
-	if(size(devs) != 0)
+	if(size(devs) != 0 || IPsec::dynamic_start_suggest_dialup == true)
 	{
+	    if(size(devs) == 0)
+	    {
+		devs = IPsec::getDialupInterfaces();
+		IPsec::dynamic_start_suggest_dialup = false;
+	    }
 	    UI::ChangeWidget(`id(`netif), `Value, mergestring(devs, " "));
 	    UI::ChangeWidget(`id(`netif), `Enabled, true );
 	    UI::ChangeWidget(`id(`nodyncbx), `Value, true );
@@ -417,6 +440,8 @@ any ConnectionStartModeDialog () {
 		y2debug("devs=%1", devs);
 		IPsec::setNetworkDevicesUP(splitstring(devs, " "));
 	    }
+	    else
+		IPsec::setNetworkDevicesUP([]);
 
             break;
         }
@@ -550,23 +575,19 @@ any ConnectionDoneDialog ()
  * Configure1 dialog
  * @return dialog result
  */
-any EasyRoadWarriorDialog () {
+any EasyRoadWarriorServerDialog () {
 
     /* Roadwarrior Dialog caption */
-    string caption = _("Create Roadwarrior Connection");
+    string caption = _("Create Server Connection");
 
     list certfiles = IPsec::getCertificateFiles();
 
     list networks = IPsec::getNetworks();
 
-    networks = sort(add(networks, "0.0.0.0/0"));
-
-    IPsec::newRoadWarriorConnection();
-
     term contents = `VBox(
 	`HBox(
 	    `HStretch(),
-	    `Frame(_("Road Warrior Settings"),
+	    `Frame(_("Server Connection Settings"),
 		`VBox(
 		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Act as Gateway"), true)),
 		    `Left(`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable), _("Network"), networks))),
@@ -577,7 +598,7 @@ any EasyRoadWarriorDialog () {
 	)
     );
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["easyroadwarrior"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS["easyroadwarriorserver"]:"",
 	    Label::BackButton(), Label::NextButton());
 
     if(size(certfiles) == 0)
@@ -586,6 +607,29 @@ any EasyRoadWarriorDialog () {
 	    return `needcert;
 	return `back;
     }
+
+    string tmp = IPsec::current_connection["left"]:"";
+    if(tmp == "")
+	tmp = "%defaultroute";
+    if(tmp != "")
+	UI::ChangeWidget(`id(`addr), `Value, tmp );
+
+    tmp = IPsec::current_connection["leftsubnet"]:"";
+    if(tmp == "")
+    {
+	UI::ChangeWidget(`id(`isgateway), `Value, false );
+	UI::ChangeWidget(`id(`subnet), `Enabled, false );
+    }
+    else
+    {
+	UI::ChangeWidget(`id(`isgateway), `Value, true );
+	UI::ChangeWidget(`id(`subnet), `Value, tmp );
+    }
+
+    tmp = IPsec::current_connection["leftcert"]:"";
+    if (tmp != "")
+	UI::ChangeWidget(`id(`cert), `Value, tmp );
+
 
     UI::SetFocus(`id(`isgateway));
 
@@ -610,6 +654,9 @@ any EasyRoadWarriorDialog () {
 		continue;
 	    }
 
+	    if(gw == false)
+		subnet = "";
+
 	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
 	    list ids = IPsec::getIdsOfCert(cert);
 
@@ -619,6 +666,137 @@ any EasyRoadWarriorDialog () {
 	    IPsec::current_connection["leftsubnet"] = subnet;
 
 	    IPsec::commitChangedConnection();
+
+	    if(IPsec::dynamic_start_suggest_dialup == nil)
+	    {
+		IPsec::dynamic_start_suggest_dialup = true;
+	    }
+	    break;
+	}
+	else if(ret == `back) {
+	    IPsec::setNoConnection();
+            break;
+        }
+	else if(ret == `isgateway)
+	{
+	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
+	    UI::ChangeWidget(`id(`subnet), `Enabled, gw );
+	}
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any EasyRoadWarriorClientDialog () {
+
+    /* Roadwarrior Dialog caption */
+    string caption = _("Create Client Connection");
+
+    list certfiles = IPsec::getCertificateFiles();
+
+    term contents = `VBox(
+	`HBox(
+	    `HStretch(),
+	    `Frame(_("Connection Settings"),
+		`VBox(
+		    `Left(`ComboBox(`id(`addr), `opt(`editable, `hstretch), _("Remote Address"))),
+		    `Left(`VSpacing(1.5)),
+		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Remote is Gateway"), true)),
+		    `Left(`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable), _("Network"), []))),
+		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles))
+		)
+	    ),
+	    `HStretch()
+	)
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["easyroadwarriorclient"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    if(size(certfiles) == 0)
+    {
+	if(Popup::ContinueCancel(_("You need to import certificates first")))
+	    return `needcert;
+	return `back;
+    }
+
+    string tmp = IPsec::current_connection["rightsubnet"]:"";
+    if(tmp == "")
+    {
+	UI::ChangeWidget(`id(`isgateway), `Value, false );
+	UI::ChangeWidget(`id(`subnet), `Enabled, false );
+    }
+    else
+    {
+	UI::ChangeWidget(`id(`isgateway), `Value, true );
+	UI::ChangeWidget(`id(`subnet), `Value, tmp );
+    }
+
+    tmp = IPsec::current_connection["leftcert"]:"";
+    if (tmp != "")
+	UI::ChangeWidget(`id(`cert), `Value, tmp );
+
+    tmp = IPsec::current_connection["right"]:"";
+    if (tmp != "")
+	UI::ChangeWidget(`id(`addr), `Value, tmp );
+
+
+    UI::SetFocus(`id(`addr));
+
+    any ret = nil;
+    while(true)
+    {
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(Popup::ReallyAbort(false)) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
+	    if(size(addr) == 0)
+	    {
+		Popup::Message(_("You must specify the remote's address."));
+		UI::SetFocus(`id(`addr));
+		continue;
+	    }
+
+	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
+	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
+	    if(gw == true && size(subnet)==0)
+	    {
+		Popup::Message(_("You must specify a subnet address if the remote acts as gateway."));
+		UI::SetFocus(`id(`subnet));
+		continue;
+	    }
+
+	    if(gw == false)
+		subnet = "";
+
+	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
+	    list ids = IPsec::getIdsOfCert(cert);
+
+	    IPsec::current_connection["leftcert"] = cert;
+	    // well, just use first one. should be DN
+	    IPsec::current_connection["leftid"] = ids[0]:"";
+	    IPsec::current_connection["rightsubnet"] = subnet;
+	    IPsec::current_connection["right"] = addr;
+
+	    IPsec::commitChangedConnection();
+	    if(IPsec::dynamic_start_suggest_dialup == nil)
+	    {
+		IPsec::dynamic_start_suggest_dialup = true;
+	    }
 	    break;
 	}
 	else if(ret == `back) {

@@ -238,6 +238,8 @@ any OverviewDialog()
 	    if(!IPsec::setCurrentConnection(name))
 		continue;
 
+	    IPsec::edit_start = true;
+
             break;
         }
         /* delete */
