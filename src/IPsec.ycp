@@ -796,6 +796,23 @@ global boolean setCurrentConnection(string name)
     return true;
 }
 
+/**
+ * Check whether the currently selection Connection can be edited. Currently
+ * only x509 connections may be edited
+ * @return nil if ok, message why it is not possible otherwise
+ * */
+global string mayEditCurrentConnection()
+{
+    if(current_connection_name == "") return nil;
+    if(current_connection["leftrsasigkey"]:"%cert" != "%cert"
+	|| current_connection["rightrsasigkey"]:"%cert" != "%cert")
+    {
+	return _("The selected connection does not use certificates for authentication.")+ "\n"
+		+ _("You can only edit connections that use certificaes.");
+    }
+
+    return nil;
+}
 
 /**
  * put current connection into key/value items suitable for a table

@@ -177,7 +177,7 @@ void OverviewDialogCreate()
 
     list overview = IPsec::Overview();
     term buttons = `HBox(
-	`PushButton(`id(`roadwarrior_button), _("RoadWarrior")),
+	`PushButton(`id(`export_button), _("Export")),
 	`PushButton(`id(`expert_button), _("Expert ..."))
 	);
 
@@ -248,8 +248,8 @@ any OverviewDialog()
 
             break;
         }
-        else if(ret == `roadwarrior_button) {
-            ret = `roadwarrior;
+        else if(ret == `export_button) {
+            ret = `export;
 	    break;
 	}
         else if(ret == `next || ret == `back) {

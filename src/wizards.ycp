@@ -47,6 +47,7 @@ any AddSequence() {
 	    `abort	: `abort,
 	    `custom	: "askname",
 	    `roadwarrior: "roadwarrior",
+	    `edit	: "configl",
 	],
 	"askname" : $[
 	    `abort	: `abort,
@@ -151,7 +152,7 @@ any MainSequence() {
 	"settings"	: [ ``( FreeSWANSettingsDialog() ), true ],
 	"import"	: [ ``( ImportSequence() )        , true ],
 	"configE"	: [ ``( ConnectionExpertDialog() ), true ],
-	"roadwarrior"	: [ ``( EasyRoadWarriorDialog() ) , true ],
+	"export"	: [ ``( ExportDialog() ), true ],
     ];
 
     map sequence = $[
@@ -172,7 +173,7 @@ any MainSequence() {
 	    `add	: "add",
 	    `edit	: "edit",
 	    `expert	: "configE",
-	    `roadwarrior : "roadwarrior",
+	    `export     : "export",
 	],
 	"certificates" : $[
 	    `abort	: `abort,
@@ -184,11 +185,11 @@ any MainSequence() {
 	    `next	: "summary",
 	],
 	"add" : $[
-	    `abort	: `abort,
+	    `abort	: "overview", // do not quit whole workflow
 	    `next	: "overview",
 	],
 	"edit" : $[
-	    `abort	: `abort,
+	    `abort	: "overview", // do not quit whole workflow
 	    `next	: "overview",
 	],
 	"settings" : $[
@@ -203,10 +204,9 @@ any MainSequence() {
 	    `abort	: `abort,
 	    `next	: "overview",
 	],
-	"roadwarrior" : $[
+	"export" : $[
 	    `abort	: `abort,
 	    `next	: "overview",
-	    `needcert	: "import",
 	],
     ];
 
