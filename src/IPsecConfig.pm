@@ -588,5 +588,15 @@ sub cancelPreparedP12()
 {
 }
 
+##
+ # GUI callback function
+ #  Parameter:	prompt string
+ #  Returns:	password or undef for skip
+ #
+sub passwordPrompt($)
+{
+    return undef;
+}
+
 # EOF
 # vim: sw=4
