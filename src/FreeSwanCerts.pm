@@ -17,7 +17,7 @@ use OpenCA::X509;
 use OpenCA::CRL;
 use Archive::Zip;
 use File::Temp qw/ tempfile tempdir /;
-
+use Locale::gettext;
 require Exporter;
 
 our @ISA         = qw (Exporter);
@@ -26,6 +26,7 @@ our @ISA         = qw (Exporter);
 #
 our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
                        parse_cert parse_crl parse_key parse_pem_data
+                       extract_ANY extract_ZIP extract_P12 extract_PEM
                       );
 our %EXPORT_TAGS = (
         'all' => [ @EXPORT ]
@@ -50,10 +51,11 @@ our %DEFS        = (
 );
 
 our $ZIP_MAX_SIZE = 100 * 1024; # 100 kbyte per file in zip
+
 our $rx_cert_der  = qr /(?:der|cer)/io;
 our $rx_cert_pem  = qr /(?:pem|crt|crl)/io;
 our $rx_cert_ext  = qr /(?:pem|crt|crl|der|cer)/io;
-our $rx_pk12_ext  = qr /(?:pkcs12|p12|pfx)/io;
+our $rx_pk12_ext  = qr /(?:p12|pk12|pfx)/io;
 
 
 #
@@ -66,7 +68,7 @@ sub list_CAs($;$)
     my %certs;
 
     foreach my $file (list_files($dir)) {
-        my $cert = parse_cert($openssl, $file);
+        my $cert = parse_cert($openssl, file => $file);
         if(defined($cert)) {
             $certs{$file} = $cert;
         }
@@ -83,7 +85,7 @@ sub list_CRLs($;$)
     my %certs;
 
     foreach my $file (list_files($dir)) {
-        my $cert = parse_crl($openssl, $file);
+        my $cert = parse_crl($openssl, file => $file);
         if(defined($cert)) {
             $certs{$file} = $cert;
         }
@@ -100,7 +102,7 @@ sub list_CERTs($;$)
     my %certs;
 
     foreach my $file (list_files($dir)) {
-        my $cert = parse_cert($openssl, $file);
+        my $cert = parse_cert($openssl, file => $file);
         if(defined($cert)) {
             $certs{$file} = $cert;
         }
@@ -117,7 +119,7 @@ sub list_KEYs($;$)
 
 # FIXME: need passwd for...
 #    foreach my $file (list_files($dir)) {
-#        my $cert = parse_key($openssl, $file);
+#        my $cert = parse_key($openssl, file => $file);
 #        if(defined($cert)) {
 #            $certs{$file} = $cert;
 #        }
@@ -150,35 +152,53 @@ sub list_files($;$)
 
 
 # --------------------------------------------------------------------
-sub parse_cert($$)
+# openssl, {file => name, data => ...}
+sub parse_cert($%)
 {
     my $openssl = shift;
-    my $infile  = shift;
+    my %args    = @_;
     my $inform  = 'PEM';
+    my $indata  = $args{'data'};
+    my $infile  = undef;
 
-    unless(defined($infile) and $infile =~ /\S+/) {
-        $infile = '' unless(defined($infile));
-        print STDERR "ERROR: invalid file name '$infile'\n"
-            if($DEBUG);
-        return undef;
+    unless(defined($indata) and length($indata)) {
+        $infile = $args{'file'};
+        unless(defined($infile) and $infile =~ /\S+/) {
+            $infile = '' unless(defined($infile));
+            print STDERR "ERROR: invalid file name '$infile'\n"
+                if($DEBUG);
+            return undef;
+        }
+        $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
     }
-    $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
 
-    my $X509 = new OpenCA::X509(INFILE=>$infile,
+    my $X509 = new OpenCA::X509(DATA  =>$indata,
+                                INFILE=>$infile,
                                 INFORM=>$inform,
                                 SHELL =>$openssl);
     unless($X509) {
-        print STDERR "ERROR: unable to parse cert '$infile': $!\n"
-            if($DEBUG);
+        # FIXME: use err from X509 ?
+        print STDERR "ERROR: unable to parse cert",
+                     defined($infile) ? " '$infile'" : "",
+                     ": errno=$OpenCA::X509::errno,",
+                     " errval=$OpenCA::X509::errval\n" if($DEBUG);
         return undef;
     }
 
     my $parsed = $X509->getParsed();
     my $subjaltname = undef;
 
+    #print STDERR "CERT PARSED: ", join(", ", keys %{$parsed}), "\n";
+
     if(exists($parsed->{"OPENSSL_EXTENSIONS"}) and
        ref($parsed->{"OPENSSL_EXTENSIONS"}) eq 'HASH') {
         my $ref = $parsed->{"OPENSSL_EXTENSIONS"};
+
+       #print STDERR "CONSTRAINS: ", @{$ref->{"X509v3 Basic Constraints"}},
+       #"\n";
+
+       #print STDERR "BASIC IS_CA(",$infile||'',") => ",
+       #      $parsed->{"EXTENSIONS"}->{"BASIC_CONSTRAINTS"}->{"CA"}, "\n";
 
         if(exists($ref->{"X509v3 Subject Alternative Name"}) and
            scalar(@{$ref->{"X509v3 Subject Alternative Name"}||[]})) {
@@ -186,15 +206,18 @@ sub parse_cert($$)
             # just use the first one
             $subjaltname = $ref->{"X509v3 Subject Alternative Name"}[0];
 
-            print STDERR "SubjectAltName($infile): $subjaltname\n"
-                if($DEBUG);
+            print STDERR "SubjectAltName(", $infile||'',
+                         "): $subjaltname\n" if($DEBUG);
 
             # FIXME: do we need to add @ for DNS?
             $subjaltname =~ s/^(?:email|ip|dns)://i;
         }
     }
 
+    print STDERR "IS_CA(",$infile||'',") => ",  $parsed->{"IS_CA"}, "\n";
+
     my %cert;
+    $cert{"IS_CA"}         = $parsed->{"IS_CA"};
     $cert{"DN"}            = $parsed->{"DN"};
     $cert{"ISSUER"}        = $parsed->{"ISSUER"};
     $cert{"subjectAltName"}= $subjaltname;
@@ -202,15 +225,33 @@ sub parse_cert($$)
 }
 
 # --------------------------------------------------------------------
-sub parse_crl($$)
+# openssl, {file => name, data => ...}
+sub parse_crl($%)
 {
     my $openssl = shift;
-    my $file = shift;
+    my %args    = @_;
+    my $inform  = 'PEM';
+    my $indata  = $args{'data'};
+    my $infile  = undef;
 
-    my $CRL = new OpenCA::CRL(INFILE=>$file , SHELL=>$openssl);
+    unless(defined($indata) and length($indata)) {
+        $infile = $args{'file'};
+        unless(defined($infile) and $infile =~ /\S+/) {
+            $infile = '' unless(defined($infile));
+            print STDERR "ERROR: invalid file name '$infile'\n"
+                if($DEBUG);
+            return undef;
+        }
+        $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
+    }
+ 
+    my $CRL = new OpenCA::CRL(DATA  =>$indata,
+                              INFILE=>$infile,
+                              SHELL =>$openssl);
     unless($CRL) {
-        print STDERR "ERROR: unable to parse crl '$file': $!\n"
-            if($DEBUG);
+        print STDERR "ERROR: unable to parse crl",
+                     defined($infile) ? "'$infile'" : "",
+                     ": $!\n" if($DEBUG);
         return undef;
     }
 
@@ -227,8 +268,8 @@ sub parse_crl($$)
             # just use the first one
             $subjaltname = $ref->{"X509v3 Subject Alternative Name"}[0];
 
-            print STDERR "SubjectAltName($file): $subjaltname\n"
-                if($DEBUG);
+            print STDERR "SubjectAltName(", $infile||'',
+                         "): $subjaltname\n" if($DEBUG);
 
             # FIXME: do we need to add @ for DNS?
             $subjaltname =~ s/^(?:email|ip|dns)://i;
@@ -244,15 +285,74 @@ sub parse_crl($$)
 
 
 # --------------------------------------------------------------------
-# openssl, filename, password
-sub parse_key($$$)
+# openssl, {file => name, data => ..., pass => ...}
+sub parse_key($%)
 {
     my $openssl = shift;
-    my $filename = shift;
-    my $password = shift;
+    my %args    = @_;
+    my $inform  = 'PEM';
+    my $indata  = $args{'data'};
+    my $infile  = undef;
+    my $passwd  = $args{'pass'};
+
+    unless(defined($indata) and length($indata)) {
+        $infile = $args{'file'};
+        unless(defined($infile) and $infile =~ /\S+/) {
+            $infile = '' unless(defined($infile));
+            print STDERR "ERROR: invalid file name '$infile'\n"
+                if($DEBUG);
+            return undef;
+        }
+        $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
+    }
     my %hash;
-    $hash{"PASSWORD"} = $password;
+    $hash{"PASSWORD"} = $passwd;
     return \%hash;
+}
+
+# --------------------------------------------------------------------
+sub parse_pem_data($%)
+{
+    my $openssl = shift;
+    my %args    = @_;
+    my $data    = $args{'data'};
+    my $info    = $args{'info'};
+    my $pwcb    = $args{'pwcb'}; # need it for key...
+
+    my $type    = pem_type_by_string($info);
+    if(defined($type)) {
+        if('KEY'  eq $type) {
+            return {
+                type => $type,
+                hash => parse_key ($openssl, data => $data)
+            };
+        }
+        if('CRL'  eq $type) {
+            return {
+                type => $type,
+                hash => parse_crl ($openssl, data => $data)
+            };
+        }
+        if('CERT' eq $type) {
+            return {
+                type => $type,
+                hash => parse_cert($openssl, data => $data)
+            };
+        }
+    }
+    return undef;
+}
+
+# --------------------------------------------------------------------
+sub pem_type_by_string($)
+{
+    my $string = shift;
+    if(defined($string)) {
+        return 'KEY'  if($string =~ /PRIVATE KEY$/);
+        return 'CRL'  if($string =~ /CRL$/);
+        return 'CERT' if($string =~ /CERTIFICATE$/);
+    }
+    return undef;
 }
 
 sub is_certificate($)
@@ -311,32 +411,72 @@ sub commit_scheduled_file_operations()
 
 
 # --------------------------------------------------------------------
-sub parse_pem_data($)
+sub extract_ANY(%)
 {
-    my $blub = shift;
+    my %args = @_;
+    my $file = $args{'file'};
+    my $pwcb = $args{'pwcb'};
+
+    return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
+    if(defined($file) and length($file) and -f $file) {
+        if($file =~ /^.+\.zip$/io) {
+            return extract_ZIP(file => $file, pwcb => $pwcb);
+        }
+        if($file =~ /^.+\.${rx_pk12_ext}$/) {
+            return extract_P12(file => $file, pwcb => $pwcb);
+        }
+        if($file =~ /^.+\.${rx_cert_pem}$/) {
+            return extract_PEM(file => $file, pwcb => $pwcb);
+        }
+    }
+    return undef;
+}
+
+
+# --------------------------------------------------------------------
+sub extract_PEM(%)
+{
+    my %args = @_;
+    my $file = $args{'file'};
+    my $name = $args{'name'};
+    my $blub = $args{'data'};
+
+    # no pwcb needed here...
+    $name = $file unless(defined($name) and length($name));
+    if(defined($file) and $file =~ /^.+\.${rx_cert_pem}$/ and -f $file) {
+        $blub = '';
+        if(open(PEM, "<", $file)) {
+            while(<PEM>) {
+                $blub .= $_;
+            }
+            close(PEM);
+        }
+    }
     return undef unless(defined($blub) and length($blub));
 
     my @list = ();
-    my $type = undef;
+    my $info = undef;
     my $data = undef;
+
+    # FIXME: use multiline matches?
     for my $line (split(/\n/, $blub)) {
-        if(defined($type)) {
+        if(defined($info)) {
+            $data .= "$line\n";
             if($line =~ /^[-]{5}END[ ]([A-Z0-9 ]+)+[-]{5}$/) {
-                if($type eq $1) {
+                if($info eq $1) {
                     push(@list, {
-                            type => $type,
+                            info => $info,
                             data => $data,
+                            name => $name,
                         });
                 }
-                $type = undef;
+                $info = undef;
                 $data = undef;
-            } else {
-                $data .= $line;
             }
         } else {
             if($line =~ /^[-]{5}BEGIN[ ]([A-Z0-9 ]+)+[-]{5}$/) {
-                $type = "$1";
-                $data = $line;
+                $info = "$1";
+                $data = "$line\n";
             }
         }
     }
@@ -346,28 +486,48 @@ sub parse_pem_data($)
 
 
 # --------------------------------------------------------------------
-sub extract_P12
+sub extract_P12(%)
 {
-    my $openssl  = shift;
-    my $file     = shift;
-    my $pass     = shift;
+    my %args = @_;
+    my $file = $args{'file'};
+    my $pwcb = $args{'pwcb'};
+    my $name = $args{'name'};
 
-    return undef unless(defined($file) and length($file) and -f $file);
-    my $blub = $openssl->dataConvert(
-        DATATYPE  =>'CERTIFICATE',
-        P12PASSWD => $pass,
-        INFORM    => "PKCS12",
-        INFILE    => $file,
-        OUTFORM   => "PEM",
-    );
-    return parse_pem($blub);
+    return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
+    return undef unless(defined($file) and length($file) and
+                        -f $file and $file =~ /^.+\.${rx_pk12_ext}$/);
+    $name = $file unless(defined($name) and length($name));
+
+    my $pass = &$pwcb(_("PKCS12 export password for ").$name);
+    return undef  unless(defined($pass));
+
+    # FIXME: openssl instance?
+    my $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
+    if($openssl) {
+        my $blub    = $openssl->dataConvert(
+            DATATYPE  =>'CERTIFICATE',
+            P12PASSWD => $pass,
+            INFORM    => "PKCS12",
+            INFILE    => $file,
+            OUTFORM   => "PEM",
+        );
+        return extract_PEM(data => $blub, name => $file);
+    }
+    return undef;
 }
+
 
 # --------------------------------------------------------------------
 sub extract_ZIP
 {
-    my $file = shift;
-    return undef unless(defined($file) and length($file) and -f $file);
+    my %args = @_;
+    my $file = $args{'file'};
+    my $pwcb = $args{'pwcb'};
+    my $name = $args{'name'};
+
+    return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
+    return undef unless(defined($file) and length($file) and
+                        -f $file and $file =~ /^.+\.zip$/);
 
     my @list = ();
     my $zip = Archive::Zip->new($file);
@@ -375,19 +535,28 @@ sub extract_ZIP
         next unless(defined($member->fileName()));
         next if($member->uncompressedSize() > $ZIP_MAX_SIZE);
 
+        my $name = $member->externalFileName();
+        unless(defined($name) and length($name)) {
+            $name = $member->fileName();
+        }
+
         if($member->fileName() =~ /\.${rx_cert_pem}$/) {
-            my $lref = parse_pem_data($member->contents());
+            my $lref = extract_PEM(data => $member->contents(),
+                                   name => $name);
             if(defined($lref)) {
                 push(@list, @{$lref});
             }
             next;
         }
+
         if($member->fileName() =~ /\.${rx_pk12_ext}$/) {
             my ($fh, $fn) = tempfile("pkcs12XXXXXX",
                                      "SUFFIX" => ".p12");
             if($fh and $fn) {
                 if("AZ_OK" eq $member->extractToFileHandle($fh)) {
-                    my $lref = extract_P12($fn);
+                    my $lref = extract_P12(file => $fn,
+                                           pwcb => \&{$pwcb},
+                                           name => $name);
                     if(defined($lref)) {
                         push(@list, @{$lref});
                     }
