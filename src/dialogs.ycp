@@ -27,16 +27,20 @@ any NewConnectionDialog () {
     string caption = _("IPsec Connection Configuration");
 
     /* IPsec configure1 dialog contents */
-    term contents = `VBox(`HBox(
-	`Frame(_("Choose connection type"),
-	    `RadioButtonGroup(`id(`rbg),
-		`VBox(
-		    `Left(`RadioButton(`id(`roadwarrior), _("Road Warrior Server"), true)),
-		    `Left(`RadioButton(`id(`custom), _("Custom")))
+    term contents = `VBox(
+	`HBox(
+	    `HStretch(),
+	    `Frame(_("Choose connection type"),
+		`RadioButtonGroup(`id(`rbg),
+		    `VBox(
+			`Left(`RadioButton(`id(`roadwarrior), _("Road Warrior Server"), true)),
+			`Left(`RadioButton(`id(`custom), _("Custom")))
+		    )
 		)
-	    )
+	    ),
+	    `HStretch()
 	)
-    ));
+    );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["newconnection"]:"",
 	    Label::BackButton(), Label::NextButton());
@@ -551,8 +555,9 @@ any EasyRoadWarriorDialog () {
 
     if(size(certfiles) == 0)
     {
-	Popup::Message(_("You need to import certificates first"));
-	return `needcert;
+	if(Popup::ContinueCancel(_("You need to import certificates first")))
+	    return `needcert;
+	return `back;
     }
 
     UI::SetFocus(`id(`isgateway));
