@@ -15,6 +15,7 @@ import "Label";
 import "Wizard";
 import "IPsec";
 import "IPsecConfig";
+import "IPsecPopups";
 import "Label";
 
 include "ipsec/helps.ycp";
@@ -71,33 +72,6 @@ any CertificateImportDialog1 ()
     }
 
     return ret;
-}
-
-string PasswordPopup(string headline)
-{
-    UI::OpenDialog(
-	`VBox(
-	    `Heading(headline),
-	    `Password(`id(`pass), "Password:"),
-	    `VSpacing(0.5),
-	    `HBox(
-		`PushButton(`id(`ok), Label::OKButton()),
-		`PushButton(`id(`cancel), Label::CancelButton())
-	    )
-	)
-    );
-
-    if( UI::UserInput() != `ok)
-    {
-	UI::CloseDialog();
-	return nil;
-    }
-
-    string pw = (string) UI::QueryWidget(`id(`pass), `Value);
-
-    UI::CloseDialog();
-
-    return pw;
 }
 
 /**
@@ -212,7 +186,7 @@ any CertificateImportDialogFiles () {
 	{
 	    string file = UI::AskForExistingFile ( IPsec::certimportdir, "*.pem *.PEM", _("Choose Key File"));
 	    if(!IPsec::updateImportDir(file)) continue;
-	    string pw = PasswordPopup(_("Enter Key Password"));
+	    string pw = IPsecPopups::Password(_("Enter Key Password"));
 	    if(pw == nil) continue;
 	    UI::ChangeWidget(`id(`key), `Value, file );
 	    keyfile = file;
@@ -246,7 +220,7 @@ list askp12file()
     if(p12file == nil)
 	return nil;
 
-    string p12pass = PasswordPopup(_("Enter PKCS#12 Password"));
+    string p12pass = IPsecPopups::Password(_("Enter PKCS#12 Password"));
 
     if(p12pass == nil)
 	return nil;

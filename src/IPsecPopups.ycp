@@ -1,0 +1,35 @@
+{
+
+module "IPsecPopups";
+textdomain "ipsec";
+
+import "Label";
+
+global string Password(string headline)
+{
+    UI::OpenDialog(
+	`VBox(
+	    `Heading(headline),
+	    `Password(`id(`pass), "Password:"),
+	    `VSpacing(0.5),
+	    `HBox(
+		`PushButton(`id(`ok), Label::OKButton()),
+		`PushButton(`id(`cancel), Label::CancelButton())
+	    )
+	)
+    );
+
+    if( UI::UserInput() != `ok)
+    {
+	UI::CloseDialog();
+	return nil;
+    }
+
+    string pw = (string) UI::QueryWidget(`id(`pass), `Value);
+
+    UI::CloseDialog();
+
+    return pw;
+}
+
+}
