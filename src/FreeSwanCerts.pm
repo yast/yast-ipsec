@@ -16,7 +16,9 @@ use OPENSSL;
 use Archive::Zip;
 use Fcntl qw(:DEFAULT :mode :flock);
 use File::Temp qw/ tempfile tempdir /;
-use Locale::gettext ("!textdomain");
+# Tranlator: do _not_ translate this! The reason why it's in the pot file is a
+# technical deficiency
+use Locale::gettext("!textdomain");
 
 require Exporter;
 
@@ -319,12 +321,15 @@ sub parse_pem_data(%)
                 while(not defined($href)) {
                     if(defined($pass)) {
                         $pass = &$pwcb(dgettext($TXTDOMAIN,
+						# Translator: popup that informs about invalid password
                                                 "Wrong password.")
                                        ."\n".
                                        dgettext($TXTDOMAIN,
+						# Translator: popup that prompts for a password
                                                 "RSA key password"));
                     } else {
                         $pass = &$pwcb(dgettext($TXTDOMAIN,
+						# Translator: popup that prompts for a password
                                                 "RSA key password"));
                     }
                     return undef unless(defined($pass));
@@ -538,13 +543,16 @@ sub extract_P12(%)
     do {
         if(defined($pass)) {
             $pass = &$pwcb(dgettext($TXTDOMAIN,
+			   # Translator: popup that informs about invalid password
                            "Wrong password.")
                            ."\n".
-                           dgettext($TXTDOMAIN,
-                           "PKCS12 import password for ").$name);
+                           sprintf(dgettext($TXTDOMAIN,
+			   # Translator: popup that prompts for a password, %s = filename
+                           "PKCS12 import password for %s"),$name));
         } else {
-            $pass = &$pwcb(dgettext($TXTDOMAIN,
-                           "PKCS12 import password for ").$name);
+            $pass = &$pwcb(sprintf(dgettext($TXTDOMAIN,
+			   # Translator: popup that prompts for a password, %s = filename
+                           "PKCS12 import password for %s"),$name));
         }
         return undef unless(defined($pass));
 

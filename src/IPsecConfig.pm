@@ -33,6 +33,8 @@ BEGIN {
 use strict;
 use warnings;
 use diagnostics;
+# Tranlator: do _not_ translate this! The reason why it's in the pot file is a
+# technical deficiency
 use Locale::gettext ("!textdomain");
 use POSIX;  # Needed for setlocale()
 use File::Temp qw(tempdir);
@@ -190,6 +192,7 @@ sub Write
 	$fsutil->conn($name, %{$connections{$name}});
     }
     if($fsutil and not($fsutil->save_config())) {
+	# Translator: error message concatenated after colon
 	Popup::Error("IPsecConfig", dgettext($TXTDOMAIN,
 	             "Failed to save ipsec.conf:")."\n"
 	             . $fsutil->errstr());
@@ -216,6 +219,7 @@ sub Write
         debug "updateing 509-key '$file' in secrets";
     }
     if($fsutil and not($fsutil->save_secrets())) {
+	# Translator: error message concatenated after colon
 	Popup::Error("IPsecConfig", dgettext($TXTDOMAIN,
 	             "Failed to save ipsec.secrets:")."\n"
 	             . $fsutil->errstr());
@@ -238,6 +242,7 @@ sub Write
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
 	    Popup::Error("IPsecConfig",
+			# Translator: filename, error message
 	                 sprintf(dgettext($TXTDOMAIN,
 	                         "Cannot write file %s: %s"),
 	                         $file, $err)."\n");
@@ -260,6 +265,7 @@ sub Write
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
 	    Popup::Error("IPsecConfig",
+			# Translator: filename, error message
 	                 sprintf(dgettext($TXTDOMAIN,
 	                         "Cannot write file %s: %s"),
 	                         $file, $err)."\n");
@@ -282,6 +288,7 @@ sub Write
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
 	    Popup::Error("IPsecConfig",
+			# Translator: filename, error message
 	                 sprintf(dgettext($TXTDOMAIN,
 	                         "Cannot write file %s: %s"),
 	                         $file, $err)."\n");
@@ -304,6 +311,7 @@ sub Write
 	my $err = write_pem_data($file, $href->{'data'}, 0600);
 	if(defined($err)) {
 	    Popup::Error("IPsecConfig",
+			# Translator: filename, error message
 	                 sprintf(dgettext($TXTDOMAIN,
 	                         "Cannot write file %s: %s"),
 	                         $file, $err)."\n");
@@ -704,6 +712,7 @@ sub prepareImportFile($)
     my $list = extract_ANY(file => $file, pwcb => \&passwordPrompt);
 
     unless(defined($list) and scalar(@{$list})) {
+	# Translator: %s = filename
 	return sprintf(dgettext($TXTDOMAIN,"Nothing found in %s."), $file);
     }
 
