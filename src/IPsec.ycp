@@ -427,7 +427,7 @@ global boolean Read() {
     if(Abort()) return false;
     Progress::NextStage();
 
-    if(Mode::test == true)
+    if(Mode::test() == true)
     {
 	IPsecConfig::enableTestMode();
     }
@@ -442,7 +442,7 @@ global boolean Read() {
     if(Abort()) return false;
     Progress::NextStage();
 
-    if(!Mode::test && !NetworkDevices::Read())
+    if(!Mode::test() && !NetworkDevices::Read())
     {
 	Report::Warning(_("Cannot read network settings."));
     }
@@ -1097,7 +1097,7 @@ global void commitChangedConnection()
 /** return list of interface configuration */
 global list<string> getDevices()
 {
-    if(Mode::test == true)
+    if(Mode::test() == true)
 	return [ "eth0", "dsl0" ];
 
     list<string> devices = (list<string>)NetworkDevices::List("");
@@ -1112,7 +1112,7 @@ global list getIPaddresses()
 {
     list ips = [];
 
-    if(Mode::test == true)
+    if(Mode::test() == true)
 	return [ "10.10.1.1", "192.168.1.1" ];
 
     list<string> devices = getDevices();
@@ -1130,7 +1130,7 @@ global list getIPaddresses()
 /** return list of possible networks */
 global list getNetworks()
 {
-    if(Mode::test == true)
+    if(Mode::test() == true)
 	return [ "10.10.99.0/16", "192.168.88.0/24" ];
 
     list<string> devices = getDevices();
