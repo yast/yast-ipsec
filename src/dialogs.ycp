@@ -368,7 +368,7 @@ any ConnectionStartModeDialog () {
 	`HStretch()
     );
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS["startmode"]:"",
 	    Label::BackButton(), Label::NextButton());
 
     {
@@ -437,7 +437,8 @@ any ConnectionStartModeDialog () {
  */
 any FreeSWANSettingsDialog ()
 {
-    string caption = _("FreeS/WAN Settings");
+    // dialog headline
+    string caption = _("Global IPsec Settings");
 
     term contents = `HBox (`HStretch(),
 	`Frame(IPsec::settings_str,
@@ -450,10 +451,8 @@ any FreeSWANSettingsDialog ()
 	), `HStretch()
     );
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["freeswansettings"]:"",
+    Wizard::SetContentsButtons(caption, contents, HELPS["settings"]:"",
 	    Label::BackButton(), Label::NextButton());
-
-    // TODO
 
     any ret = nil;
     while(true) {
