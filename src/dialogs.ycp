@@ -455,7 +455,7 @@ any ConnectionStartModeDialog () {
 	    {
 		if(!left_is_dynamic)
 		{
-		    if(Popup::YesNo(_("You chose '%1' as local IP address but want to start the connection dynamically.\nDo you want to set the local IP address to %dynamic?.")) == false)
+		    if(Popup::YesNo(sformat(_("You chose '%1' as local IP address but want to start the connection dynamically.\nDo you want to set the local IP address to %%dynamic?."), IPsec::current_connection["left"]:"")) == false)
 		    {
 			continue;
 		    }
