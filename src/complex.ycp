@@ -156,11 +156,16 @@ void OverviewDialogCreate()
     string caption = _("IPsec Connection Overview");
 
     list overview = IPsec::Overview();
+    term buttons = `HBox(
+	`PushButton(`id(`roadwarrior_button), _("RoadWarrior")),
+	`PushButton(`id(`expert_button), _("Expert ..."))
+	);
 
     term contents = Wizard_hw::ConfiguredContent(
 	/* Table header */
 	`header(_("Connection"), _("Local"), _("Remote")),
-	overview, nil, nil, nil, nil );
+	overview, nil, nil,
+	    buttons, nil );
 
     contents = Wizard_hw::SpacingAround(contents, 1.5, 1.5, 1.0, 1.0);
 
@@ -192,7 +197,7 @@ any OverviewDialog()
         else if(ret == `add_button) {
             ret = `add;
 	    string name = (string) UI::QueryWidget(`id(`table), `CurrentItem);
-	    IPsec::setNoConnection();
+	    IPsec::newConnection();
             break;
         }
         /* edit */
@@ -213,6 +218,20 @@ any OverviewDialog()
 	    OverviewDialogCreate();
             continue;
         }
+        /* expert */
+        else if(ret == `expert_button) {
+            ret = `expert;
+
+	    string name = (string) UI::QueryWidget(`id(`table), `CurrentItem);
+	    if(!IPsec::setCurrentConnection(name))
+		continue;
+
+            break;
+        }
+        else if(ret == `roadwarrior_button) {
+            ret = `roadwarrior;
+	    break;
+	}
         else if(ret == `next || ret == `back) {
             break;
         }

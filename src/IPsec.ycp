@@ -809,6 +809,36 @@ global void setNoConnection()
     current_connection_oldname = "";
 }
 
+/**
+ * prepare a new connection for editing
+ * */
+global void newConnection()
+{
+    current_connection = IPsecConfig::newRoadWarriorConnection();
+    current_connection_name = "";
+    current_connection_oldname = "";
+}
+
+global void newRoadWarriorConnection()
+{
+    current_connection = IPsecConfig::newRoadWarriorConnection();
+    current_connection_name = "roadwarrior";
+    current_connection_oldname = "";
+
+    integer i = 0;
+    foreach(string name, map conn, connections, ``{
+	if(substring(name, 0, 11) == "roadwarrior")
+	{
+	    i = i + 1;
+	}
+    });
+
+    if(i != 0)
+	current_connection_name = current_connection_name + i;
+
+    y2milestone("new rw %1", current_connection_name);
+}
+
 /** delete the given connection */
 global void DeleteConnection(string name)
 {
@@ -937,7 +967,7 @@ global list getCertificateFiles()
 }
 
 
-/** return list of subjectAltNames (currently only one possible) */
+/** return list of DN and subjectAltNames (currently only one possible) */
 global list getIdsOfCert(string name)
 {
     if(size(name) == 0 || !haskey(certificates, name))

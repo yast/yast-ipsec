@@ -29,7 +29,6 @@ any AddSequence() {
 
     map aliases = $[
 	"config1"	: ``(ConnectionConfigDialog1()),
-	"configE"	: ``(ConnectionExpertDialog()),
 	"configl"	: ``(LeftConnectionConfigDialog()),
 	"configr"	: ``(RightConnectionConfigDialog()),
 	"config4"	: ``(ConnectionConfigEncryptionDialog()),
@@ -44,11 +43,6 @@ any AddSequence() {
 	"config1" : $[
 	    `abort	: `abort,
 	    `next	: "configl",
-	    `expert	: "configE"
-	],
-	"configE" : $[
-	    `abort	: `abort,
-	    `next	: "done",
 	],
 	"configl" : $[
 	    `abort	: `abort,
@@ -137,8 +131,10 @@ any MainSequence() {
 	"configure"	: [ ``( AddSequence() ), true ],
 	"add"		: [ ``( AddSequence() ), true ],
 	"edit"		: [ ``( AddSequence() ), true ],
-	"settings"	: [ ``(FreeSWANSettingsDialog()), true ],
-	"import"	: [ ``( ImportSequence() ), true ],
+	"settings"	: [ ``( FreeSWANSettingsDialog() ), true ],
+	"import"	: [ ``( ImportSequence() )        , true ],
+	"configE"	: [ ``( ConnectionExpertDialog() ), true ],
+	"roadwarrior"	: [ ``( EasyRoadWarriorDialog() ) , true ],
     ];
 
     map sequence = $[
@@ -157,6 +153,8 @@ any MainSequence() {
 	    `next	: "summary",
 	    `add	: "add",
 	    `edit	: "edit",
+	    `expert	: "configE",
+	    `roadwarrior : "roadwarrior",
 	],
 	"certificates" : $[
 	    `abort	: `abort,
@@ -182,6 +180,15 @@ any MainSequence() {
 	"import" : $[
 	    `abort	: `abort,
 	    `next	: "certificates",
+	],
+	"configE" : $[
+	    `abort	: `abort,
+	    `next	: "overview",
+	],
+	"roadwarrior" : $[
+	    `abort	: `abort,
+	    `next	: "overview",
+	    `needcert	: "certificates",
 	],
     ];
 

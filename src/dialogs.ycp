@@ -32,9 +32,7 @@ any ConnectionConfigDialog1 () {
 	    `HStretch(),
 	    `TextEntry(`id(`name), _("Connection Name"), IPsec::current_connection_name),
 	    `HStretch()
-	),
-	`VSpacing(2),
-	`PushButton(`id(`expert), _("Expert ..."))
+	)
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["c1"]:"",
@@ -460,6 +458,97 @@ any ConnectionDoneDialog ()
     return `next;
 }
 
+/**
+ * Configure1 dialog
+ * @return dialog result
+ */
+any EasyRoadWarriorDialog () {
+
+    /* Roadwarrior Dialog caption */
+    string caption = _("Create Roadwarrior Connection");
+
+    list certfiles = IPsec::getCertificateFiles();
+
+    list networks = IPsec::getNetworks();
+
+    networks = sort(add(networks, "0.0.0.0/0"));
+
+    IPsec::newRoadWarriorConnection();
+
+    term contents = `VBox(
+	`HBox(
+	    `HStretch(),
+	    `Frame(_("Road Warrior Settings"),
+		`VBox(
+		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Act as Gateway"), true)),
+		    `Left(`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable), _("Network"), networks))),
+		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles))
+		)
+	    ),
+	    `HStretch()
+	)
+    );
+
+    Wizard::SetContentsButtons(caption, contents, HELPS["easyroadwarrior"]:"",
+	    Label::BackButton(), Label::NextButton());
+
+    if(size(certfiles) == 0)
+    {
+	Popup::Message(_("You need to import certificates first"));
+	return `needcert;
+    }
+
+    UI::SetFocus(`id(`isgateway));
+
+    any ret = nil;
+    while(true)
+    {
+	ret = UI::UserInput();
+
+	/* abort? */
+	if(ret == `abort || ret == `cancel) {
+	    if(ReallyAbort()) break;
+	    else continue;
+	}
+        else if(ret == `next)
+	{
+	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
+	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
+	    if(gw == true && size(subnet)==0)
+	    {
+		Popup::Message(_("You must set a subnet address if you configure a gateway"));
+		UI::SetFocus(`id(`subnet));
+		continue;
+	    }
+
+	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
+	    list ids = IPsec::getIdsOfCert(cert);
+
+	    IPsec::current_connection["leftcert"] = cert;
+	    // well, just use first one. should be DN
+	    IPsec::current_connection["leftid"] = ids[0]:"";
+	    IPsec::current_connection["leftsubnet"] = subnet;
+
+	    IPsec::commitChangedConnection();
+	    break;
+	}
+	else if(ret == `back) {
+	    IPsec::setNoConnection();
+            break;
+        }
+	else if(ret == `isgateway)
+	{
+	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
+	    UI::ChangeWidget(`id(`subnet), `Enabled, gw );
+	}
+        else {
+            y2error("unexpected retcode: %1", ret);
+            continue;
+        }
+    }
+
+    return ret;
+}
 
 /* EOF */
 }
