@@ -342,16 +342,31 @@ sub newDefaultConnection()
 }
 
 ##
- # Create new Roadwarrior default connection
+ # Create new server connection for roadwarriors
  # @return connection map
-BEGIN { $TYPEINFO{newRoadWarriorConnection} = ["function", [ "map", "string", "string" ]]; }
-sub newRoadWarriorConnection()
+BEGIN { $TYPEINFO{newServerConnection} = ["function", [ "map", "string", "string" ]]; }
+sub newServerConnection()
 {
     my $conn = newDefaultConnection();
 
     $conn->{"left"} = "%defaultroute";
     $conn->{"right"} = "%any";
     $conn->{"auto"} = "add";
+
+    return $conn;
+}
+
+##
+ # Create new roadwarrior client connection
+ # @return connection map
+BEGIN { $TYPEINFO{newClientConnection} = ["function", [ "map", "string", "string" ]]; }
+sub newClientConnection()
+{
+    my $conn = newDefaultConnection();
+
+    $conn->{"left"} = "%defaultroute";
+    $conn->{"right"} = "";
+    $conn->{"auto"} = "start";
 
     return $conn;
 }

@@ -61,21 +61,28 @@ certificates, certificate revoke lists (CRLs) and keys.</p>")
 Summary of already configured connections. Click on the <b>'Connections...'</b>
 button to add new connections or edit existing ones.</p>"),
 
-    /* Ovreview dialog help 1/3 */
+    /* Ovreview dialog help 1/4 */
     "overview" : _("<p><b><big>IPsec Configuration Overview</big></b><br>
-Obtain an overview of installed ipsecs. Additionally
-edit their configuration.<br></p>
+This screen gives you an overview about the configured IPsec connections and
+allows you to edit them.<br></p>
 ") +
 
-    /* Ovreview dialog help 2/3 */
-_("<p><b><big>Adding an IPsec:</big></b><br>
-Press <b>Add</b> to configure an ipsec.</p>
+    /* Ovreview dialog help 2/4 */
+_("<p><b><big>Adding a new connection:</big></b><br>
+Press <b>Add</b> to start a wizard that helps you configure a new IPsec connection.</p>
 ") +
 
-    /* Ovreview dialog help 3/3 */
+    /* Ovreview dialog help 3/4 */
 _("<p><b><big>Editing or Deleting:</big></b><br>
-Choose a ipsec to change or remove.
+Select the connection you want to edit or delete from the list.
 Then press <b>Edit</b> or <b>Delete</b> as desired.</p>
+") +
+
+    /* Ovreview dialog help 3/4 */
+_("<p><b><big>Importing or Exporting:</big></b><br>
+Select a server connection and press <b>Export</b> to generate a config file
+suitable for imporing by a client. Press <b>Import</b> on the client to import
+such a server generated config file.</p>
 "),
 
     /* Certificate dialog help 1/3 */

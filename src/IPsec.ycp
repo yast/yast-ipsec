@@ -44,6 +44,12 @@ global boolean modified = false;
  */
 global boolean proposal_valid = false;
 
+/** flag whether first edit screen is displayed */
+global boolean edit_start = false;
+
+/** set to true to preselect a dialup interface */
+global boolean dynamic_start_suggest_dialup = nil;
+
 /**
  * Write only, used during autoinstallation.
  * Don't run services and SuSEconfig, it's all done at one place.
@@ -737,6 +743,7 @@ global void setNoConnection()
     current_connection = $[];
     current_connection_name = "";
     current_connection_oldname = "";
+    dynamic_start_suggest_dialup = nil;
 }
 
 /**
@@ -744,16 +751,18 @@ global void setNoConnection()
  * */
 global void newConnection()
 {
-    current_connection = IPsecConfig::newRoadWarriorConnection();
+    current_connection = IPsecConfig::newServerConnection();
     current_connection_name = "";
     current_connection_oldname = "";
+    dynamic_start_suggest_dialup = nil;
 }
 
-global void newRoadWarriorConnection()
+global void newServerConnection()
 {
-    current_connection = IPsecConfig::newRoadWarriorConnection();
+    current_connection = IPsecConfig::newServerConnection();
     current_connection_name = "roadwarrior";
     current_connection_oldname = "";
+    dynamic_start_suggest_dialup = nil;
 
     integer i = 0;
     foreach(string name, map conn, connections, ``{
@@ -767,6 +776,27 @@ global void newRoadWarriorConnection()
 	current_connection_name = current_connection_name + i;
 
     y2milestone("new rw %1", current_connection_name);
+}
+
+global void newClientConnection()
+{
+    current_connection = IPsecConfig::newClientConnection();
+    current_connection_name = "clientserver";
+    current_connection_oldname = "";
+    dynamic_start_suggest_dialup = nil;
+
+    integer i = 0;
+    foreach(string name, map conn, connections, ``{
+	if(substring(name, 0, 11) == "clientserver")
+	{
+	    i = i + 1;
+	}
+    });
+
+    if(i != 0)
+	current_connection_name = current_connection_name + i;
+
+    y2milestone("new client %1", current_connection_name);
 }
 
 /** delete the given connection */
@@ -1038,6 +1068,22 @@ global boolean setNetworkDevicesUP(list devices)
     });
 
     return true;
+}
+
+/** find first dialup interface and return it.
+ * */
+global list<string> getDialupInterfaces()
+{
+    list alldevices = getDevices();
+    list<string> ret = [];
+
+    foreach(string dev, alldevices,
+    ``{
+	if(NetworkDevices::GetValue(dev, "PROVIDER") != "")
+	    ret = add(ret, dev);
+    });
+
+    return ret;
 }
 
 /**

@@ -35,8 +35,10 @@ any AddSequence() {
 	"done"		: ``(ConnectionDoneDialog()),
 	"importl"	: [ ``( CertificateOverviewDialog() ), true ],
 	"importr"	: [ ``( CertificateOverviewDialog() ), true ],
-	"importrw"	: [ ``( CertificateOverviewDialog() ), true ],
-	"roadwarrior"	: ``( EasyRoadWarriorDialog() ),
+	"importrws"	: [ ``( CertificateOverviewDialog() ), true ],
+	"importrwc"	: [ ``( CertificateOverviewDialog() ), true ],
+	"rws"		: ``( EasyRoadWarriorServerDialog() ),
+	"rwc"		: ``( EasyRoadWarriorClientDialog() ),
     ];
 
     map sequence = $[
@@ -44,17 +46,23 @@ any AddSequence() {
 	"newconn" : $[
 	    `abort	: `abort,
 	    `custom	: "askname",
-	    `roadwarrior: "roadwarrior",
+	    `rws	: "rws",
+	    `rwc	: "rwc",
 	    `edit	: "configl",
 	],
 	"askname" : $[
 	    `abort	: `abort,
 	    `next	: "configl",
 	],
-	"roadwarrior" : $[
+	"rws" : $[
 	    `abort	: `abort,
 	    `next	: "startmode",
-	    `needcert	: "importrw",
+	    `needcert	: "importrws",
+	],
+	"rwc" : $[
+	    `abort	: `abort,
+	    `next	: "startmode",
+	    `needcert	: "importrwc",
 	],
 	"configl" : $[
 	    `abort	: `abort,
@@ -82,9 +90,13 @@ any AddSequence() {
 	    `abort	: `abort,
 	    `next	: "configr"
 	],
-	"importrw" : $[
+	"importrws" : $[
 	    `abort	: `abort,
-	    `next	: "roadwarrior",
+	    `next	: "rws",
+	],
+	"importrwc" : $[
+	    `abort	: `abort,
+	    `next	: "rwc",
 	],
 	"done" : $[
 	    `abort	: `abort,
