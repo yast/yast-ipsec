@@ -83,20 +83,24 @@ sub error
 #
 sub errstr
 {
-    my $self;
+    my $self = shift;
 
+    my $err  = "SUCCESS";
     if($self->{'error'}->{'code'}) {
-	return "ERROR[".$self->{'error'}->{'code'}."]: ".
-	       $self->{'error'}->{'emsg'}.
-	       ($self->{'error'}->{'file'} ? " in ".
-	        $self->{'error'}->{'file'} : "").
-	       ($self->{'error'}->{'erno'} ? " [errno=".
-	        $self->{'error'}->{'erno'}."]" : "").
-	       ($self->{'error'}->{'line'} ? " line='".
-	        $self->{'error'}->{'line'}."'" : "");
-		
-    }    
-    return "SUCCESS";
+        $err  = "ERROR[".$self->{'error'}->{'code'}."]: ";
+        $err .= $self->{'error'}->{'emsg'};
+        if($self->{'error'}->{'file'}) {
+            $err .= " in ".$self->{'error'}->{'file'};
+            if($self->{'error'}->{'code'} > 0) {
+               $err .= ":".$self->{'error'}->{'code'};
+            }
+        }
+        $err .= $self->{'error'}->{'erno'} ?
+                " [errno=".$self->{'error'}->{'erno'}."]" : "";
+        $err .= $self->{'error'}->{'line'} ?
+                " line='".$self->{'error'}->{'line'}."'"  : "";
+    }
+    return $err;
 }
 
 
@@ -106,9 +110,28 @@ sub errstr
 sub load_config
 {
     my $self = shift;
-    my $file = shift || $self->{'ipsec_root'}.
-                        $self->{'ipsec_conf'};
+    my $file = shift;
 
+    unless($file) {
+        $file = $self->{'ipsec_root'}.
+                $self->{'ipsec_conf'};
+        unless(-f $file) {
+            #
+            # fake empty default config
+            # if it does not exists
+            #
+            $self->_init_config(file   => $file,
+                                setup  => {},
+                                conn   => {
+                                    '%default' => {
+                                        'file' => $file,
+                                        'data' => {}
+                                    }
+                                },
+                                version=> $self->{'ipsec_version'});
+            return 1; # true
+        }
+    }
     $self->_init_config(file => $file);
 
     my ($ret, %err) = load_ipsec_conf($self, $file, $DEPTH);
@@ -164,9 +187,20 @@ sub dump_config
 sub load_secrets
 {
     my $self = shift;
-    my $file = shift || $self->{'ipsec_root'}.
-                        $self->{'ipsec_secrets'};
+    my $file = shift;
 
+    unless($file) {
+        $file = $self->{'ipsec_root'}.
+                $self->{'ipsec_secrets'};
+        unless(-f $file) {
+            #
+            # fake empty default config
+            # if it does not exists
+            #
+            $self->_init_secrets(file   => $file);
+            return 1; # true
+        }
+    }
     $self->_init_secrets(file => $file);
 
     my ($ret, %err) = load_ipsec_secrets($self, $file, $DEPTH);
@@ -248,7 +282,10 @@ sub _init_secrets
 {
     my $self = shift;
     my %args = @_;
-    my %secr = ();
+    my %secr = (
+        'include' => [],
+        'file'    => undef,
+    );
     foreach (keys %secr) {
         $self->{$_} = exists($args{$_}) ?
                       $args{$_} : $secr{$_};
@@ -301,6 +338,10 @@ sub save_ipsec_conf
             $conf->{'conn'}->{$conn}->{'file'} = $conf->{'file'};
         }
     }
+
+    #
+    # FIXME: file permissions! use sysopen + mode
+    #
 
     my $save = {};
     my ($ret, %err) = _save_ipsec_conf($conf, $file, $save,
