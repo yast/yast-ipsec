@@ -15,6 +15,8 @@ use warnings;
 use OpenCA::OpenSSL;
 use OpenCA::X509;
 use OpenCA::CRL;
+use Archive::Zip;
+use File::Temp qw/ tempfile tempdir /;
 
 require Exporter;
 
@@ -23,7 +25,7 @@ our @ISA         = qw (Exporter);
 # FIXME: exports
 #
 our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
-                       parse_cert parse_crl parse_key
+                       parse_cert parse_crl parse_key parse_pem_data
                       );
 our %EXPORT_TAGS = (
         'all' => [ @EXPORT ]
@@ -47,8 +49,12 @@ our %DEFS        = (
     'ipsec_private'  => '/etc/ipsec.d/private',
 );
 
-our $rx_cert_ext  = qr /(?:pem|crt|crl|der|cer)/io;
+our $ZIP_MAX_SIZE = 100 * 1024; # 100 kbyte per file in zip
 our $rx_cert_der  = qr /(?:der|cer)/io;
+our $rx_cert_pem  = qr /(?:pem|crt|crl)/io;
+our $rx_cert_ext  = qr /(?:pem|crt|crl|der|cer)/io;
+our $rx_pk12_ext  = qr /(?:pkcs12|p12|pfx)/io;
+
 
 #
 # === public functions ===============================================
@@ -119,31 +125,7 @@ sub list_KEYs($;$)
     return %certs;
 }
 
-#sub extract_P12
-#{
-#    my $openssl  = shift;
-#    my $file     = shift;
-#    my $pass     = shift;
-#    my %hash     = ();
-#
-#    return undef unless(defined($file) and length($file) and -f $file);
-#    my $blub = $openssl->dataConvert(
-#        DATATYPE  =>'CERTIFICATE',
-#        P12PASSWD => $p12_pass,
-#        INFORM    => "PKCS12",
-#        INFILE    => $file,
-#        OUTFORM   => "PEM",
-#    );
-#    $blub = '' unless(defined($blub));
-#
-#    my @data = split(/\n/, $blub);
-#    return undef unless(scalar(@data) > 0);
-#
-#    for my $line (@data) {
-#    }
-#}
-
-# === private helpers ================================================
+# --------------------------------------------------------------------
 sub list_files($;$)
 {
     my $dir = shift;
@@ -260,6 +242,7 @@ sub parse_crl($$)
     return \%cert;
 }
 
+
 # --------------------------------------------------------------------
 sub parse_key($$)
 {
@@ -272,6 +255,96 @@ sub is_certificate($)
 	return 1;
 }
 
+
+# --------------------------------------------------------------------
+sub parse_pem_data($)
+{
+    my $blub = shift;
+    return undef unless(defined($blub) and length($blub));
+
+    my @list = ();
+    my $type = undef;
+    my $data = undef;
+    for my $line (split(/\n/, $blub)) {
+        if(defined($type)) {
+            if($line =~ /^[-]{5}END[ ]([A-Z0-9 ]+)+[-]{5}$/) {
+                if($type eq $1) {
+                    push(@list, {
+                            type => $type,
+                            data => $data,
+                        });
+                }
+                $type = undef;
+                $data = undef;
+            } else {
+                $data .= $line;
+            }
+        } else {
+            if($line =~ /^[-]{5}BEGIN[ ]([A-Z0-9 ]+)+[-]{5}$/) {
+                $type = "$1";
+                $data = $line;
+            }
+        }
+    }
+
+    return \@list;
+}
+
+
+# --------------------------------------------------------------------
+sub extract_P12
+{
+    my $openssl  = shift;
+    my $file     = shift;
+    my $pass     = shift;
+
+    return undef unless(defined($file) and length($file) and -f $file);
+    my $blub = $openssl->dataConvert(
+        DATATYPE  =>'CERTIFICATE',
+        P12PASSWD => $pass,
+        INFORM    => "PKCS12",
+        INFILE    => $file,
+        OUTFORM   => "PEM",
+    );
+    return parse_pem($blub);
+}
+
+# --------------------------------------------------------------------
+sub extract_ZIP
+{
+    my $file = shift;
+    return undef unless(defined($file) and length($file) and -f $file);
+
+    my @list = ();
+    my $zip = Archive::Zip->new($file);
+    for my $member ($zip->members()) {
+        next unless(defined($member->fileName()));
+        next if($member->uncompressedSize() > $ZIP_MAX_SIZE);
+
+        if($member->fileName() =~ /\.${rx_cert_pem}$/) {
+            my $lref = parse_pem_data($member->contents());
+            if(defined($lref)) {
+                push(@list, @{$lref});
+            }
+            next;
+        }
+        if($member->fileName() =~ /\.${rx_pk12_ext}$/) {
+            my ($fh, $fn) = tempfile("pkcs12XXXXXX",
+                                     "SUFFIX" => ".p12");
+            if($fh and $fn) {
+                if("AZ_OK" eq $member->extractToFileHandle($fh)) {
+                    my $lref = extract_P12($fn);
+                    if(defined($lref)) {
+                        push(@list, @{$lref});
+                    }
+                }
+                unlink($fn);
+            }
+            next;
+        }
+    }
+    return scalar(@list) ? \@list : undef;
+}
 
 1;
 __END__
