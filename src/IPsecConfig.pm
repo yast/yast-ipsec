@@ -47,6 +47,12 @@ my %cacertificates;
 my %crls;
 my %keys;
 
+my $DEBUG = 1;
+
+sub debug {
+    print STDERR @_, "\n" if($DEBUG);
+}
+
 sub _ {
     return gettext($_[0]);
 }
@@ -56,9 +62,9 @@ our %TYPEINFO;
 BEGIN
 {
     $fsutil = new FreeSwanUtils();
-    print STDERR "new FreeSwanUtils() => ", $fsutil ? "OK" : "ERR", "\n";
+    debug "new FreeSwanUtils() => ", $fsutil ? "OK" : "ERR";
     $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
-    print STDERR "new OpenCA::OpenSSL() => ", $openssl ? "OK" : "ERR", "\n";
+    debug "new OpenCA::OpenSSL() => ", $openssl ? "OK" : "ERR";
 
     # FIXME: it does not exists per default...
     unless(-d "/etc/ipsec.d/certs") {
@@ -92,8 +98,8 @@ sub Read
 #
 #    %connections = %{$ref};
 #
-    print STDERR "IPsecConfig::Read() FreeSwanUtils => ",
-                 $fsutil ? "OK" : "ERR", "\n";
+    debug "IPsecConfig::Read() FreeSwanUtils => ",
+                 $fsutil ? "OK" : "ERR";
     %settings = ();
     %connections = ();
     if($fsutil and $fsutil->load()) {
@@ -130,24 +136,25 @@ sub Read
 	#   }
 	# };
 	#
-	print STDERR "IPsecConfig::Read() ",
-	             "FreeSwanUtils->load() => OK\n";
+	debug "IPsecConfig::Read() FreeSwanUtils->load() => OK";
 	%settings = %{$fsutil->{'setup'} || {}};
 
-	print STDERR "HAVE CONNS: ", join(", ", $fsutil->conns()), "\n";
+	debug "IPsecConfig::Read() HAVE CONNS: ",
+	      join(", ", $fsutil->conns());
 
 	my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
 
-	print STDERR "WANT CONNS: ", join(", ", @conns), "\n";
+	debug "IPsecConfig::Read() WANT CONNS: ",
+	      join(", ", @conns);
 
         for my $name (@conns) {
-            print STDERR "copy connections += $name\n";
+            debug "IPsecConfig::Read() copy connections += $name";
             $connections{$name} = {$fsutil->conn($name)};
 	}
 	return Boolean(1);
     } else {
-	print STDERR "ipsec.conf parsing error: ",
-	             $fsutil->errstr(), "\n";
+	debug "IPsecConfig::Read() ipsec.conf parsing error: ",
+	      $fsutil->errstr();
     }
 
     if($openssl) {
@@ -155,7 +162,7 @@ sub Read
 	%certificates   = list_CERTs($openssl);
 	%cacertificates = list_CAs($openssl);
     } else {
-	print STDERR "HUH? No openssl-shell instance?\n";
+	debug "HUH? No openssl-shell instance?";
     }
     return Boolean(0);
 }
@@ -180,12 +187,12 @@ sub LastError()
 BEGIN { $TYPEINFO{Settings} = ["function", [ "map", "string", "string" ]]; }
 sub Settings()
 {
-    print STDERR "IPsecConfig::Settings() => {\n";
+    debug "IPsecConfig::Settings() => {";
     for my $key (sort keys %settings) {
 	my $val = $settings{$key};
-	print STDERR "\t$key=$val\n";
+	debug "IPsecConfig::Settings() \t$key=$val";
     }
-    print STDERR "}\n";
+    debug "IPsecConfig::Settings() }";
     return \%settings;
 }
 
@@ -195,9 +202,9 @@ sub setSettings($)
 {
     my $ref = shift;
 
-    print STDERR "IPsecConfig::setSettings({\n";
+    debug "IPsecConfig::setSettings() {";
     for my $key (keys %{$ref}) {
-	print STDERR "\t$key => ", $ref->{$key} || '', "\n";
+	debug "IPsecConfig::setSettings() \t$key => ", $ref->{$key} || '';
 
 	next unless("".$key =~ /\S+/);
 	if("".$ref->{$key} =~ /\S+/) {
@@ -206,7 +213,7 @@ sub setSettings($)
 	    delete($settings{$key});
 	}
     }
-    print STDERR "}) called\n";
+    debug "IPsecConfig::setSettings() }";
 
     y2milestone(%{$ref});
 }
@@ -215,17 +222,17 @@ sub setSettings($)
 BEGIN { $TYPEINFO{Connections} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Connections()
 {
-    print STDERR "IPsecConfig::Connections() => {\n";
+    debug "IPsecConfig::Connections() => {";
     for my $name (sort keys %connections) {
 	my $conn = $connections{$name};
-	print STDERR "\tconn ", $name, " => {\n";
+	debug "IPsecConfig::Connections() \tconn ", $name, " => {";
 	for my $key (sort keys %{$conn}) {
 	    my $val = $conn->{$key};
-	    print STDERR "\t\t$key=$val\n";
+	    debug "IPsecConfig::Connections() \t\t$key=$val";
 	}
-	print STDERR "\t},\n";
+	debug "IPsecConfig::Connections() \t},";
     }
-    print STDERR "}\n";
+    debug "IPsecConfig::Connections() }";
     return \%connections;
 }
 
@@ -236,7 +243,7 @@ BEGIN { $TYPEINFO{deleteConnection} = ["function", "void", "string" ]; }
 sub deleteConnection($)
 {
     my $name = shift;
-    print STDERR "IPsecConfig::deleteConnection($name) called\n";
+    debug "IPsecConfig::deleteConnection($name)";
     delete $connections{$name};
 }
 
@@ -251,11 +258,11 @@ sub addConnection($$)
     my $name = shift;
     my $ref = shift;
 
-    print STDERR "IPsecConfig::addConnection($name => {";
+    debug "IPsecConfig::addConnection() $name => {";
     for my $key (sort keys %{$ref}) {
-	print "\t$key=", $ref->{$key}, "\n";
+	debug "IPsecConfig::addConnection() \t$key=", $ref->{$key};
     }
-    print STDERR "}) called\n";
+    debug "IPsecConfig::addConnection() }";
     $connections{$name} = $ref;
 }
 
