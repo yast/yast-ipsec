@@ -72,6 +72,12 @@ global boolean Modified() {
     return modified;
 }
 
+/** whether the summary dialog already asked the user to import certificates */
+global boolean didaskaboutemptycertificates = false;
+
+/** whether the summary dialog already asked the user to add connections */
+global boolean didaskaboutemptyconnections = false;
+
 /**
  * map of strings
  *  +-> "nat_traversal" = "yes"
@@ -205,7 +211,7 @@ global string start_str = _("Activate during boot");
 global string strictcrlpolicy_str =  _("strict CRL policy");
 global string crlchekinterval_str =  _("CRL check interval");
 global string nattraversal_str =  _("NAT traversal");
-global string settings_str = _("FreeS/WAN settings");
+global string settings_str = _("Global settings");
 
 /** return "Yes" or "No" */
 string b2yn(boolean val)
@@ -707,6 +713,18 @@ global list Summary() {
     return [ summary, [] ];
 }
 
+/** returns whether there are connections at all */
+global boolean haveConnections()
+{
+    return (size(connections) > 0);
+}
+
+/** returns whether there are certificates at all */
+global boolean haveCertificates()
+{
+    return (size(certificates) > 0);
+}
+
 /**
  * Create an overview table with all configured connections
  * @return table items
@@ -992,18 +1010,25 @@ global list getIdsOfCert(string name)
  * */
 global map PrepareImportP12(string file, string pw)
 {
-    //return $[ "error":"haha" ];
+    //return $[ "error":"not yet implemented" ];
+    //TODO
     return $[ "cacert":"FIXME", "cert":"FIXME", "key":"FIXME" ];
 }
 
 /**
  * really import the file that was prepared via PrepareImportP12()
+ * @return nil or error string
  * */
-global void ImportPreparedP12()
+global string ImportPreparedP12()
 {
-    return;
+    //TODO
+    return "importing PKCS#12 not yet implemented";
 }
 
+
+/**
+ * get list of network devices where the current connection is mentioned in FREESWAN_UP
+ * */
 global list<string> getNetworkDevicesUP()
 {
     string conn = "";
@@ -1031,6 +1056,12 @@ global list<string> getNetworkDevicesUP()
     return devs;
 }
 
+/**
+ * set FREESWAN_UP parameter in network devices. devices that mention the
+ * current connection but are not passed to this function will have the current
+ * connection removed.
+ * @param devices list of devices where FREESWAN_UP should be present
+ * */
 global boolean setNetworkDevicesUP(list devices)
 {
     list alldevices = getDevices();
@@ -1090,6 +1121,55 @@ global boolean setNetworkDevicesUP(list devices)
     });
 
     return true;
+}
+
+/**
+ * import certificate in PEM or DER format
+ * @param filename file to import
+ * @return nil on success, error string otherwise
+ * */
+global string importCertificate(string filename)
+{
+    // TODO
+    if(filename == nil) return nil;
+    return "certificate import not yet implemented";
+}
+
+/**
+ * import CA certificate in PEM or DER format
+ * @param filename file to import
+ * @return nil on success, error string otherwise
+ * */
+global string importCACertificate(string filename)
+{
+    // TODO
+    if(filename == nil) return nil;
+    return "ca certificate import not yet implemented";
+}
+
+/**
+ * import CRL in PEM or DER format
+ * @param filename file to import
+ * @return nil on success, error string otherwise
+ * */
+global string importCRL(string filename)
+{
+    // TODO
+    if(filename == nil) return nil;
+    return "CRL import not yet implemented";
+}
+
+/**
+ * import key in PEM or DER format
+ * @param filename file to import
+ * @param password key password. empty string for no password.
+ * @return nil on success, error string otherwise
+ * */
+global string importKey(string filename, string password)
+{
+    // TODO
+    if(filename == nil) return nil;
+    return "key import not yet implemented";
 }
 
 /* EOF */

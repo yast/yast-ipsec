@@ -156,9 +156,36 @@ any CertificateImportDialogFiles () {
 	}
         else if(ret == `next)
 	{
-	    //TODO
-	    //SCR::Execute(.etc.ipsec.d, [ "importcert", certfile ]);
-	    //SCR::Execute(.etc.ipsec.d, [ "importkey", password, keyfile ]);
+	    boolean docontinue = false;
+	    string err = nil;
+
+	    err = IPsec::importCertificate(certfile);
+	    if(err != nil)
+	    {
+		Popup::Error(err);
+		docontinue = true;
+	    }
+	    err = IPsec::importCACertificate(cacertfile);
+	    if(err != nil)
+	    {
+		Popup::Error(err);
+		docontinue = true;
+	    }
+	    err = IPsec::importCRL(crlfile);
+	    if(err != nil)
+	    {
+		Popup::Error(err);
+		docontinue = true;
+	    }
+	    err = IPsec::importKey(keyfile, password);
+	    if(err != nil)
+	    {
+		Popup::Error(err);
+		docontinue = true;
+	    }
+
+	    if(docontinue)
+		continue;
 	    break;
 	}
 	else if(ret == `back) {

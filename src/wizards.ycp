@@ -147,6 +147,7 @@ any MainSequence() {
 	    `other	: "configure",
 	    `settings	: "settings",
 	    `certificates	: "certificates",
+	    `import	: "import",
 	],
 	"overview" : $[
 	    `abort	: `abort,
@@ -188,7 +189,7 @@ any MainSequence() {
 	"roadwarrior" : $[
 	    `abort	: `abort,
 	    `next	: "overview",
-	    `needcert	: "certificates",
+	    `needcert	: "import",
 	],
     ];
 
