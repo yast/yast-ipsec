@@ -388,7 +388,7 @@ any ConnectionStartModeDialog () {
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["startmode"]:"",
-	    Label::BackButton(), Label::NextButton());
+	    Label::BackButton(), Label::OKButton());
 
     {
 	string val = IPsec::current_connection["auto"]:"";
@@ -469,16 +469,19 @@ any FreeSWANSettingsDialog ()
     term contents = `HBox (`HStretch(),
 	`Frame(IPsec::settings_str,
 	    `VBox(
-		`Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::getStart())),
+		`VSpacing(0.5),
+//		`Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::getStart())),
 		`Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::getNatTraversal())),
 		`Left(`CheckBox(`id(`strictcrlpolicy), IPsec::strictcrlpolicy_str, IPsec::getStrictCRLPolicy())),
-		`Left(`IntField(`id(`crlcheckinterval), "CRL check interval", 0, 99999, IPsec::getCrlCheckInterval()))
+		`VSpacing(0.2),
+		`Left(`IntField(`id(`crlcheckinterval), "CRL check interval", 0, 99999, IPsec::getCrlCheckInterval())),
+		`VSpacing(0.7)
 	    )
 	), `HStretch()
     );
 
     Wizard::SetContentsButtons(caption, contents, HELPS["settings"]:"",
-	    Label::BackButton(), Label::NextButton());
+	    Label::BackButton(), Label::OKButton());
 
     any ret = nil;
     while(true) {
@@ -491,12 +494,12 @@ any FreeSWANSettingsDialog ()
 	    else continue;
 	}
         else if(ret == `next || ret == `back) {
-	    boolean startatboot = (boolean) UI::QueryWidget(`id(`startatboot), `Value);
+//	    boolean startatboot = (boolean) UI::QueryWidget(`id(`startatboot), `Value);
 	    boolean nattraversal = (boolean) UI::QueryWidget(`id(`nattraversal), `Value);
 	    boolean strictcrlpolicy = (boolean) UI::QueryWidget(`id(`strictcrlpolicy), `Value);
 	    integer crlcheckinterval = (integer) UI::QueryWidget(`id(`crlcheckinterval), `Value);
 
-	    IPsec::setStart(startatboot);
+//	    IPsec::setStart(startatboot);
 	    IPsec::setNatTraversal(nattraversal);
 	    IPsec::setStrictCRLPolicy(strictcrlpolicy);
 	    IPsec::setCrlCheckInterval(crlcheckinterval);
@@ -833,51 +836,55 @@ any EasyRoadWarriorClientDialog () {
 }
 
 /**
- * Configure1 dialog
+ * export a connection
  * @return dialog result
  */
-any ExportDialog () {
+any ExportConnectionDialog ()
+{
+    string file = UI::AskForSaveFileName( IPsec::exportdir,
+	    "",
+	    _("Specify file name for export"));
 
-    /* IPsec configure1 dialog caption */
-    string caption = _("Export IPsec Connection");
+    IPsec::updateExportDir(file);
 
-    /* IPsec configure1 dialog contents */
-    term contents = `VBox(
-	`HBox(
-	    `HStretch(),
-	    `Label("TODO"),
-	    `HStretch()
-	)
-    );
+    if(file == nil)
+	return `back;
 
-    Wizard::SetContentsButtons(caption, contents, HELPS["exportconnection"]:"",
-	    Label::BackButton(), Label::NextButton());
-
-    any ret = nil;
-    while(true) {
-
-	ret = UI::UserInput();
-
-	/* abort? */
-	if(ret == `abort || ret == `cancel) {
-	    if(Popup::ReallyAbort(false)) break;
-	    else continue;
-	}
-        else if(ret == `next)
-	{
-	    break;
-	}
-	else if(ret == `back) {
-            break;
-        }
-        else {
-            y2error("unexpected retcode: %1", ret);
-            continue;
-        }
+    string error = IPsecConfig::exportConnection(IPsec::current_connection_name, file);
+    if( error != nil )
+    {
+	// %1: Error message
+	Report::Error(sformat(_("Could not export selected connection:\n%1"), error));
     }
 
-    return ret;
+    return `next;
 }
+
+/**
+ * import a connection
+ * @return dialog result
+ */
+any ImportConnectionDialog ()
+{
+    string file = UI::AskForExistingFile( IPsec::certimportdir,
+	    "*.zip *.ZIP ipsec.conf",
+	    _("Choose file to import"));
+
+    IPsec::updateImportDir(file);
+
+    if(file == nil)
+	return `back;
+
+    string error = IPsecConfig::importConnection(file);
+    if( error != nil )
+    {
+	// %1: Error message
+	Report::Error(sformat(_("Could not import selected file:\n%1"), error));
+    }
+
+    return `next;
+}
+
 
 symbol FinishDialog ()
 {

@@ -830,6 +830,44 @@ sub cancelPreparedP12()
 {
 }
 
+##
+ # import a ipsec.conf file
+ # @param filename to load
+ # @returns undef on success, error string otherwise
+ #
+BEGIN { $TYPEINFO{importConnection} = ["function", "string", "string" ]; }
+sub importConnection($)
+{
+    my $file = shift;
+
+    # TODO
+    return "importing configs not yet implemented";
+    
+    return undef;
+}
+
+##
+ # export a ipsec.conf file
+ # @param name of connection
+ # @param filename to store it. overwrite it if already exists
+ # @returns undef on success, error string otherwise
+ #
+BEGIN { $TYPEINFO{exportConnection} = ["function", "string", "string", "string" ]; }
+sub exportConnection($$)
+{
+    my $name = shift;
+    my $file = shift;
+
+    if(!exists($connections{$name}))
+    {
+	return sprintf(_("Connection \"%s\" does not exist"), $name);
+    }
+
+    # TODO
+    return "importing configs not yet implemented";
+    
+    return undef;
+}
 
 # EOF
 # vim: sw=4
