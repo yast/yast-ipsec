@@ -25,14 +25,13 @@ our @ISA         = qw (Exporter);
 #
 # FIXME: exports
 #
-our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files write_file
-                       parse_cert parse_crl parse_key parse_pem_data
-                       extract_ANY extract_ZIP extract_P12 extract_PEM
-                      );
+our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
+                       extract_ANY write_pem_data parse_pem_data);
 our %EXPORT_TAGS = (
-        'all' => [ @EXPORT ]
+    'extract' => [ qw (extract_ANY extract_ZIP extract_P12 extract_PEM) ],
+    'parsing' => [ qw (parse_cert parse_crl parse_key parse_pem_data) ],
     );
-our @EXPORT_OK   = ( @{ $EXPORT_TAGS{'all'} } );
+our @EXPORT_OK   = ( @{$EXPORT_TAGS{'extract'}}, @{$EXPORT_TAGS{'parsing'}} );
 
 our $VERSION     = 0.1;
 our $DEBUG       = 5;  # level 0 .. 4
@@ -118,13 +117,12 @@ sub list_KEYs($;$)
     my $dir     = shift || $DEFS{'ipsec_private'};
     my %certs;
 
-# FIXME: need passwd for...
-#    foreach my $file (list_files($dir)) {
-#        my $cert = parse_key($openssl, file => $file);
-#        if(defined($cert)) {
-#            $certs{$file} = $cert;
-#        }
-#    }
+    foreach my $file (list_files($dir)) {
+        my $cert = parse_key($openssl, file => $file);
+        if(defined($cert)) {
+            $certs{$file} = $cert;
+        }
+    }
     return %certs;
 }
 
@@ -307,6 +305,7 @@ sub parse_key($%)
         $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
     }
     my %hash;
+    # FIXME: openssh rsa -in $file -noout -text ...
     $hash{"PASSWORD"} = $passwd;
     return \%hash;
 }
@@ -412,7 +411,7 @@ sub commit_scheduled_file_operations()
 
 
 # --------------------------------------------------------------------
-sub write_file($$$)
+sub write_pem_data($$$)
 {
     my $file = shift;
     my $data = shift;
@@ -424,9 +423,9 @@ sub write_file($$$)
             close(OUT);
             return undef;
         }
-        return "can't write '$file': $!";
+        return "$!";
     }
-    return "invalid arguments";
+    return _("invalid arguments");
 }
 
 # --------------------------------------------------------------------
@@ -443,6 +442,9 @@ sub extract_ANY(%)
         }
         if($file =~ /^.+\.${rx_pk12_ext}$/) {
             return extract_P12(file => $file, pwcb => $pwcb);
+        }
+        if($file =~ /^.+\.${rx_cert_der}$/) {
+            return extract_DER(file => $file, pwcb => $pwcb);
         }
         if($file =~ /^.+\.${rx_cert_pem}$/) {
             return extract_PEM(file => $file, pwcb => $pwcb);
@@ -504,6 +506,40 @@ sub extract_PEM(%)
 }
 
 
+# --------------------------------------------------------------------
+sub extract_DER(%)
+{
+    my %args = @_;
+    my $file = $args{'file'};
+    my $pwcb = $args{'pwcb'};
+    my $name = $args{'name'};
+
+    return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
+    return undef unless(defined($file) and length($file) and
+                        -f $file and $file =~ /^.+\.${rx_cert_der}$/);
+    $name = $file unless(defined($name) and length($name));
+
+    #
+    # FIXME: keys in DER format requires passwd...?
+    #
+
+    my $pass = undef;
+    #my $pass &$pwcb(_("Password for ").$name);
+    #return undef  unless(defined($pass));
+
+    my $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
+    if($openssl) {
+        my $blub    = $openssl->dataConvert(
+            DATATYPE  =>'CERTIFICATE',
+            PASSWD    => $pass,
+            INFORM    => "DER",
+            INFILE    => $file,
+            OUTFORM   => "PEM",
+        );
+        return extract_PEM(data => $blub, name => $file);
+    }
+    return undef;
+}
 # --------------------------------------------------------------------
 sub extract_P12(%)
 {
