@@ -22,7 +22,9 @@ our @ISA         = qw (Exporter);
 #
 # FIXME: exports
 #
-our @EXPORT      = qw(list_CAs list_CERTs list_KEYs list_files);
+our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
+                       parse_cert parse_crl parse_key
+                      );
 our %EXPORT_TAGS = (
         'all' => [ @EXPORT ]
     );
@@ -45,6 +47,8 @@ our %DEFS        = (
     'ipsec_private'  => '/etc/ipsec.d/private',
 );
 
+our $rx_cert_ext  = qr /(?:pem|crt|crl|der|cer)/io;
+our $rx_cert_der  = qr /(?:der|cer)/io;
 
 #
 # === public functions ===============================================
@@ -65,9 +69,7 @@ sub list_CAs($;$)
 }
 
 
-#
 # --------------------------------------------------------------------
-#
 sub list_CRLs($;$)
 {
     my $openssl = shift;
@@ -84,9 +86,7 @@ sub list_CRLs($;$)
 }
 
 
-#
 # --------------------------------------------------------------------
-#
 sub list_CERTs($;$)
 {
     my $openssl = shift;
@@ -102,13 +102,11 @@ sub list_CERTs($;$)
     return %certs;
 }
 
-#
 # --------------------------------------------------------------------
-#
 sub list_KEYs($;$)
 {
     my $openssl = shift;
-    my $dir  = shift || $DEFS{'ipsec_private'};
+    my $dir     = shift || $DEFS{'ipsec_private'};
     my %certs;
 
 # FIXME: need passwd for...
@@ -121,10 +119,31 @@ sub list_KEYs($;$)
     return %certs;
 }
 
+#sub extract_P12
+#{
+#    my $openssl  = shift;
+#    my $file     = shift;
+#    my $pass     = shift;
+#    my %hash     = ();
+#
+#    return undef unless(defined($file) and length($file) and -f $file);
+#    my $blub = $openssl->dataConvert(
+#        DATATYPE  =>'CERTIFICATE',
+#        P12PASSWD => $p12_pass,
+#        INFORM    => "PKCS12",
+#        INFILE    => $file,
+#        OUTFORM   => "PEM",
+#    );
+#    $blub = '' unless(defined($blub));
+#
+#    my @data = split(/\n/, $blub);
+#    return undef unless(scalar(@data) > 0);
+#
+#    for my $line (@data) {
+#    }
+#}
 
-#
 # === private helpers ================================================
-#
 sub list_files($;$)
 {
     my $dir = shift;
@@ -132,7 +151,7 @@ sub list_files($;$)
     my @certs;
 
     unless(defined($ext) and length("".$ext)) {
-        $ext = qr/^.+\.(?:pem|der|cer|asc)$/;
+        $ext = qr /^.+\.${rx_cert_ext}$/o;
     }
     if($dir and -d $dir and opendir(DIR, $dir)) {
         $dir =~ s/\/\//\//g;
@@ -147,17 +166,27 @@ sub list_files($;$)
     return @certs;
 }
 
-#
+
 # --------------------------------------------------------------------
-#
 sub parse_cert($$)
 {
     my $openssl = shift;
-    my $file    = shift;
+    my $infile  = shift;
+    my $inform  = 'PEM';
 
-    my $X509 = new OpenCA::X509(INFILE=>$file , SHELL=>$openssl);
+    unless(defined($infile) and $infile =~ /\S+/) {
+        $infile = '' unless(defined($infile));
+        print STDERR "ERROR: invalid file name '$infile'\n"
+            if($DEBUG);
+        return undef;
+    }
+    $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
+
+    my $X509 = new OpenCA::X509(INFILE=>$infile,
+                                INFORM=>$inform,
+                                SHELL =>$openssl);
     unless($X509) {
-        print STDERR "ERROR: unable to parse cert '$file': $!\n"
+        print STDERR "ERROR: unable to parse cert '$infile': $!\n"
             if($DEBUG);
         return undef;
     }
@@ -175,7 +204,7 @@ sub parse_cert($$)
             # just use the first one
             $subjaltname = $ref->{"X509v3 Subject Alternative Name"}[0];
 
-            print STDERR "SubjectAltName($file): $subjaltname\n"
+            print STDERR "SubjectAltName($infile): $subjaltname\n"
                 if($DEBUG);
 
             # FIXME: do we need to add @ for DNS?
@@ -190,9 +219,7 @@ sub parse_cert($$)
     return \%cert;
 }
 
-#
 # --------------------------------------------------------------------
-#
 sub parse_crl($$)
 {
     my $openssl = shift;
@@ -232,6 +259,13 @@ sub parse_crl($$)
     $cert{"LAST_UPDATE"}= $parsed->{"LAST_UPDATE"};
     return \%cert;
 }
+
+# --------------------------------------------------------------------
+sub parse_key($$)
+{
+    return undef;
+}
+
 
 1;
 __END__
