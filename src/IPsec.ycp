@@ -24,6 +24,8 @@ import "Summary";
 import "Mode";
 import "NetworkDevices";
 import "Netmask";
+import "SuSEFirewall";
+import "Require";
 
 /**
  * Prototypes
@@ -56,6 +58,10 @@ global boolean dynamic_start_suggest_dialup = nil;
  */
 global boolean write_only = false;
 
+
+/** whether the user should be asked to reconfigure the firewall */
+global boolean needaskfirewall = false;
+
 /**
  * Abort function
  * return boolean return true if abort
@@ -84,6 +90,10 @@ global boolean didaskaboutemptycertificates = false;
 
 /** whether the summary dialog already asked the user to add connections */
 global boolean didaskaboutemptyconnections = false;
+
+
+/** list of required packages */
+list<string> requiredpackages = [ "freeswan" ];
 
 /**
  * map of strings
@@ -318,25 +328,31 @@ global boolean Read() {
     /* IPsec read dialog caption */
     string caption = _("Initializing IPsec Configuration");
 
-    // TODO FIXME Set the right number of stages
-    integer steps = 4;
+    integer steps = 5;
 
-    // TODO FIXME Names of real stages
     // We do not set help text here, because it was set outside
     Progress::New( caption, " ", steps, [
-	    /* Progress stage 1/3 */
+	    /* Progress stage 1/5 */
+	    _("Check required packages"),
+	    /* Progress stage 2/5 */
 	    _("Read /etc/ipsec.conf"),
-	    /* Progress stage 2/3 */
+	    /* Progress stage 3/5 */
 	    _("Read certificates"),
-	    /* Progress stage 3/3 */
-	    _("Read network settings")
+	    /* Progress stage 4/5 */
+	    _("Read network settings"),
+	    /* Progress stage 5/5 */
+	    _("Read firewall settings"),
 	], [
-	    /* Progress step 1/3 */
+	    /* Progress step 1/5 */
+	    _("Checking required packages..."),
+	    /* Progress step 2/5 */
 	    _("Reading the database..."),
-	    /* Progress step 2/3 */
+	    /* Progress step 5/5 */
 	    _("Reading the previous settings..."),
-	    /* Progress step 3/3 */
+	    /* Progress step 5/5 */
 	    _("Reading network settings..."),
+	    /* Progress step 5/5 */
+	    _("Reading firewall settings..."),
 	    /* Progress finished */
 	    _("Finished")
 	],
@@ -346,8 +362,24 @@ global boolean Read() {
     if(Abort()) return false;
     Progress::NextStep();
 
+    {
+	if(!Require::AreAllPackagesInstalled(requiredpackages) )
+	{
+	    string help = _("FreeS/WAN is required for IPsec. Do you want to install the required packages now?");
+	    if(!Require::RequireAndConflict( requiredpackages, [], help ) )
+	    {
+		if(!Require::LastOperationCanceled())
+		    Report::Error (_("Failed to install required packages."));
+		return false;
+	    }
+	}
+    }
+
+    if(Abort()) return false;
+    Progress::NextStep();
+
     if(!IPsecConfig::Read())
-	Popup::Error(_("Unable to read IPsec settings. Error message was:")
+	Report::Error(_("Unable to read IPsec settings. Error message was:")
 	    + "\n" + IPsecConfig::LastError());
 
     connections = IPsecConfig::Connections();
@@ -385,6 +417,15 @@ global boolean Read() {
 	Report::Warning(_("Cannot read network settings."));
     }
 
+    if(Abort()) return false;
+    /* Firewall */
+    Progress::NextStage();
+    if(SuSEFirewall::Read() != true)
+    {
+	Report::Warning(_("Couldn't read firewall settings"));
+    }
+
+    needaskfirewall = (SuSEFirewall::start == true && SuSEFirewall::IsIPsecAllowed() != true);
 
     if(Abort()) return false;
     /* Progress finished */
@@ -463,24 +504,24 @@ global boolean Write()
     {
 	if(!Service::Adjust("ipsec","enable"))
 	{
-	    Popup::Error(_("Could not enable IPsec bootscript:") + Service::Error());
+	    Report::Error(_("Could not enable IPsec bootscript:") + Service::Error());
 	}
 	if(Service::RunInitScript("ipsec", "start") != 0)
 	{
 	    // TODO: use output
-	    Popup::Error(_("couln't start IPsec"));
+	    Report::Error(_("couln't start IPsec"));
 	}
     }
     else if(!start && Service::Enabled("ipsec"))
     {
 	if(!Service::Adjust("ipsec","disable"))
 	{
-	    Popup::Error(_("Could not disable IPsec bootscript:") + Service::Error());
+	    Report::Error(_("Could not disable IPsec bootscript:") + Service::Error());
 	}
 	if(Service::RunInitScript("ipsec", "stop") != 0)
 	{
 	    // TODO: use output
-	    Popup::Error(_("couln't stop IPsec"));
+	    Report::Error(_("couln't stop IPsec"));
 	}
     }
 
@@ -743,7 +784,7 @@ global void deleteCRL(string name)
  * @return map with 2 lists.
  */
 global map AutoPackages() {
-    return $[ "install":[ "freeswan" ], "remove":[] ];
+    return $[ "install":requiredpackages, "remove":[] ];
 }
 
 /**

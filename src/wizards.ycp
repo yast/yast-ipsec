@@ -227,7 +227,8 @@ any IPsecSequence() {
     map aliases = $[
 	"read"	: [ ``( ReadDialog() ), true ],
 	"main"	:   ``( MainSequence() ),
-	"write"	: [ ``( WriteDialog() ), true ]
+	"write"	: [ ``( WriteDialog() ), true ],
+	"finish": [ ``( FinishDialog() ), true ]
     ];
 
     map sequence = $[
@@ -242,11 +243,16 @@ any IPsecSequence() {
 	],
 	"write" : $[
 	    `abort	: `abort,
+	    `next	: "finish"
+	],
+	"finish" : $[
+	    `abort	: `abort,
 	    `next	: `next
 	]
     ];
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ipsec");
 
     any ret = Sequencer::Run(aliases, sequence);
 
@@ -267,6 +273,7 @@ any IPsecAutoSequence() {
     term contents = `Label(_("Initializing..."));
 
     Wizard::CreateDialog();
+    Wizard::SetDesktopIcon("ipsec");
     Wizard::SetContentsButtons(caption, contents, "",
 	    Label::BackButton(), Label::NextButton());
 
