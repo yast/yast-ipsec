@@ -22,11 +22,14 @@ use POSIX;     # Needed for setlocale()
 
 use lib "/usr/share/YaST2/modules"; #### FIXME!!!
 use FreeSwanUtils;
+use FreeSwanCerts;
 
 YaST::YCP::Import ("SCR");
 
 setlocale(LC_MESSAGES, "");
 textdomain("ipsec");
+
+
 
 my $fsutil;
 my %connections;
@@ -38,6 +41,7 @@ my %settings;
 #  +-> "DN" = "/foo/bar/baz"
 #  \-> "subjectAltName" = "foo@bar"
 
+my $openssl;
 my %certificates;
 my %cacertificates;
 my %crls;
@@ -53,6 +57,13 @@ BEGIN
 {
     $fsutil = new FreeSwanUtils();
     print STDERR "new FreeSwanUtils() => ", $fsutil ? "OK" : "ERR", "\n";
+    $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
+    print STDERR "new OpenCA::OpenSSL() => ", $openssl ? "OK" : "ERR", "\n";
+
+    # FIXME: it does not exists per default...
+    unless(-d "/etc/ipsec.d/certs") {
+	mkdir("/etc/ipsec.d/certs", 0755);
+    }
 }
 
 ##
@@ -137,6 +148,14 @@ sub Read
     } else {
 	print STDERR "ipsec.conf parsing error: ",
 	             $fsutil->errstr(), "\n";
+    }
+
+    if($openssl) {
+	%crls           = list_CRLs($openssl);
+	%certificates   = list_CERTs($openssl);
+	%cacertificates = list_CAs($openssl);
+    } else {
+	print STDERR "HUH? No openssl-shell instance?\n";
     }
     return Boolean(0);
 }
@@ -301,7 +320,6 @@ sub newRoadWarriorConnection()
 BEGIN { $TYPEINFO{Certificates} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Certificates()
 {
-    # TODO
     return \%certificates;
 }
 
