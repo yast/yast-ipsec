@@ -24,7 +24,6 @@ use lib "/usr/share/YaST2/modules"; #### FIXME!!!
 use FreeSwanUtils;
 use FreeSwanCerts;
 
-#use ycp;
 use YaST::YCP qw(:LOGGING Boolean);
 YaST::YCP::Import ("IPsecPopups");
 YaST::YCP::Import ("Popup");
@@ -43,12 +42,10 @@ my %settings;
 #    \-> "subjectAltName" = "foo@bar"
 
 my $openssl;
-my %certificates;
 my %cacertificates;
+my %certificates;
 my %crls;
 my %keys;
-
-my $temp_tree;
 
 #
 # NOTE: debug for developement only!
@@ -79,21 +76,10 @@ BEGIN
     $fsutil = new FreeSwanUtils();
     $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
 
-    # FIXME: it does not exists per default...
+    # it does not exists per default...
     unless(-d "/etc/ipsec.d/certs") {
         mkdir("/etc/ipsec.d/certs", 0755);
     }
-
-    # XXX need prototype!
-    # cleanupImport();
-
-    # FIXME: cleanup it!!
-    $temp_tree = tempdir("/tmp/yast2-ipsec-XXXXXX", CLEANUP => 1);
-}
-
-END
-{
-    cleanup();
 }
 
 ##
@@ -112,55 +98,10 @@ sub enableTestMode()
 BEGIN { $TYPEINFO{Read} = ["function", "boolean"]; }
 sub Read
 {
-#    my $ref = SCR::Read('.etc.ipsec.conf');
-#
-#    return Boolean(0) if(ref($ref) ne 'HASH');
-#
-#    %settings = %{$ref->{"config setup"}};
-#
-#    delete $ref->{"config setup"};
-#
-#    %connections = %{$ref};
-#
-
     debug "FreeSwanUtils => ",  $fsutil ? "OK" : "ERR";
     %settings = ();
     %connections = ();
     if($fsutil and $fsutil->load()) {
-	# FIXME: access methods
-	#
-	# blessed  $config = {
-	#   'version' => "2.0",
-	#   'include' => [
-	#	'incl'	=> 'ipsec.*.conf',     # include glob
-	#	'file'	=> '/etc/ipsec.conf',  # included from
-	#	'list'	=> [                   # expanded glob
-	#	    '/etc/ipsec.foo.conf',
-	#           '/etc/ipsec.bar.conf',
-	#      ]
-	#   ],
-	#   'setup' => {
-	#	'nat_traversal'	=> 'yes'
-	#	'rp_filter'	=> '%unchanged'
-	#   },
-	#   'conn'      => {
-	#       '%default' => {
-	#	    'file'    => '/etc/ipsec.conf',
-	#           'data'    => {
-	#		'auto'	=> 'ignore',
-	#           }
-	#       },
-	#	'roadwarrior' => {
-	#	    'file'    => '/etc/ipsec.conf',
-	#           'data'    => {
-	#		'auto'	=> 'start',
-	#		'right' => '%defaultroute',
-	#           }
-	#	}
-	#   }
-	# };
-	#
-	debug "FreeSwanUtils->load() => OK";
 	%settings = %{$fsutil->{'setup'} || {}};
 
 	debug "HAVE CONNS: ", join(", ", $fsutil->conns());
@@ -196,14 +137,90 @@ sub Read
 BEGIN { $TYPEINFO{Write} = ["function", "boolean"]; }
 sub Write
 {
-    my $success = 1;
 #    my @errors = FreeSwanCerts::commit_scheduled_file_operations();
     if($fsutil and !$fsutil->save())
     {
 	Popup::Error(_("Error saving IPsec config:") . "\n" . $fsutil->errstr());
-	$success = 0;
+	return Boolean(0);
     }
-    return Boolean($success);
+
+    for my $file (keys %cacertificates) {
+	my $href = $cacertificates{$file};
+	my $_new = $href->{'NEW'} || 0;
+
+	print STDERR "cacertificates($file): NEW=$_new\n";
+	next unless($_new and $_new == 2); # approved
+
+	$file =~ s/.*\///;
+	$file = $FreeSwanCerts::DEFS{'ipsec_cacerts'}."/$file";
+
+	my $err = write_file($file, $href->{'data'}, 0600);
+	if(defined($err)) {
+	    Popup::Error($err . "\n");
+	    return Boolean(0);
+	} else {
+	    print STDERR "write_file($file) SUCCESS\n";
+	}
+    }
+
+    for my $file (keys %certificates) {
+    	my $href = $certificates{$file};
+	my $_new = $href->{'NEW'} || 0;
+
+	print STDERR "certificates($file): NEW=$_new\n";
+	next unless($_new and $_new == 2); # approved
+
+	$file =~ s/.*\///;
+	$file = $FreeSwanCerts::DEFS{'ipsec_certs'}."/$file";
+
+	my $err = write_file($file, $href->{'data'}, 0600);
+	if(defined($err)) {
+	    Popup::Error($err . "\n");
+	    return Boolean(0);
+	} else {
+	    print STDERR "write_file($file) SUCCESS\n";
+	}
+    }
+
+    for my $file (keys %crls) {
+    	my $href = $crls{$file};
+	my $_new = $href->{'NEW'} || 0;
+
+	print STDERR "crls($file): NEW=$_new\n";
+	next unless($_new and $_new == 2); # approved
+
+	$file =~ s/.*\///;
+	$file = $FreeSwanCerts::DEFS{'ipsec_crls'}."/$file";
+
+	my $err = write_file($file, $href->{'data'}, 0600);
+	if(defined($err)) {
+	    Popup::Error($err . "\n");
+	    return Boolean(0);
+	} else {
+	    print STDERR "write_file($file) SUCCESS\n";
+	}
+    }
+
+    for my $file (keys %keys) {
+    	my $href = $keys{$file};
+	my $_new = $href->{'NEW'} || 0;
+
+	print STDERR "keys($file): NEW=$_new\n";
+	next unless($_new and $_new == 2); # approved
+
+	$file =~ s/.*\///;
+	$file = $FreeSwanCerts::DEFS{'ipsec_private'}."/$file";
+
+	my $err = write_file($file, $href->{'data'}, 0600);
+	if(defined($err)) {
+	    Popup::Error($err . "\n");
+	    return Boolean(0);
+	} else {
+	    print STDERR "write_file($file) SUCCESS\n";
+	}
+    }
+
+    return Boolean(1);
 }
 
 BEGIN { $TYPEINFO{LastError} = ["function", "string"]; }
@@ -457,7 +474,9 @@ sub prepareImportFile($)
 	    my $pem;
 
 	    # mark it imported / new
-	    $iref->{'hash'}->{'NEW'} = 1;
+	    $iref->{'hash'}->{'NEW'}  = 1;
+	    $iref->{'hash'}->{'info'} = $dref->{'info'};
+	    $iref->{'hash'}->{'data'} = $dref->{'data'};
 
 	    if($iref->{'type'} eq 'KEY') {
 		do {
@@ -501,6 +520,38 @@ sub prepareImportFile($)
 BEGIN { $TYPEINFO{finishImport} = ["function", "string" ]; }
 sub finishImport()
 {
+    print STDERR "finishImport() called\n";
+    for my $file (keys %cacertificates) {
+	my $_new = $cacertificates{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "finish cacertificates($file)\n";
+	    $cacertificates{$file}->{'NEW'} = 2;
+	}
+    }
+
+    for my $file (keys %certificates) {
+	my $_new = $certificates{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "finish certificates($file)\n";
+	    $certificates{$file}->{'NEW'} = 2;
+	}
+    }
+
+    for my $file (keys %crls) {
+    	my $_new = $crls{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "finish crls($file)\n";
+	    $crls{$file}->{'NEW'} = 2;
+	}
+    }
+
+    for my $file (keys %keys) {
+	my $_new = $keys{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "finish keys($file)\n";
+	    $keys{$file}->{'NEW'} = 2;
+	}
+    }
     return undef;
 }
 
@@ -510,7 +561,39 @@ sub finishImport()
 BEGIN { $TYPEINFO{cleanupImport} = ["function", "void" ]; }
 sub cleanupImport()
 {
-    # FIXME: delete any temp files, ...
+    print STDERR "cleanupImport() called\n";
+    for my $file (keys %cacertificates) {
+	my $_new = $cacertificates{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "delete cacertificates($file)\n";
+	    delete($cacertificates{$file});
+	}
+    }
+
+    for my $file (keys %certificates) {
+	my $_new = $certificates{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "delete certificates($file)\n";
+	    delete($certificates{$file});
+	}
+    }
+
+    for my $file (keys %crls) {
+    	my $_new = $crls{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "delete crls($file)\n";
+	    delete($crls{$file});
+	}
+    }
+
+    for my $file (keys %keys) {
+	my $_new = $keys{$file}->{'NEW'} || 0;
+	if(1 == $_new) {
+	    print STDERR "delete keys($file)\n";
+	    delete($keys{$file});
+	}
+    }
+    return undef;
 }
 
 ##
@@ -521,10 +604,6 @@ sub cleanup()
 {
     debug "starting cleanup";
     cleanupImport();
-    if($temp_tree) {
-	rmtree($temp_tree);
-	$temp_tree = undef;
-    }
     debug "finished cleanup";
 }
 
