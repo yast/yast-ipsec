@@ -52,7 +52,7 @@ symbol ReadDialog() {
  */
 symbol WriteDialog() {
     Wizard::RestoreHelp(HELPS["write"]:"");
-    // IPsec::AbortFunction = PollAbort;
+    IPsec::AbortFunction = PollAbort;
     boolean ret = IPsec::Write();
     return ret ? `next : `abort;
 }

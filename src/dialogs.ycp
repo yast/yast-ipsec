@@ -139,7 +139,9 @@ any LeftRightConnectionConfigDialog(
     if(side == "left" && tmp == "" )
 	tmp = "%defaultroute";
 
-    UI::ChangeWidget(`id(`addr), `Value, tmp );
+    if(tmp != "")
+	UI::ChangeWidget(`id(`addr), `Value, tmp );
+
     UI::ChangeWidget(`id(`subnet), `Value, IPsec::current_connection[side+"subnet"]:"" );
 
     tmp = IPsec::current_connection[side+"cert"]:"";
@@ -151,7 +153,6 @@ any LeftRightConnectionConfigDialog(
 	UI::ChangeWidget(`id(`cert), `Value, tmp );
 
     ReplaceLeftRightConnectionConfigDialogIdCombo(tmp, IPsec::current_connection[side+"id"]:"");
-    y2error("asfsd");
 
     if(IPsec::current_connection[side+"subnet"]:"" == "")
     {
@@ -289,7 +290,18 @@ any ConnectionStartModeDialog () {
 	    UI::ChangeWidget(`id(`bootmode), `Value, IPsec::getBootModeText(val) );
     }
 
-    UI::ChangeWidget(`id(`netif), `Enabled, false );
+    {
+	list<string> devs = IPsec::getNetworkDevicesUP();
+	if(size(devs) != 0)
+	{
+	    UI::ChangeWidget(`id(`netif), `Value, mergestring(devs, " "));
+	    UI::ChangeWidget(`id(`netif), `Enabled, true );
+	    UI::ChangeWidget(`id(`nodyncbx), `Value, true );
+	}
+	else
+	    UI::ChangeWidget(`id(`netif), `Enabled, false );
+    }
+
 
     any ret = nil;
     while(true) {
@@ -297,7 +309,8 @@ any ConnectionStartModeDialog () {
 	ret = UI::UserInput();
 
 	/* abort? */
-	if(ret == `abort || ret == `cancel) {
+	if(ret == `abort || ret == `cancel)
+	{
 	    if(ReallyAbort()) break;
 	    else continue;
 	}
@@ -306,12 +319,22 @@ any ConnectionStartModeDialog () {
 	    boolean netif = (boolean) UI::QueryWidget(`id(`nodyncbx), `Value);
 	    UI::ChangeWidget(`id(`netif), `Enabled, netif );
 	}
-        else if(ret == `next || ret == `back) {
+        else if(ret == `next || ret == `back)
+	{
 	    string mode = (string) UI::QueryWidget(`id(`bootmode), `Value);
 	    IPsec::current_connection["auto"] = mode;
+
+	    if((boolean) UI::QueryWidget(`id(`nodyncbx), `Value))
+	    {
+		string devs = (string) UI::QueryWidget(`id(`netif), `Value);
+		y2debug("devs=%1", devs);
+		IPsec::setNetworkDevicesUP(splitstring(devs, " "));
+	    }
+
             break;
         }
-        else {
+        else
+	{
             y2error("unexpected retcode: %1", ret);
             continue;
         }
