@@ -13,23 +13,23 @@
 package IPsecConfig;
 
 use strict;
-
-use ycp;
-use YaST::YCP qw(Boolean);
-
+use warnings;
+use diagnostics;
 use Locale::gettext;
 use POSIX;     # Needed for setlocale()
+use File::Temp qw(tempdir);
+use File::Path;
 
 use lib "/usr/share/YaST2/modules"; #### FIXME!!!
 use FreeSwanUtils;
 use FreeSwanCerts;
 
-YaST::YCP::Import ("SCR");
+#use ycp;
+use YaST::YCP qw(:LOGGING Boolean);
+#YaST::YCP::Import ("SCR");
 
 setlocale(LC_MESSAGES, "");
 textdomain("ipsec");
-
-
 
 my $fsutil;
 my %connections;
@@ -47,10 +47,23 @@ my %cacertificates;
 my %crls;
 my %keys;
 
-my $DEBUG = 1;
+my $temp_tree;
+my %imports;
 
+#
+# NOTE: debug for developement only!
+#       we use own y2logger helper
+#
+my $DEBUG = 1;
 sub debug {
-    print STDERR @_, "\n" if($DEBUG);
+    if($DEBUG) {
+	my ($package, $filename, $line) = caller;
+	my $subroutine = (caller(1))[3];
+	my $level = 1;	# level 1 is y2milestone
+
+	YaST::YCP::y2_logger($level, "Perl", $filename,
+	                     $line, $subroutine, join("", @_));
+   }
 }
 
 sub _ {
@@ -61,16 +74,37 @@ our %TYPEINFO;
 
 BEGIN
 {
+    $DEBUG = 1 if(exists($ENV{'Y2DEBUG_IPSEC'}));
+
     $fsutil = new FreeSwanUtils();
-    debug "new FreeSwanUtils() => ", $fsutil ? "OK" : "ERR";
     $openssl = new OpenCA::OpenSSL(SHELL => "/usr/bin/openssl");
-    debug "new OpenCA::OpenSSL() => ", $openssl ? "OK" : "ERR";
 
     # FIXME: it does not exists per default...
     unless(-d "/etc/ipsec.d/certs") {
-	mkdir("/etc/ipsec.d/certs", 0755);
+        mkdir("/etc/ipsec.d/certs", 0755);
+    }
+
+    # FIXME: cleanup it!!
+    $temp_tree = tempdir("/tmp/yast2-ipsec-XXXXXX", CLEANUP => 1);
+}
+
+END
+{
+    cleanup();
+}
+
+sub cleanup
+{
+    print STDERR "IPsecConfig::END called\n";
+    if($temp_tree) {
+	print STDERR "removing temp dir\n";
+	rmtree($temp_tree);
+	$temp_tree = undef;
+    } else {
+	print STDERR "no temp dir to remove?!\n";
     }
 }
+
 
 ##
  # do not read or write anything, just fake connections
@@ -98,8 +132,7 @@ sub Read
 #
 #    %connections = %{$ref};
 #
-    debug "IPsecConfig::Read() FreeSwanUtils => ",
-                 $fsutil ? "OK" : "ERR";
+    debug "FreeSwanUtils => ",  $fsutil ? "OK" : "ERR";
     %settings = ();
     %connections = ();
     if($fsutil and $fsutil->load()) {
@@ -136,24 +169,21 @@ sub Read
 	#   }
 	# };
 	#
-	debug "IPsecConfig::Read() FreeSwanUtils->load() => OK";
+	debug "FreeSwanUtils->load() => OK";
 	%settings = %{$fsutil->{'setup'} || {}};
 
-	debug "IPsecConfig::Read() HAVE CONNS: ",
-	      join(", ", $fsutil->conns());
+	debug "HAVE CONNS: ", join(", ", $fsutil->conns());
 
 	my @conns = $fsutil->conns(exclude => [qw(%default %implicit)]);
 
-	debug "IPsecConfig::Read() WANT CONNS: ",
-	      join(", ", @conns);
+	debug "WANT CONNS: ", join(", ", @conns);
 
         for my $name (@conns) {
-            debug "IPsecConfig::Read() copy connections += $name";
+            debug "copy connections += $name";
             $connections{$name} = {$fsutil->conn($name)};
 	}
     } else {
-	debug "IPsecConfig::Read() ipsec.conf parsing error: ",
-	      $fsutil->errstr();
+	debug "ipsec.conf parsing error: ", $fsutil->errstr();
     }
 
     if($openssl) {
@@ -187,12 +217,12 @@ sub LastError()
 BEGIN { $TYPEINFO{Settings} = ["function", [ "map", "string", "string" ]]; }
 sub Settings()
 {
-    debug "IPsecConfig::Settings() => {";
+    debug "{";
     for my $key (sort keys %settings) {
 	my $val = $settings{$key};
-	debug "IPsecConfig::Settings() \t$key=$val";
+	debug "\t$key=$val";
     }
-    debug "IPsecConfig::Settings() }";
+    debug "}";
     return \%settings;
 }
 
@@ -202,9 +232,9 @@ sub setSettings($)
 {
     my $ref = shift;
 
-    debug "IPsecConfig::setSettings() {";
+    debug "{";
     for my $key (keys %{$ref}) {
-	debug "IPsecConfig::setSettings() \t$key => ", $ref->{$key} || '';
+	debug "\t$key => ", $ref->{$key} || '';
 
 	next unless("".$key =~ /\S+/);
 	if("".$ref->{$key} =~ /\S+/) {
@@ -213,26 +243,24 @@ sub setSettings($)
 	    delete($settings{$key});
 	}
     }
-    debug "IPsecConfig::setSettings() }";
-
-    y2milestone(%{$ref});
+    debug "}";
 }
 
 
 BEGIN { $TYPEINFO{Connections} = ["function", [ "map", "string", [ "map", "string", "string" ]]]; }
 sub Connections()
 {
-    debug "IPsecConfig::Connections() => {";
+    debug "{";
     for my $name (sort keys %connections) {
 	my $conn = $connections{$name};
-	debug "IPsecConfig::Connections() \tconn ", $name, " => {";
+	debug "\tconn ", $name, " => {";
 	for my $key (sort keys %{$conn}) {
 	    my $val = $conn->{$key};
-	    debug "IPsecConfig::Connections() \t\t$key=$val";
+	    debug "\t\t$key=$val";
 	}
-	debug "IPsecConfig::Connections() \t},";
+	debug "\t},";
     }
-    debug "IPsecConfig::Connections() }";
+    debug "}";
     return \%connections;
 }
 
@@ -243,7 +271,7 @@ BEGIN { $TYPEINFO{deleteConnection} = ["function", "void", "string" ]; }
 sub deleteConnection($)
 {
     my $name = shift;
-    debug "IPsecConfig::deleteConnection($name)";
+    debug "name => $name";
     delete $connections{$name};
 }
 
@@ -274,11 +302,11 @@ sub addConnection($$)
     my $name = shift;
     my $ref = shift;
 
-    debug "IPsecConfig::addConnection() $name => {";
+    debug "$name => {";
     for my $key (sort keys %{$ref}) {
-	debug "IPsecConfig::addConnection() \t$key=", $ref->{$key};
+	debug "\t$key=", $ref->{$key};
     }
-    debug "IPsecConfig::addConnection() }";
+    debug "}";
     $connections{$name} = $ref;
 }
 
@@ -294,7 +322,7 @@ sub newDefaultConnection()
 	"esp" => "aes,3des",
 	"pfs" => "yes",
     );
-    
+
     return \%conn;
 }
 
@@ -347,6 +375,9 @@ sub importCertificate($)
 {
     # TODO
     my $filename = shift;
+    my $href = parse_cert($openssl, $filename);
+
+    
     return _("importing certificates not supported yet");
 }
 
@@ -461,12 +492,14 @@ sub importKey($)
  # @param password for the file
  # @return hash with keys cacerts, certs, key or key error with error string
 BEGIN { $TYPEINFO{prepareImportP12} = ["function", [ "map", "string", "string" ], "string", "string" ]; }
-sub prepareImportP12($$)
+sub prepareImportP12($$;$)
 {
     # TODO
     my $file = shift;
     my $password = shift;
+    #
     # return ( "error" => "not yet implemented" );
+    #
     return { "cacert" => "FIXME", "cert" => "FIXME", "key" => "FIXME" };
 }
 
@@ -479,7 +512,6 @@ sub importPreparedP12()
     # TODO
     return "importing PKCS#12 not yet implemented";
 }
-
 
 # EOF
 # vim: sw=4
