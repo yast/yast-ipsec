@@ -500,25 +500,29 @@ global boolean Write()
     if(Abort()) return false;
     Progress::NextStage ();
 
-    if(start && !Service::Enabled("ipsec"))
+    if(start == true)
     {
-	if(!Service::Adjust("ipsec","enable"))
+	if(!Service::Enabled("ipsec"))
 	{
-	    Report::Error(_("Could not enable IPsec bootscript:") + Service::Error());
+	    if(!Service::Enable("ipsec"))
+	    {
+		Report::Error(_("Could not enable IPsec bootscript:") + Service::Error());
+	    }
 	}
-	if(Service::RunInitScript("ipsec", "start") != 0)
+
+	if(Service::Restart("ipsec") != true)
 	{
 	    // TODO: use output
 	    Report::Error(_("couln't start IPsec"));
 	}
     }
-    else if(!start && Service::Enabled("ipsec"))
+    else if(Service::Enabled("ipsec"))
     {
-	if(!Service::Adjust("ipsec","disable"))
+	if(!Service::Disable("ipsec"))
 	{
 	    Report::Error(_("Could not disable IPsec bootscript:") + Service::Error());
 	}
-	if(Service::RunInitScript("ipsec", "stop") != 0)
+	if(Service::Stop("ipsec") != true)
 	{
 	    // TODO: use output
 	    Report::Error(_("couln't stop IPsec"));

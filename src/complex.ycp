@@ -442,6 +442,8 @@ any CertificateOverviewDialog ()
 		    continue;
 	    }
 
+	    IPsec::modified = true;
+
             break;
         }
         else if(ret == `back) {
