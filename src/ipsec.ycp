@@ -32,7 +32,7 @@ include "ipsec/wizards.ycp";
 map cmdline_description = $[
     "id"	: "ipsec",
     /* Command line help text for the Xipsec module */
-    "help"	: _("Configuration of ipsec"),
+    "help"	: _("Configuration of IPsec"),
     "guihandler"        : IPsecSequence,
     "initialize"        : IPsec::Read,
     "finish"            : IPsec::Write,
