@@ -24,12 +24,8 @@ our @ISA         = qw (Exporter);
 # FIXME: exports
 #
 our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
-                       extract_ANY write_pem_data parse_pem_data);
-our %EXPORT_TAGS = (
-    'extract' => [ qw (extract_ANY extract_ZIP extract_P12 extract_PEM) ],
-    'parsing' => [ qw (parse_cert parse_crl parse_key parse_pem_data) ],
-    );
-our @EXPORT_OK   = ( @{$EXPORT_TAGS{'extract'}}, @{$EXPORT_TAGS{'parsing'}} );
+                       extract_ANY write_pem_data parse_pem_data
+                       parse_cert parse_crl parse_key parse_pem_data);
 
 our $VERSION     = 0.1;
 our $DEBUG       = 0;  # level 0 .. 4
@@ -62,15 +58,8 @@ our $rx_pk12_ext  = qr /(?:p12|pk12|pfx)/io;
 sub list_CAs(;$)
 {
     my $dir  = shift || $DEFS{'ipsec_cacerts'};
-    my %certs;
-
-    foreach my $file (list_files($dir)) {
-        my $cert = parse_cert(file => $file);
-        if(defined($cert)) {
-            $certs{$file} = $cert;
-        }
-    }
-    return %certs;
+    # FIXME: ext
+    return list_files($dir);
 }
 
 
@@ -78,15 +67,8 @@ sub list_CAs(;$)
 sub list_CRLs(;$)
 {
     my $dir  = shift || $DEFS{'ipsec_crls'};
-    my %certs;
-
-    foreach my $file (list_files($dir)) {
-        my $cert = parse_crl(file => $file);
-        if(defined($cert)) {
-            $certs{$file} = $cert;
-        }
-    }
-    return %certs;
+    # FIXME: ext
+    return list_files($dir);
 }
 
 
@@ -94,31 +76,19 @@ sub list_CRLs(;$)
 sub list_CERTs(;$)
 {
     my $dir  = shift || $DEFS{'ipsec_certs'};
-    my %certs;
-
-    foreach my $file (list_files($dir)) {
-        my $cert = parse_cert(file => $file);
-        if(defined($cert)) {
-            $certs{$file} = $cert;
-        }
-    }
-    return %certs;
+    # FIXME: ext
+    return list_files($dir);
 }
+
 
 # --------------------------------------------------------------------
 sub list_KEYs(;$)
 {
     my $dir     = shift || $DEFS{'ipsec_private'};
-    my %certs;
-
-    foreach my $file (list_files($dir)) {
-        my $cert = parse_key(file => $file);
-        if(defined($cert)) {
-            $certs{$file} = $cert;
-        }
-    }
-    return %certs;
+    # FIXME: ext
+    return list_files($dir);
 }
+
 
 # --------------------------------------------------------------------
 sub list_files($;$)
@@ -127,6 +97,7 @@ sub list_files($;$)
     my $ext = shift;
     my @certs;
 
+    # FIXME: ext ??
     unless(defined($ext) and length("".$ext)) {
         $ext = qr /^.+\.${rx_cert_ext}$/o;
     }
@@ -260,8 +231,28 @@ sub parse_key(%)
         }
         $inform = 'DER' if($infile =~ /\.${rx_cert_der}$/);
     }
+    my $ossl = new OPENSSL();
+    my $blub = undef;
+    if($ossl) {
+       $blub = $ossl->convert(
+            DATATYPE  => 'KEY',
+            INPASSWD  => $passwd,
+            INFORM    => $inform,
+            INFILE    => $infile,
+            DATA      => $indata,
+            OUTFORM   => "TXT"
+        );
+    }
+    unless($blub) {
+        print STDERR "ERROR: $OPENSSL::errmsg\n" if($DEBUG);
+        return undef;
+    }
     my %hash;
-    # FIXME: openssh rsa -in $file -noout -text ...
+
+    if($blub =~ /Private-Key: \((\d+) bit\)/) {
+        $hash{"BITS"} = $1;
+    }
+    $hash{"FORMAT"}   = $inform;
     $hash{"PASSWORD"} = $passwd;
     return \%hash;
 }
@@ -274,29 +265,34 @@ sub parse_pem_data(%)
     my $info    = $args{'info'};
     my $pwcb    = $args{'pwcb'}; # need it for key...
 
+    return undef unless(defined($pwcb) and ref($pwcb) eq 'CODE');
     my $type    = pem_type_by_string($info);
     if(defined($type)) {
+        my $href = undef;
         if('KEY'  eq $type) {
-            return {
-                type => $type,
-                hash => parse_key (data => $data)
-            };
+            my $pass = undef;
+            do {
+                if(defined($pass)) {
+                    $pass = &$pwcb(_("Wrong password.")."\n".
+                                   _("RSA key password"));
+                } else {
+                    $pass = &$pwcb(_("RSA key password"));
+                }
+                return undef unless(defined($pass));
+                $href = parse_key(data => $data, pass => $pass);
+            } while(not defined($href));
         }
         if('CRL'  eq $type) {
-            return {
-                type => $type,
-                hash => parse_crl (data => $data)
-            };
+            $href = parse_crl (data => $data);
         }
         if('CERT' eq $type) {
-            return {
-                type => $type,
-                hash => parse_cert(data => $data)
-            };
+            $href = parse_cert(data => $data)
         }
+        return { type => $type, hash => $href };
     }
     return undef;
 }
+
 
 # --------------------------------------------------------------------
 sub pem_type_by_string($)
@@ -310,60 +306,6 @@ sub pem_type_by_string($)
     return undef;
 }
 
-sub is_certificate($)
-{
-# if /------BEGIN CERTIF/ ...
-	return 1;
-}
-
-our %save_certificates;
-our @delete_certificates;
-
-##
- # schedule a certificate to be saved under /etc/ipsed.d/certifiates
- # @param absolute filename of file to import, e.g. /floppy/foo.pem
- # @param filename to store it as, e.g. cert.pem
-sub save_certificate_as($$)
-{
-    my $filename = shift;
-    my $saveas = shift;
-
-    $save_certificates{$saveas} = $filename;
-}
-
-sub delete_certificae($)
-{
-    my $name = shift;
-    push @delete_certificates, $name;
-}
-
-
-# copy a file
-sub do_cp($$)
-{
-    my $from = shift;
-    my $to = shift;
-
-    my @cmd = ('/bin/cp', $from, $to);
-
-    system @cmd or return sprintf(_("Could not copy %s to %s\n"), $from, $to);
-    return undef;
-}
-
-# copy certificates, crls, keys etc to /etc/ipsec.d
-sub commit_scheduled_file_operations()
-{
-    my $saveas;
-    my @errors;
-    foreach $saveas (keys %save_certificates)
-    {
-	my $err = do_cp($save_certificates{$saveas}, $DEFS{'ipsec_certs'}.'/'.$saveas);
-	push @errors, $err if(defined $err);
-    }
-#TODO more
-    return \@errors;
-}
-
 
 # --------------------------------------------------------------------
 sub write_pem_data($$$)
@@ -371,7 +313,7 @@ sub write_pem_data($$$)
     my $file = shift;
     my $data = shift;
     my $perm = shift;
-    
+
     if($file and $data and $perm) {
         if(sysopen(OUT, $file, O_WRONLY|O_CREAT|O_EXCL, $perm)) {
             print OUT $data;
@@ -382,6 +324,7 @@ sub write_pem_data($$$)
     }
     return _("invalid arguments");
 }
+
 
 # --------------------------------------------------------------------
 sub extract_ANY(%)
@@ -520,24 +463,34 @@ sub extract_P12(%)
                         -f $file and $file =~ /^.+\.${rx_pk12_ext}$/);
     $name = $file unless(defined($name) and length($name));
 
-    my $pass = &$pwcb(_("PKCS12 export password for ").$name);
-    return undef  unless(defined($pass));
+    my $pass = undef;
+    my $blub = undef;
+    do {
+        if(defined($pass)) {
+            $pass = &$pwcb(_("Wrong password.")."\n".
+                           _("PKCS12 export password for ").$name);
+        } else {
+            $pass = &$pwcb(_("PKCS12 export password for ").$name);
+        }
+        return undef unless(defined($pass));
 
-    my $ossl = new OPENSSL();
-    my $blub;
-    if($ossl) {
-       $blub = $ossl->convert(
-            DATATYPE  =>'CERTIFICATE',
-            P12PASSWD => $pass,
-            INFORM    => "PKCS12",
-            INFILE    => $file,
-            OUTFORM   => "PEM"
-        );
-    }
+        my $ossl = new OPENSSL();
+        if($ossl) {
+            $blub = $ossl->convert(
+                DATATYPE  =>'CERTIFICATE',
+                P12PASSWD => $pass,
+                INFORM    => "PKCS12",
+                INFILE    => $file,
+                OUTFORM   => "PEM"
+            );
+        } else {
+            $blub = undef;
+        }
+    } while(not $blub);
     unless($blub) {
         print STDERR "ERROR: $OPENSSL::errmsg\n" if($DEBUG);
-        return undef; 
-    } 
+        return undef;
+    }
     return extract_PEM(data => $blub, name => $file);
 }
 
