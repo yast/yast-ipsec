@@ -170,7 +170,7 @@ sub load_config
     }
     $self->_init_config(file => $file);
 
-    my ($ret, %err) = load_ipsec_config($self, $file, $DEPTH);
+    my ($ret, %err) = load_ipsec_config(\%{$self->{'conf'}}, $file, $DEPTH);
     if ($ret) {
         $self->{'error'} = {code=>$ret, %err};
         print STDERR "LOAD ", $self->errstr(), "\n" if($DEBUG>0);
@@ -191,7 +191,8 @@ sub save_config
 {
     my $self = shift;
 
-    my ($ret, %err) = save_ipsec_config($self, $self->{'ipsec_version'});
+    my ($ret, %err) = save_ipsec_config(\%{$self->{'conf'}},
+                                        $self->{'ipsec_version'});
     $self->_init_config();
     if( $ret) {
         $self->{'error'} = {code=>$ret, %err};
@@ -212,7 +213,8 @@ sub dump_config
     my $self = shift;
     my $file = shift;
 
-    return dump_ipsec_config($self, $file, $self->{'ipsec_version'});
+    return dump_ipsec_config(\%{$self->{'conf'}}, $file,
+                             $self->{'ipsec_version'});
 }
 
 
@@ -238,7 +240,7 @@ sub load_secrets
     }
     $self->_init_secrets(file => $file);
 
-    my ($ret, %err) = load_ipsec_secrets($self, $file, $DEPTH);
+    my ($ret, %err) = load_ipsec_secrets(\%{$self->{'secr'}}, $file, $DEPTH);
     if ($ret) {
         $self->{'error'} = {code=>$ret, %err};
         print STDERR "LOAD ", $self->errstr(), "\n" if($DEBUG>0);
@@ -259,7 +261,7 @@ sub save_secrets
 {
     my $self = shift;
 
-    my ($ret, %err) = save_ipsec_secrets($self);
+    my ($ret, %err) = save_ipsec_secrets(\%{$self->{'secr'}});
     $self->_init_secrets();
     if( $ret) {
         $self->{'error'} = {code=>$ret, %err};
@@ -281,7 +283,7 @@ sub dump_secrets
     my $self = shift;
     my $file = shift;
 
-    return dump_ipsec_secrets($self, $file);
+    return dump_ipsec_secrets(\%{$self->{'secr'}}, $file);
 }
 
 
@@ -292,30 +294,31 @@ sub setup { settings(@_); }
 sub settings
 {
     my $self = shift;
+    my $conf = \%{$self->{'conf'}};
     my @args = @_;
     if(@args > 0) {
         if(@args % 2) {
-            if(exists($self->{'setup'}) and
-               exists($self->{'setup'}->{$args[0]})) {
-                return $self->{'setup'}->{$args[0]};
+            if(exists($conf->{'setup'}) and
+               exists($conf->{'setup'}->{$args[0]})) {
+                return $conf->{'setup'}->{$args[0]};
             }
         } else {
             for(my $at=0; $at<=$#args; $at += 2) {
                 next unless($args[$at]);
                 if(defined($args[$at+1]) and $args[$at+1] =~ /\S+/) {
-                    $self->{'setup'}->{$args[$at]} = $args[$at+1];
+                    $conf->{'setup'}->{$args[$at]} = $args[$at+1];
                 } else {
-                    delete($self->{'setup'}->{$args[$at]});
+                    delete($conf->{'setup'}->{$args[$at]});
                 }
             }
         }
     } else {
         # note: setup may be undef (not loaded)!
-        if(exists($self->{'setup'})) {
+        if(exists($conf->{'setup'})) {
             if(wantarray) {
-                return %{$self->{'setup'}};
+                return %{$conf->{'setup'}};
             } else {
-                return   $self->{'setup'};
+                return   $conf->{'setup'};
             }
         }
         return wantarray ? () : undef;
@@ -329,6 +332,7 @@ sub conns { connections(@_); }
 sub connections
 {
     my $self = shift;
+    my $conf = \%{$self->{'conf'}};
     my %args = @_;
     my @excl = ();
     my @incl = ();
@@ -349,8 +353,8 @@ sub connections
     }
 
     my @list = ();
-    for my $name (keys %{$self->{'conn'} || {}}) {
-        unless(scalar(keys %{$self->{'conn'}->{$name}->{'data'}||{}})) {
+    for my $name (keys %{$conf->{'conn'} || {}}) {
+        unless(scalar(keys %{$conf->{'conn'}->{$name}->{'data'}||{}})) {
             # skip deleted/empty conns
             next;
         }
@@ -374,9 +378,10 @@ sub conn  { connection(@_); }
 sub connection
 {
     my $self = shift;
+    my $conf = \%{$self->{'conf'}};
     my $name = shift;
     my @args = @_;
-    my $conn = \%{$self->{'conn'}};
+    my $conn = \%{$conf->{'conn'}};
     if(@args > 0) {
         if(@args % 2) {
             #
@@ -434,9 +439,10 @@ sub _init_config
         'conn'    => {},
         'file'    => undef,
     );
+    $self->{'conf'} = {};
     foreach (keys %conf) {
-        $self->{$_} = exists($args{$_}) ?
-                      $args{$_} : $conf{$_};
+        $self->{'conf'}->{$_} = exists($args{$_}) ?
+                                $args{$_} : $conf{$_};
     }
 }
 
@@ -452,9 +458,10 @@ sub _init_secrets
         'keys'    => [],
         'file'    => undef,
     );
+    $self->{'secr'} = {};
     foreach (keys %secr) {
-        $self->{$_} = exists($args{$_}) ?
-                      $args{$_} : $secr{$_};
+        $self->{'secr'}->{$_} = exists($args{$_}) ?
+                                $args{$_} : $secr{$_};
     }
 }
 
@@ -505,13 +512,9 @@ sub save_ipsec_config
         }
     }
 
-    #
-    # FIXME: file permissions! use sysopen + mode
-    #
-
     my $save = {};
     my ($ret, %err) = _save_ipsec_config($conf, $file, $save,
-                                       \&_backup_and_read);
+                                         \&_backup_and_read);
     if(0 == $ret) {
         my $data = $save->{$file};
 
@@ -522,7 +525,8 @@ sub save_ipsec_config
 
                 my $_data = $save->{$_file};
                 if(scalar(@{$_data || []})) {
-                    if(open(CONF, ">", $_file)) {
+                    unlink($_file) if(-f $_file);
+                    if(sysopen(CONF, $_file, O_RDWR|O_CREAT|O_EXCL, 0644)) {
                         for my $line (@{$_data}) {
                             print CONF "$line\n";
                         }
@@ -535,7 +539,8 @@ sub save_ipsec_config
             }
 
             # main config
-            if(open(CONF, ">", $file)) {
+            unlink($file) if(-f $file);
+            if(sysopen(CONF, $file, O_RDWR|O_CREAT|O_EXCL, 0644)) {
                 for my $line (@{$data}) {
                     print CONF "$line\n";
                 }
@@ -558,16 +563,15 @@ sub save_ipsec_config
 #
 sub save_ipsec_secrets
 {
-    my $conf = shift;
-    my $_ver = shift || $DEFS{'ipsec_version'};
-    my $file = $conf->{'file'};
+    my $secr = shift;
+    my $file = $secr->{'file'};
 
-    unless($file and exists($conf->{'version'})) {
+    unless($file) {
         return (-1, emsg=>"invalid arguments");
     }
 
     my $save = {};
-    my ($ret, %err) = _save_ipsec_secrets($conf, $file, $save,
+    my ($ret, %err) = _save_ipsec_secrets($secr, $file, $save,
                                           \&_backup_and_read);
     if(0 == $ret) {
         my $data = $save->{$file};
@@ -577,7 +581,8 @@ sub save_ipsec_secrets
             next if($file eq $_file);
 
             my $_data = $save->{$_file};
-            if(open(SECR, ">", $_file)) {
+            unlink($_file) if(-f $_file);
+            if(sysopen(SECR, $_file, O_RDWR|O_CREAT|O_EXCL, 0600)) {
                 for my $line (@{$_data}) {
                     print SECR "$line\n";
                 }
@@ -589,7 +594,8 @@ sub save_ipsec_secrets
         }
 
         # main secrets
-        if(open(SECR, ">", $file)) {
+        unlink($file) if(-f $file);
+        if(sysopen(SECR, $file, O_RDWR|O_CREAT|O_EXCL, 0600)) {
             for my $line (@{$data}) {
                 print SECR "$line\n";
             }
@@ -1254,46 +1260,94 @@ sub _save_ipsec_secrets
         my $main = shift;
         my @comm = @_;
         my @data = ();
-        if($line =~ /^(.*?)\s*:\s+(RSA|PSK)\s+(.*?)\s*$/i) {
+
+        if($line =~ /^(.*?)\s*:\s*(RSA|PSK)\s+(.*?)\s*$/i) {
             my $index = $1 || '';
             my $ktype = $2;
             my $kdata = $3;
-            my $ktemp = uc($ktype);
-            my $itemp = $index;
+            my $rfile = undef;
+            my $rpass = undef;
+            my $rdata = {};
 
-            if($itemp eq '' or $itemp eq '0.0.0.0') {
-                $itemp = '%any';
-            }
-            $itemp = '%any6' if($itemp eq '::');
-
-            # FIXME: improve duplicate index check ?
-            #        is it allowed to have a RSA and
-            #        PSK key for same index?
-            my $kref = undef;
-            for(my $i=0; $i<scalar(@{$keys}); $i++) {
-                $kref = $keys->[$i];
-
-                if($itemp eq  $kref->{'index'} and
-                   $ktemp eq  $kref->{'type'}  and
-                   $file  eq ($kref->{'file'} || $main))
-                {
-                    print STDERR "INDEX MATCH($ktemp): ",
-                                 $kref->{'index'}, " == ",
-                                 $itemp, "($index)\n"
-                                 if($DEBUG>2);
-                    # remove kref from keys
-                    splice(@{$keys}, $i, 1);
-                    last;
+            if(uc($ktype) eq 'RSA') {
+                unless($kdata =~ /^{/) {
+                    if($kdata =~ /^(\S+)\s+(.*)$/) {
+                        $rfile = $1;
+                        $rpass = $2;
+                        $rpass =~ s/^\s*\"//;
+                        $rpass =~ s/\"\s*$//;
+                    } elsif($kdata =~ /^(\S+)$/) {
+                        $rfile = $1;
+                    }
+                    $kdata = undef;
+                } else {
+                    $kdata =~ s/^{\s*//;
+                    $kdata =~ s/\s*}\s*$//;
+                    my $temp = " ".$kdata;
+                    while($temp =~ s/^\s+(\S+):\s+(\S+)//) {
+                        $rdata->{$1} = $2 if(defined($1));
+                    }
                 }
-                $kref = undef;
+            } else {
+                $kdata =~ s/^\s*\"//;
+                $kdata =~ s/\"\s*$//;
             }
+
+            my $kref = undef;
+            if(uc($ktype) eq 'RSA' and $rfile) {
+                #
+                # check x509 files
+                #
+                for(my $i=0; $i<scalar(@{$keys}); $i++) {
+                    $kref = $keys->[$i];
+                    if($rfile eq $kref->{'x509'}) {
+                        print STDERR "X509 MATCH($ktype): ",
+                                     "$rfile ($index)\n"
+                            if($DEBUG>2);
+                        # remove kref from keys
+                        splice(@{$keys}, $i, 1);
+                        last;
+                    }
+                    $kref = undef;
+                }
+            } else {
+                #
+                # check index names
+                #
+                my $cidx = $index;
+                if($cidx eq '' or $cidx eq '0.0.0.0') {
+                   $cidx = '%any';
+                }
+                $cidx = '%any6' if($cidx eq '::');
+                for(my $i=0; $i<scalar(@{$keys}); $i++) {
+                    $kref = $keys->[$i];
+
+                    my $kidx = $kref->{'index'};
+                    if($kidx eq '' or $kidx eq '0.0.0.0') {
+                       $kidx = '%any';
+                    }
+                    $kidx = '%any6' if($kidx eq '::');
+
+                    if($kidx eq $cidx) {
+                        print STDERR "INDEX MATCH($ktype): ",
+                                     "$kidx ($index)\n"
+                            if($DEBUG>2);
+                        # remove kref from keys
+                        splice(@{$keys}, $i, 1);
+                        last;
+                    }
+                    $kref = undef;
+                }
+            }
+
             # simply skip (remove) if not found
             unless($kref) {
-                print STDERR "INDEX REMOVE($ktemp): ",
-                             "$itemp ($index)\n"
-                             if($DEBUG>2);
+                print STDERR "REMOVE x509='", $rfile||'',
+                             "', index='$index'\n"
+                    if($DEBUG>2);
                 return (0);
             }
+
             # OK, dump the key with _our_ values
             if($kref->{'type'} eq 'RSA') {
                 if($kref->{'x509'}) {
@@ -1558,32 +1612,15 @@ sub _load_ipsec_secrets
         my $keys = shift;
         my $file = shift;
 
-        if($line =~ /^(.*?)\s*:\s+(RSA|PSK)\s+(.*?)\s*$/i) {
+        if($line =~ /^(.*?)\s*:\s*(RSA|PSK)\s+(.*?)\s*$/i) {
             my $index = $1 || '';
             my $ktype = $2;
             my $kdata = $3;
+            my $rfile = undef;
+            my $rpass = undef;
+            my $rdata = {};
 
-            if($index eq '' or $index eq '0.0.0.0') {
-                $index = '%any';
-            }
-            $index = '%any6' if($index eq '::');
-
-            # FIXME: improve duplicate index check ?
-            #        is it allowed to have a RSA and
-            #        PSK key for same index?
-            foreach my $kref (@{$keys}) {
-                if($kref->{'index'} eq $index and
-                   $kref->{'type'}  eq uc($ktype)) {
-                    return (-1, emsg=>"duplicate key index",
-                                line=>substr($line, 0, 20)."...");
-                }
-            }
-
-            print STDERR "ADD KEY: $ktype($index): $kdata\n" if($DEBUG>2);
             if(uc($ktype) eq 'RSA') {
-                my $rpass = undef;
-                my $rfile = undef;
-                my $rdata = {};
                 unless($kdata =~ /^{/) {
                     if($kdata =~ /^(\S+)\s+(.*)$/) {
                         $rfile = $1;
@@ -1602,22 +1639,64 @@ sub _load_ipsec_secrets
                         $rdata->{$1} = $2 if(defined($1));
                     }
                 }
+            } else {
+                $kdata =~ s/^\s*\"//;
+                $kdata =~ s/\"\s*$//;
+            }
+
+            # FIXME: maybe useless => skip them?
+            if(uc($ktype) eq 'RSA' and $rfile) {
+                #
+                # check duplicate x509 files
+                #
+                for my $kref (@{$keys}) {
+                    if($rfile eq $kref->{'x509'}) {
+                        return (-1, emsg=>"duplicate x509 key",
+                                    line=>substr($line, 0, 20)."...");
+                    }
+                }
+            } else {
+                #
+                # check duplicate index names
+                #
+                my $cidx = $index;
+                if($cidx eq '' or $cidx eq '0.0.0.0') {
+                   $cidx = '%any';
+                }
+                $cidx = '%any6' if($cidx eq '::');
+
+                for my $kref (@{$keys}) {
+                    my $kidx = $kref->{'index'};
+                    if($kidx eq '' or $kidx eq '0.0.0.0') {
+                       $kidx = '%any';
+                    }
+                    $kidx = '%any6' if($kidx eq '::');
+
+                    if($kidx eq $cidx) {
+                        return (-1, emsg=>"duplicate key index",
+                                    line=>substr($line, 0, 20)."...");
+                    }
+                }
+            }
+
+            print STDERR "ADD KEY: $ktype($index, $rfile): $kdata\n"
+                if($DEBUG>2);
+
+            if(uc($ktype) eq 'RSA') {
                 return (0, (
+                    'type'  => 'RSA',
                     'file'  => $file,    # source secrets file
                     'index' => $index,   # key index
-                    'type'  => 'RSA',
                     'x509'  => $rfile,   # pem file
                     'pass'  => $rpass,   # pem passwd
                     'hash'  => $rdata,   # parsed RSA data
                     'data'  => $kdata,   # "key: val [key: val]"
                 ));
             } else {
-                $kdata =~ s/^\s*\"//;
-                $kdata =~ s/\"\s*$//;
                 return (0, (
+                    'type'  => 'PSK',
                     'file'  => $file,    # source secrets file
                     'index' => $index,   # key index
-                    'type'  => 'PSK',
                     'x509'  => undef,
                     'pass'  => $kdata,   # preshared key string
                     'hash'  => undef,
