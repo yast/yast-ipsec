@@ -711,7 +711,8 @@ any EasyRoadWarriorClientDialog () {
 		    `Left(`VSpacing(1.5)),
 		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Remote is Gateway"), true)),
 		    `Left(`HBox(`HSpacing(3), `ComboBox(`id(`subnet), `opt(`editable), _("Network"), []))),
-		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles))
+		    `Left(`ComboBox(`id(`cert), _("Certificate"), certfiles)),
+		    `Left(`TextEntry(`id(`rightid), _("Remote ID")))
 		)
 	    ),
 	    `HStretch()
@@ -748,6 +749,10 @@ any EasyRoadWarriorClientDialog () {
     if (tmp != "")
 	UI::ChangeWidget(`id(`addr), `Value, tmp );
 
+    tmp = IPsec::current_connection["rightid"]:"";
+    if (tmp != "")
+	UI::ChangeWidget(`id(`rightid), `Value, tmp );
+
 
     UI::SetFocus(`id(`addr));
 
@@ -771,6 +776,14 @@ any EasyRoadWarriorClientDialog () {
 		continue;
 	    }
 
+	    string rightid = (string) UI::QueryWidget(`id(`rightid), `Value);
+	    if(size(rightid) == 0)
+	    {
+		Popup::Message(_("You must specify the remote's identification."));
+		UI::SetFocus(`id(`rightid));
+		continue;
+	    }
+
 	    boolean gw = (boolean) UI::QueryWidget(`id(`isgateway), `Value);
 	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
 	    if(gw == true && size(subnet)==0)
@@ -791,6 +804,7 @@ any EasyRoadWarriorClientDialog () {
 	    IPsec::current_connection["leftid"] = ids[0]:"";
 	    IPsec::current_connection["rightsubnet"] = subnet;
 	    IPsec::current_connection["right"] = addr;
+	    IPsec::current_connection["rightid"] = rightid;
 
 	    IPsec::commitChangedConnection();
 	    if(IPsec::dynamic_start_suggest_dialup == nil)
