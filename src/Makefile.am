@@ -18,7 +18,8 @@ desktop_DATA =			\
 	ipsec.desktop
 
 module_DATA =			\
-	IPsec.ycp
+	IPsec.ycp               \
+	IPsecConfig.pm
 
 EXTRA_DIST = $(client_DATA) $(ynclude_DATA) $(module_DATA) $(desktop_DATA)
 
