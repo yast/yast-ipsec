@@ -3,7 +3,7 @@
 
 
 @HEADER@
-Requires:	yast2 perl-OpenCA-CRL perl-OpenCA-X509 perl-OpenCA-OpenSSL perl-gettext perl-Archive-Zip perl-Compress-Zlib
+Requires:	yast2 perl-gettext perl-Archive-Zip perl-Compress-Zlib perl-Date-Calc perl-OPENSSL
 
 BuildArchitectures:	noarch
 
