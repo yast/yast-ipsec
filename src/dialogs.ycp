@@ -355,10 +355,10 @@ any FreeSWANSettingsDialog ()
     term contents = `HBox (`HStretch(),
 	`Frame(IPsec::settings_str,
 	    `VBox(
-		`Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::start)),
-		`Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::nattraversal)),
-		`Left(`CheckBox(`id(`strictcrlpolicy), IPsec::strictcrlpolicy_str, IPsec::strictcrlpolicy)),
-		`Left(`IntField(`id(`crlcheckinterval), "CRL check interval", 0, 99999, IPsec::crlcheckinterval))
+		`Left(`CheckBox(`id(`startatboot), IPsec::start_str, IPsec::getStart())),
+		`Left(`CheckBox(`id(`nattraversal), IPsec::nattraversal_str, IPsec::getNatTraversal())),
+		`Left(`CheckBox(`id(`strictcrlpolicy), IPsec::strictcrlpolicy_str, IPsec::getStrictCRLPolicy())),
+		`Left(`IntField(`id(`crlcheckinterval), "CRL check interval", 0, 99999, IPsec::getCrlCheckInterval()))
 	    )
 	), `HStretch()
     );
@@ -386,7 +386,7 @@ any FreeSWANSettingsDialog ()
 
 	    IPsec::setStart(startatboot);
 	    IPsec::setNatTraversal(nattraversal);
-	    IPsec::setstrictcrlpolicy(strictcrlpolicy);
+	    IPsec::setStrictCRLPolicy(strictcrlpolicy);
 	    IPsec::setCrlCheckInterval(crlcheckinterval);
             break;
         }
