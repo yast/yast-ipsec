@@ -155,7 +155,7 @@ sub save_config
 {
     my $self = shift;
 
-    my ($ret, %err) = save_ipsec_conf($self, $self->{'ipsec_version'});
+    my ($ret, %err) = save_ipsec_config($self, $self->{'ipsec_version'});
     $self->_init_config();
     if( $ret) {
         $self->{'error'} = {code=>$ret, %err};
@@ -177,7 +177,7 @@ sub dump_config
     my $_out = shift;
     my $file = shift;
 
-    dump_ipsec_conf($self, $_out, $file, $self->{'ipsec_version'});
+    dump_ipsec_config($self, $_out, $file, $self->{'ipsec_version'});
 }
 
 
@@ -305,7 +305,7 @@ sub load_ipsec_config
 #
 # --------------------------------------------------------------------
 #
-sub save_ipsec_conf
+sub save_ipsec_config
 {
     my $conf = shift;
     my $_ver = shift || $DEFS{'ipsec_version'};
@@ -327,7 +327,7 @@ sub save_ipsec_conf
     #
 
     my $save = {};
-    my ($ret, %err) = _save_ipsec_conf($conf, $file, $save,
+    my ($ret, %err) = _save_ipsec_config($conf, $file, $save,
                                        \&_backup_and_read);
     if(0 == $ret) {
         my $data = $save->{$file};
@@ -373,7 +373,7 @@ sub save_ipsec_conf
 #
 # --------------------------------------------------------------------
 #
-sub dump_ipsec_conf
+sub dump_ipsec_config
 {
     my $conf = shift;
     my $_out = shift;
@@ -514,7 +514,7 @@ sub _load_ipsec_config
                                file=>$file, line=>$line);
             }
 
-            if($line =~ /^version[ \t]+(\d+\.\d+)[ \t]*$/) {
+            if($line =~ /^version[ \t]+(\d+[\d|.]*)[ \t]*$/) {
                 $conf->{'version'} = "$1";
             } else {
                 return ($lnum, emsg=>"invalid version line",
@@ -630,7 +630,7 @@ sub _load_ipsec_config
 #
 # --------------------------------------------------------------------
 #
-sub _save_ipsec_conf
+sub _save_ipsec_config
 {
     my $conf = shift;
     my $file = shift;
@@ -897,8 +897,8 @@ sub _save_ipsec_conf
             my $incl = $conf->{'conn'}->{$conn}->{'file'};
             next if($conf->{'file'} eq $incl);
 
-            my ($ret, %err) = _save_ipsec_conf($conf, $incl,
-                                               $save, $read);
+            my ($ret, %err) = _save_ipsec_config($conf, $incl,
+                                                 $save, $read);
             return ($ret, %err) if(0 != $ret);
 
             if(exists($conf->{'conn'}->{$conn})) {
