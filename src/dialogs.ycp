@@ -32,11 +32,11 @@ any NewConnectionDialog () {
     term contents = `VBox(
 	`HBox(
 	    `HStretch(),
-	    `Frame(_("Choose connection type"),
+	    `Frame(_("Choose the connection type."),
 		`RadioButtonGroup(`id(`rbg),
 		    `VBox(
 			`Left(`RadioButton(`id(`rws), _("Server for Road Warriors"), true)),
-			`Left(`RadioButton(`id(`rwc), _("Road Warrior Client"), true)),
+			`Left(`RadioButton(`id(`rwc), _("Road Warrior Client"))),
 			`VSpacing(0.3),
 			`Left(`RadioButton(`id(`custom), _("Custom")))
 		    )
@@ -132,7 +132,7 @@ string ConnectionNameTextEntryPopup(string headline, string txtlabel, string val
 
 any AskConnectionNamePopup()
 {
-    string headline = _("Enter connection name");
+    string headline = _("Enter the connection name.");
     // connection name
     string txtlabel = _("Name");
     string value = "";
@@ -189,7 +189,7 @@ any AskConnectionNamePopup()
 void ReplaceLeftRightConnectionConfigDialogIdCombo(string cert, string value)
 {
     y2error("%1 %2", cert, value);
-    list ids = IPsec::getIdsOfCert(cert);
+    list<string> ids = IPsec::getIdsOfCert(cert);
     UI::ReplaceWidget(`id(`idcombo),
 	`ComboBox(`id(`ident), `opt(`editable, `hstretch), _("Identification"), ids));
     if(value == "")
@@ -243,8 +243,6 @@ any LeftRightConnectionConfigDialog(
 
     if(tmp != "")
 	UI::ChangeWidget(`id(`addr), `Value, tmp );
-
-    UI::ChangeWidget(`id(`subnet), `Value, IPsec::current_connection[side+"subnet"]:"" );
 
     tmp = IPsec::current_connection[side+"cert"]:"";
     if (side == "left" && tmp == "")
@@ -310,7 +308,11 @@ any LeftRightConnectionConfigDialog(
 	    }
 
 	    IPsec::current_connection[side] = addr;
-	    IPsec::current_connection[side+"subnet"] = subnet;
+	    if(gw && subnet != "")
+		IPsec::current_connection[side+"subnet"] = subnet;
+	    else if(haskey(IPsec::current_connection, side+"subnet"))
+		IPsec::current_connection = remove(IPsec::current_connection, side+"subnet");
+
 	    IPsec::current_connection[side+"cert"] = cert;
 	    IPsec::current_connection[side+"id"] = ident;
 
@@ -324,8 +326,7 @@ any LeftRightConnectionConfigDialog(
 	else if(ret == `cert)
 	{
 	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
-	    string ident = (string) UI::QueryWidget(`id(`ident), `Value);
-	    ReplaceLeftRightConnectionConfigDialogIdCombo(cert, ident);
+	    ReplaceLeftRightConnectionConfigDialogIdCombo(cert, "");
 	}
         else {
             y2error("unexpected retcode: %1", ret);
@@ -424,7 +425,7 @@ any ConnectionStartModeDialog () {
 	    UI::ChangeWidget(`id(`netif), `Enabled, false );
 	    if(size(available_interfaces) == 0)
 	    {
-		Popup::Message(_("You chose %dynamic as local IP address but no interfaces where found."));
+		Popup::Message(_("You chose %dynamic as the local IP address, but no interfaces were found."));
 	    }
 	}
     }
@@ -455,13 +456,11 @@ any ConnectionStartModeDialog () {
 	    {
 		if(!left_is_dynamic)
 		{
-		    if(IPsec::silently_use_left_dynamic || Popup::YesNo(sformat(_("You chose '%1' as local IP address but want to start the connection dynamically.\nDo you want to set the local IP address to %%dynamic?."), IPsec::current_connection["left"]:"")) == true)
+		    if(IPsec::silently_use_left_dynamic || Popup::YesNo(sformat(_("You chose '%1' as the local IP address, but want to start the connection dynamically.
+Set the local IP address to %%dynamic?
+"), IPsec::current_connection["left"]:"")) == true)
 		    {
 			IPsec::current_connection["left"] = "%dynamic";
-		    }
-		    else
-		    {
-			continue;
 		    }
 		}
 
@@ -469,9 +468,9 @@ any ConnectionStartModeDialog () {
 		y2debug("devs=%1", devs);
 		IPsec::setNetworkDevicesUP(splitstring(devs, " "));
 	    }
-	    else if(ret == `next && left_is_dynamic)
+	    else if(ret == `next && left_is_dynamic && mode != "ignore")
 	    {
-		Popup::Message(_("You chose %dynamic as local IP address but did not select an interface."));
+		Popup::Message(_("You chose %dynamic as the local IP address, but did not select an interface."));
 		continue;
 	    }
 	    else
@@ -648,7 +647,9 @@ any EasyRoadWarriorServerDialog () {
 
     if(size(certfiles) == 0)
     {
-	if(Popup::ContinueCancel(_("You need to import certificates first.\nPress 'Continue' to import certificates now.")))
+	if(Popup::ContinueCancel(_("Import certificates first.
+Press 'Continue' to import certificates now.
+")))
 	    return `needcert;
 	return `back;
     }
@@ -711,13 +712,17 @@ any EasyRoadWarriorServerDialog () {
 		subnet = "";
 
 	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
-	    list ids = IPsec::getIdsOfCert(cert);
+	    list<string> ids = IPsec::getIdsOfCert(cert);
 
 	    IPsec::current_connection["left"] = addr;
 	    IPsec::current_connection["leftcert"] = cert;
-	    // well, just use first one. should be DN
+	    // well, just use first one. should be subjectAltName
 	    IPsec::current_connection["leftid"] = ids[0]:"";
-	    IPsec::current_connection["leftsubnet"] = subnet;
+
+	    if(gw && subnet != "")
+		IPsec::current_connection["leftsubnet"] = subnet;
+	    else if(haskey(IPsec::current_connection, "leftsubnet"))
+		IPsec::current_connection = remove(IPsec::current_connection, "leftsubnet");
 
 	    if(IPsec::dynamic_start_suggest_dialup == nil)
 	    {
@@ -761,7 +766,7 @@ any EasyRoadWarriorClientDialog () {
 		`VBox(
 		    `Left(`TextEntry(`id(`addr), `opt(`hstretch), _("Server Address"))),
 		    `Left(`VSpacing(1.5)),
-		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Server acts as Gateway"), true)),
+		    `Left(`CheckBox(`id(`isgateway), `opt(`notify), _("Server Acts as Gateway"), true)),
 		    `Left(`HBox(`HSpacing(3), `TextEntry(`id(`subnet), _("Network")))),
 		    `Left(`TextEntry(`id(`rightid), _("Server Identification"))),
 		    `VSpacing(0.5),
@@ -777,7 +782,9 @@ any EasyRoadWarriorClientDialog () {
 
     if(size(certfiles) == 0)
     {
-	if(Popup::ContinueCancel(_("You need to import certificates first.\nPress 'Continue' to import certificates now.")))
+	if(Popup::ContinueCancel(_("Import certificates first.
+Press 'Continue' to import certificates now.
+")))
 	    return `needcert;
 	return `back;
     }
@@ -824,7 +831,7 @@ any EasyRoadWarriorClientDialog () {
 	    string addr = (string) UI::QueryWidget(`id(`addr), `Value);
 	    if(size(addr) == 0)
 	    {
-		Popup::Message(_("You must specify the remote's address."));
+		Popup::Message(_("Specify the remote address."));
 		UI::SetFocus(`id(`addr));
 		continue;
 	    }
@@ -832,7 +839,7 @@ any EasyRoadWarriorClientDialog () {
 	    string rightid = (string) UI::QueryWidget(`id(`rightid), `Value);
 	    if(size(rightid) == 0)
 	    {
-		Popup::Message(_("You must specify the remote's identification."));
+		Popup::Message(_("Specify the remote identification."));
 		UI::SetFocus(`id(`rightid));
 		continue;
 	    }
@@ -841,7 +848,7 @@ any EasyRoadWarriorClientDialog () {
 	    string subnet = (string) UI::QueryWidget(`id(`subnet), `Value);
 	    if(gw == true && size(subnet)==0)
 	    {
-		Popup::Message(_("You must specify a subnet address if the remote acts as gateway."));
+		Popup::Message(_("Specify a subnet address if the remote acts as gateway."));
 		UI::SetFocus(`id(`subnet));
 		continue;
 	    }
@@ -850,12 +857,17 @@ any EasyRoadWarriorClientDialog () {
 		subnet = "";
 
 	    string cert = (string) UI::QueryWidget(`id(`cert), `Value);
-	    list ids = IPsec::getIdsOfCert(cert);
+	    list<string> ids = IPsec::getIdsOfCert(cert);
 
 	    IPsec::current_connection["leftcert"] = cert;
-	    // well, just use first one. should be DN
+	    // well, just use first one. should be subjectAltName
 	    IPsec::current_connection["leftid"] = ids[0]:"";
-	    IPsec::current_connection["rightsubnet"] = subnet;
+
+	    if(gw && subnet != "")
+		IPsec::current_connection["rightsubnet"] = subnet;
+	    else if(haskey(IPsec::current_connection, "rightsubnet"))
+		IPsec::current_connection = remove(IPsec::current_connection, "rightsubnet");
+
 	    IPsec::current_connection["right"] = addr;
 	    IPsec::current_connection["rightid"] = rightid;
 
@@ -889,16 +901,22 @@ any EasyRoadWarriorClientDialog () {
  */
 any ExportConnectionDialog ()
 {
-    string file = UI::AskForSaveFileName( IPsec::exportdir,
+    boolean freeswan = Popup::AnyQuestion( _("File Format"),
+	_("Select the export file format."),
+	_("FreeS/WAN"),
+	// the operating system
+	_("Windows") + " (TM)", `focus_yes ); // XXX move that tm
+
+    string file = UI::AskForSaveFileName( IPsec::exportdir + "/" + (freeswan?"freeswan":"windows") + "-ipsec.conf",
 	    "",
-	    _("Specify file name for export"));
+	    _("Specify a file name for export."));
 
     IPsec::updateExportDir(file);
 
     if(file == nil)
 	return `back;
 
-    string error = IPsecConfig::exportConnection(IPsec::current_connection_name, file);
+    string error = IPsecConfig::exportConnection(IPsec::current_connection_name, file, freeswan);
     if( error != nil )
     {
 	// %1: Error message
@@ -916,7 +934,7 @@ any ImportConnectionDialog ()
 {
     string file = UI::AskForExistingFile( IPsec::certimportdir,
 	    "*.zip *.ZIP ipsec.conf",
-	    _("Choose file to import"));
+	    _("Choose the file to import."));
 
     IPsec::updateImportDir(file);
 
@@ -939,7 +957,8 @@ symbol FinishDialog ()
     if(IPsec::getStart() && IPsec::needaskfirewall == true)
     {
 	if(Popup::YesNo(_("SuSEfirewall is enabled but currently denies IPsec traffic.
-Do you want to reconfigure SuSEfirewall?")))
+Reconfigure SuSEfirewall?
+")))
 	{
 	    Call::Function("firewall", []);
 	}

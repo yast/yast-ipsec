@@ -587,6 +587,12 @@ sub secret_set
 
     if(defined($kref)) {
         #
+        # don't change file name, the secret comes from
+        # (adding includes currently not implemented)
+        #
+        $nkey{'file'} = $kref->{'file'};
+
+        #
         # just update kref
         #
         %{$kref} = %nkey;
@@ -802,6 +808,14 @@ sub save_ipsec_secrets
 
     unless($file) {
         return (-1, emsg=>"invalid arguments");
+    }
+
+    for(my $i=0; $i<scalar(@{$secr->{'keys'}}); $i++) {
+        my $kref = $secr->{'keys'}->[$i];
+        next unless(defined($kref));
+        unless($kref->{'file'}) {
+            $kref->{'file'} = $file;
+        }
     }
 
     my $save = {};
@@ -1401,8 +1415,16 @@ sub _save_ipsec_config
         }
     }
     if($sect) {
+        unless(2 == $skip) {
+            push(@fout, @kcom);
+            push(@fout, _dump_section($sect));
+            push(@scom, "") unless(scalar(@scom));
+        }
+        @kcom = ();
         if($conn) {
             delete($conf->{'conn'}->{$conn});
+        } else {
+            $conf->{'setup'} = undef;
         }
         $conn = undef;
         $sect = undef;
@@ -1439,7 +1461,9 @@ sub _save_ipsec_config
     if(scalar(@scom)) {
         if($scom[$#scom] eq "" or
            $scom[$#scom] =~ /^\s/) {
-            $eol = 1; 
+            $eol = 0; 
+        } else {
+            $eol = 1;
         }
         push(@fout, @scom);
         @scom = ();
@@ -1557,12 +1581,14 @@ sub _save_ipsec_secrets
                 #
                 for(my $i=0; $i<scalar(@{$keys}); $i++) {
                     $kref = $keys->[$i];
+                    next unless(defined($kref));
+
                     if($rfile eq $kref->{'x509'}) {
                         print STDERR "X509 MATCH($ktype): ",
                                      "$rfile ($index)\n"
                             if($DEBUG>2);
                         # remove kref from keys
-                        splice(@{$keys}, $i, 1);
+                        $keys->[$i] = undef;
                         last;
                     }
                     $kref = undef;
@@ -1578,6 +1604,7 @@ sub _save_ipsec_secrets
                 $cidx = '%any6' if($cidx eq '::');
                 for(my $i=0; $i<scalar(@{$keys}); $i++) {
                     $kref = $keys->[$i];
+                    next unless(defined($kref));
 
                     my $kidx = $kref->{'index'};
                     if($kidx eq '' or $kidx eq '0.0.0.0') {
@@ -1590,7 +1617,7 @@ sub _save_ipsec_secrets
                                      "$kidx ($index)\n"
                             if($DEBUG>2);
                         # remove kref from keys
-                        splice(@{$keys}, $i, 1);
+                        $keys->[$i] = undef;
                         last;
                     }
                     $kref = undef;
@@ -1641,7 +1668,8 @@ sub _save_ipsec_secrets
     my $pass = 0;       # pass key leading comments
     my $prev = undef;   # remembered key lines
     my $lnum = 0;
-    foreach my $line (@{$data || []}) {
+    $data = [] unless(defined($data));
+    foreach my $line (@{$data}) {
         chomp($line);
         $lnum++;
 
@@ -1749,21 +1777,30 @@ sub _save_ipsec_secrets
         }
     }
 
-    push(@fout, @comm);
-    @comm = ();
+    my $eol = 0;
     if($prev) {
         my ($ret, @res) = _write_key($prev, $secr->{'keys'},
-                                     $file, $secr->{'file'});
+                                     $file, $secr->{'file'},
+                                     @comm);
         if($ret) {
             return ($lnum-1, @res);
         }
         push(@fout, @res);
         $prev = undef;
+        @comm = ();
+    } elsif(scalar(@comm)) {
+        if($comm[$#comm] =~ /^\s*$/) {
+            splice(@comm, $#comm);
+            $eol = 1;
+        }
+        push(@fout, @comm);
+        @comm = ();
     }
 
-    my $eol = 0;
     for(my $i=0; $i<scalar(@{$secr->{'keys'}}); $i++) {
         my $kref = $secr->{'keys'}->[$i];
+        next unless(defined($kref));
+
         unless($kref->{'file'}) {
             $kref->{'file'} = $secr->{'file'};
         }
@@ -1799,7 +1836,7 @@ sub _save_ipsec_secrets
             push(@fout, $kref->{'index'}.': PSK "'.
                         $kref->{'pass'}.'"');
         }
-        splice(@{$secr->{'keys'}}, $i, 1);
+        $secr->{'keys'}->[$i] = undef;
     }
     push(@fout, "") if($eol);
 

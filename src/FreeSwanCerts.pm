@@ -16,21 +16,20 @@ use OPENSSL;
 use Archive::Zip;
 use Fcntl qw(:DEFAULT :mode :flock);
 use File::Temp qw/ tempfile tempdir /;
-use Locale::gettext;
+use Locale::gettext ("!textdomain");
+
 require Exporter;
 
 our @ISA         = qw (Exporter);
-#
-# FIXME: exports
-#
 our @EXPORT      = qw (list_CAs list_CERTs list_KEYs list_files
                        extract_ANY write_pem_data parse_pem_data
                        parse_cert parse_crl parse_key);
 
-our $VERSION     = 0.1;
+our $VERSION     = '0.02';
 our $DEBUG       = 0;  # level 0 .. 4
+our $TXTDOMAIN   = __PACKAGE__;
+    $TXTDOMAIN   =~ s/::/-/;
 
-# FIXME:
 our %DEFS        = (
     'ipsec_version'  => '2.0',
     'ipsec_root'     => '',
@@ -50,16 +49,20 @@ our $rx_cert_der  = qr /(?:der|cer)/io;
 our $rx_cert_pem  = qr /(?:pem|crt|crl)/io;
 our $rx_cert_ext  = qr /(?:pem|crt|crl|der|cer)/io;
 our $rx_pk12_ext  = qr /(?:p12|pk12|pfx)/io;
+our $rx_crl_ext   = qr /(?:der|pem|crl)/io;
+our $rx_crt_ext   = qr /(?:der|pem|crt|cer)/io;
+our $rx_key_ext   = qr /(?:der|pem)/io;
+
 
 
 #
 # === public functions ===============================================
 #
-sub list_CAs(;$)
+sub list_CAs(;$$)
 {
     my $dir  = shift || $DEFS{'ipsec_cacerts'};
-    # FIXME: ext
-    return list_files($dir);
+    my $ext  = shift || $rx_crt_ext;
+    return list_files($dir, $ext);
 }
 
 
@@ -67,7 +70,7 @@ sub list_CAs(;$)
 sub list_CRLs(;$)
 {
     my $dir  = shift || $DEFS{'ipsec_crls'};
-    # FIXME: ext
+    my $ext  = shift || $rx_crl_ext;
     return list_files($dir);
 }
 
@@ -76,7 +79,7 @@ sub list_CRLs(;$)
 sub list_CERTs(;$)
 {
     my $dir  = shift || $DEFS{'ipsec_certs'};
-    # FIXME: ext
+    my $ext  = shift || $rx_crt_ext;
     return list_files($dir);
 }
 
@@ -84,8 +87,8 @@ sub list_CERTs(;$)
 # --------------------------------------------------------------------
 sub list_KEYs(;$)
 {
-    my $dir     = shift || $DEFS{'ipsec_private'};
-    # FIXME: ext
+    my $dir  = shift || $DEFS{'ipsec_private'};
+    my $ext  = shift || $rx_key_ext;
     return list_files($dir);
 }
 
@@ -95,25 +98,59 @@ sub list_files($;$)
 {
     my $dir = shift;
     my $ext = shift;
-    my @certs;
+    my @files;
 
-    # FIXME: ext ??
-    unless(defined($ext) and length("".$ext)) {
-        $ext = qr /^.+\.${rx_cert_ext}$/o;
-    }
     if($dir and -d $dir and opendir(DIR, $dir)) {
         $dir =~ s/\/\//\//g;
         $dir =~ s/\/\.\//\//g;
         $dir =~ s/\/$//;
-        @certs = map { 
-            $dir.'/'.$_
-        } grep {
-            !/^\.\.?$/ and /$ext/
-        } readdir(DIR);
+        @files = grep { !/^\.\.?$/ } readdir(DIR);
+
+        if(defined($ext) and length("".$ext)) {
+            @files = grep { /^.+\.${ext}$/ } @files;
+        }
+
+        @files = map { $dir.'/'.$_ } @files;
     }
-    return @certs;
+    return grep { -f $_ } @files;
 }
 
+
+# --------------------------------------------------------------------
+# Quick and dirty hack to substitute some known fields of issuer DN to so
+# windows can find the proper CA for a certificate
+sub convert_issuer_hash_forwindows($)
+{
+    my $h = shift || return '';
+
+    return '' unless (ref($h) eq 'HASH');
+
+    my %subst = ( ST => 'S', EMAILADDRESS => 'E');
+
+
+    my $result;
+
+    for my $i (('C', 'ST', 'L', 'O', 'OU', 'CN', 'EMAILADDRESS'))
+    {
+	my $aref = $h->{$i};
+	next unless (ref($aref) eq 'ARRAY');
+	my $value = $aref->[0];
+	if($result)
+	{
+	    $result .= ',';
+	}
+	if(exists($subst{$i}))
+	{
+	    $result .= $subst{$i}.'='.$value;
+	}
+	else
+	{
+	    $result .= $i.'='.$value;
+	}
+    }
+
+    return $result;
+}
 
 # --------------------------------------------------------------------
 # {file => name, data => ...}
@@ -158,8 +195,7 @@ sub parse_cert(%)
             print STDERR "SubjectAltName(", $infile||'',
                          "): $subjaltname\n" if($DEBUG);
 
-            # FIXME: do we need to add @ for DNS?
-            $subjaltname =~ s/^(?:email|ip|dns)://i;
+            $subjaltname =~ s/^(?:email|ip address|dns)://i;
         }
     }
 
@@ -170,6 +206,7 @@ sub parse_cert(%)
     $cert{"IS_CA"}         = $parsed->{"IS_CA"};
     $cert{"DN"}            = $parsed->{"DN"};
     $cert{"ISSUER"}        = $parsed->{"ISSUER"};
+    $cert{"ISSUER_FORWINDOWSEXPORT"} = convert_issuer_hash_forwindows($parsed->{"ISSUER_HASH"});
     $cert{"subjectAltName"}= $subjaltname;
     return \%cert;
 }
@@ -281,10 +318,14 @@ sub parse_pem_data(%)
 
                 while(not defined($href)) {
                     if(defined($pass)) {
-                        $pass = &$pwcb(_("Wrong password.")."\n".
-                                       _("RSA key password"));
+                        $pass = &$pwcb(dgettext($TXTDOMAIN,
+                                                "Wrong password.")
+                                       ."\n".
+                                       dgettext($TXTDOMAIN,
+                                                "RSA key password"));
                     } else {
-                        $pass = &$pwcb(_("RSA key password"));
+                        $pass = &$pwcb(dgettext($TXTDOMAIN,
+                                                "RSA key password"));
                     }
                     return undef unless(defined($pass));
 
@@ -353,7 +394,7 @@ sub write_pem_data($$$)
         }
         return "$!";
     }
-    return _("invalid arguments");
+    return dgettext($TXTDOMAIN, "invalid arguments");
 }
 
 
@@ -452,14 +493,12 @@ sub extract_DER(%)
     $name = $file unless(defined($name) and length($name));
 
     #
-    # FIXME: keys in DER format requires passwd...?
+    # FIXME: not required to convert... but we do it...
+    #        do we need the key passwd for conversion?
     #
-
     my $pass = undef;
-    #my $pass &$pwcb(_("Password for ").$name);
+    #my $pass &$pwcb(dgettext($TXTDOMAIN,"Password for ").$name);
     #return undef  unless(defined($pass));
-
-    # FIXME: not required to convert...
 
     my $ossl = new OPENSSL();
     my $blub;
@@ -498,10 +537,14 @@ sub extract_P12(%)
     my $blub = undef;
     do {
         if(defined($pass)) {
-            $pass = &$pwcb(_("Wrong password.")."\n".
-                           _("PKCS12 import password for ").$name);
+            $pass = &$pwcb(dgettext($TXTDOMAIN,
+                           "Wrong password.")
+                           ."\n".
+                           dgettext($TXTDOMAIN,
+                           "PKCS12 import password for ").$name);
         } else {
-            $pass = &$pwcb(_("PKCS12 import password for ").$name);
+            $pass = &$pwcb(dgettext($TXTDOMAIN,
+                           "PKCS12 import password for ").$name);
         }
         return undef unless(defined($pass));
 
@@ -581,6 +624,9 @@ sub extract_ZIP(%)
 
 1;
 __END__
+
+Help YaST2 distutils a little bit:
+    Textdomain "ipsec"
 
 =head1 NAME
 
