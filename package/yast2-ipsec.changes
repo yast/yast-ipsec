@@ -1,4 +1,12 @@
 -------------------------------------------------------------------
+Mon Mar 22 16:06:09 CET 2004 - lnussel@suse.de
+
+- use perl-OPENSSL instead of perl-OpenCA
+- change some dialog layouts
+- add all help texts
+- 2.9.3
+
+-------------------------------------------------------------------
 Thu Mar 11 16:42:12 CET 2004 - lnussel@suse.de
 
 - require rightid for client config
