@@ -371,9 +371,7 @@ sub connections
     return sort(@list);
 }
 
-#
 # --------------------------------------------------------------------
-#
 sub conn  { connection(@_); }
 sub connection
 {
@@ -397,13 +395,16 @@ sub connection
             #
             unless(exists($conn->{$name})) {
                 $conn->{$name} = { 'file' => undef, 'data' => {} };
+            } else {
+                $conn->{$name}->{'data'} = {};
             }
             for(my $at=0; $at<=$#args; $at += 2) {
-                next unless($args[$at]);
-                if(defined($args[$at+1]) and ($args[$at+1] =~ /\S+/)) {
+                next unless($args[$at] and
+                            $args[$at] =~ /^${rx_keyword}$/);
+                if(defined($args[$at+1]) and
+                   $args[$at+1] =~ /\S+/ and
+                   $args[$at+1] =~ /[^\"]/) {
                     $conn->{$name}->{'data'}->{$args[$at]} = $args[$at+1];
-                } else {
-                    delete($conn->{$name}->{'data'}->{$args[$at]});
                 }
             }
         }
@@ -424,6 +425,33 @@ sub connection
     }
 }
 
+# --------------------------------------------------------------------
+sub conn_delete
+{
+    my $self = shift;
+    my $name = shift;
+    my $conf = \%{$self->{'conf'}};
+    my $conn = \%{$conf->{'conn'}};
+
+    return unless(exists($conn->{$name}));
+    unless(grep($name eq $_, (@CONN_IMPLICIT, @CONN_DEFAULTS))) {
+        delete($conn->{$name});
+    }
+}
+
+# --------------------------------------------------------------------
+sub is_valid_conn_name
+{
+    my $self = shift;
+    my $name = shift;
+    if(defined($name) and $name =~ /^${rx_keyword}$/) {
+        if(grep($name eq $_, @CONN_IMPLICIT)) {
+            return 2;
+        }
+        return 0; # OK
+    }
+    return 1;
+}
 
 #
 # === private functions ==============================================
@@ -961,7 +989,8 @@ sub _save_ipsec_config
     my @kcom = ();      # comments before a keyword
     my $sect = undef;   # reference to current section 
     my $conn = undef;   # name of current connection
-    my $skip = 0;       # skip next line if empty
+    my $skip = 0;       # 1 = skip next empty line
+                        # 2 = skip current section
 
     my $lnum = 1;
     my $line = shift(@$data);
@@ -980,13 +1009,14 @@ sub _save_ipsec_config
                 $line = shift(@$data); $lnum++; next LINE;
             }
             if($line =~ /^\s*$/) {
-                push(@scom, $line) unless($skip);
+                push(@scom, $line) unless($skip and 1 == $skip);
                 $skip=0;
                 $line = shift(@$data); $lnum++; next LINE;
             }
 
             if($line =~ /^(version|config|conn|include)([ \t]+)(.*)$/) {
                 my ($type, $sep, $name, $com) = ($1, $2, $3 || '', '');
+                $skip = 0;
 
                 # check for leading comment
                 if($name =~ /([ \t]+#.*)$/) {
@@ -995,7 +1025,7 @@ sub _save_ipsec_config
                 }
 
                 if($name !~ /^\S+$/ or ($com ne "" and $com !~ /^[ \t]+#.*/)) {
-                    return ($lnum, emsg=>"syntax error",
+                    return ($lnum, emsg=>"syntax error '$name', '$com'",
                                    file=>$file,line=>$line);
                 }
 
@@ -1039,6 +1069,11 @@ sub _save_ipsec_config
                             push(@fout, $line);
                             $conn = $name;
                             $sect = \%{$conf->{'conn'}->{$conn}->{'data'}};
+                        } else {
+                            # remove conn
+                            $conn = $name;
+                            $sect = {};
+                            $skip = 2;
                         }
                     }
                 }
@@ -1116,14 +1151,17 @@ sub _save_ipsec_config
                                file=>$file,line=>$line);
             }
         } else {
-
+            @scom = ();
             # remember section-key comments...
             if( $line =~ /^\s+#/) {
-                push(@kcom, $line);
+                push(@kcom, $line) unless(2 == $skip);
                 $line = shift(@$data); $lnum++; next LINE;
             }
 
             elsif( $line =~ /^([ \t]+)(\S+?)[ \t]*=.*$/) {
+                if(2 == $skip) {
+                    $line = shift(@$data); $lnum++; next LINE;
+                }
                 my $sep = $1;
                 my $key = $2;
                 if(exists($sect->{$key})) {
@@ -1140,8 +1178,10 @@ sub _save_ipsec_config
                 @kcom = ();
                 $line = shift(@$data); $lnum++; next LINE;
             } else {
-                push(@fout, @kcom);
-                push(@fout, _dump_section($sect));
+                unless(2 == $skip) {
+                    push(@fout, @kcom);
+                    push(@fout, _dump_section($sect));
+                }
                 @kcom = ();
                 if($conn) {
                     delete($conf->{'conn'}->{$conn});
@@ -1152,6 +1192,13 @@ sub _save_ipsec_config
                 $sect = undef;
             }
         }
+    }
+    if($sect) {
+        if($conn) {
+            delete($conf->{'conn'}->{$conn});
+        }
+        $conn = undef;
+        $sect = undef;
     }
 
     # prepend version,setup,%default if needed
@@ -1172,6 +1219,7 @@ sub _save_ipsec_config
     }
     if($conf->{'conn'}->{'%default'}) {
         push(@fout, @scom);
+        push(@fout, "conn \%default");
         push(@fout, _dump_section(
             $conf->{'conn'}->{'%default'}->{'data'}
         ));
@@ -1198,6 +1246,7 @@ sub _save_ipsec_config
         next unless exists($conf->{'conn'}->{$conn});
 
         if($file eq $conf->{'conn'}->{$conn}->{'file'}) {
+            push(@fout, "conn $conn");
             push(@fout, _dump_section(
                 $conf->{'conn'}->{$conn}->{'data'}
             ));
