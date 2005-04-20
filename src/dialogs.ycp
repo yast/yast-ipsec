@@ -64,7 +64,7 @@ any NewConnectionDialog () {
 	return `back;
     }
     // not SLES
-    else if(ProductFeatures::ui_mode == "simple")
+    else if(ProductFeatures::GetStringFeature ("globals", "ui_mode") == "simple")
     {
 	IPsec::newClientConnection();
 	return `rwc;
