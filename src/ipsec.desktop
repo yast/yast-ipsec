@@ -16,7 +16,7 @@ X-SuSE-YaST-Geometry=
 X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=ipsec
 
-Icon=vpn
+Icon=yast-ipsec
 Exec=/sbin/yast2 ipsec 
 
 Name=VPN
