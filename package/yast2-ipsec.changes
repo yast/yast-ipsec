@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Mon Dec 19 11:31:39 CET 2005 - jsuchome@suse.cz
+
+- used Package instead of obsoleted Require
+- 2.13.0
+
+-------------------------------------------------------------------
 Tue Aug 16 13:16:15 CEST 2005 - arvin@suse.de
 
 - fixed icon name (bug #104673)

@@ -19,13 +19,13 @@ import "IPsecConfig";
 import "Progress";
 import "Service";
 import "Report";
+import "Package";
 import "Popup";
 import "Summary";
 import "Mode";
 import "NetworkDevices";
 import "Netmask";
 import "SuSEFirewall";
-import "Require";
 
 /**
  * Prototypes
@@ -395,12 +395,12 @@ global boolean Read() {
     Progress::NextStage();
 
     {
-	if(!Require::AreAllPackagesInstalled(requiredpackages) )
+	if(!Package::InstalledAll (requiredpackages) )
 	{
 	    string help = _("FreeS/WAN is required for IPsec. Install the required packages now?");
-	    if(!Require::RequireAndConflict( requiredpackages, [], help ) )
+	    if(!Package::InstallAllMsg (requiredpackages, help ) )
 	    {
-		if(!Require::LastOperationCanceled())
+		if(!Package::LastOperationCanceled())
 		    Report::Error (_("Failed to install required packages."));
 		return false;
 	    }
