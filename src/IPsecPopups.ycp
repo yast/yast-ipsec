@@ -10,7 +10,7 @@ global string Password(string headline)
     UI::OpenDialog(
 	`VBox(
 	    `Heading(headline),
-	    `Password(`id(`pass), "Password:"),
+	    `Password(`id(`pass), _("Password:")),
 	    `VSpacing(0.5),
 	    `HBox(
 		`PushButton(`id(`ok), Label::OKButton()),
