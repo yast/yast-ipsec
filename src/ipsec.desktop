@@ -17,7 +17,7 @@ X-SuSE-YaST-SortKey=
 X-SuSE-YaST-AutoInstResource=ipsec
 
 Icon=yast-ipsec
-Exec=/sbin/yast2 ipsec 
+Exec=/usr/bin/xdg-su -c '/sbin/yast2 ipsec'
 
 Name=VPN
 GenericName=Configure IPsec virtual private networks (VPNs)
